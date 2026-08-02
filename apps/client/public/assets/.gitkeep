@@ -1,0 +1,1 @@
+Place GLB/glTF, texture, and animation assets here. Loaded at runtime via useModel/useAsset/useTexture from "/assets/...".

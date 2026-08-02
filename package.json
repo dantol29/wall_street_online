@@ -1,0 +1,19 @@
+{
+  "name": "multiplayer-trading-world",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"pnpm --filter @multiplayer/game-server dev\" \"pnpm --filter @multiplayer/client dev\"",
+    "build": "pnpm --filter @multiplayer/shared build && pnpm --filter @multiplayer/game-server build && pnpm --filter @multiplayer/client build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "~5.9.0"
+  }
+}
