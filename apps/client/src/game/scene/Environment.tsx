@@ -1,11 +1,15 @@
-import { Fragment } from "react";
+import { Fragment, memo } from "react";
 import { Entity } from "@playcanvas/react";
-import { Collision, Light, Render, RigidBody } from "@playcanvas/react/components";
+import { Light, Render } from "@playcanvas/react/components";
 import { useMaterial, useTexture } from "@playcanvas/react/hooks";
 import type { Asset, Texture } from "playcanvas";
 import { Prop } from "./Props";
 import { TickerDisplay } from "./TickerDisplay";
 import { WorldClocksDisplay } from "./WorldClockDisplay";
+import { StaticBox, VisualBox, StaticCylinder, VisualCylinder, VisualSphere } from "./primitives";
+import { OfficeWing, OFFICE_WING_HALF_WIDTH } from "./OfficeWing";
+import type { OfficeSlotContent } from "./OfficeContentDisplay";
+import { ROOM_WIDTH, ROOM_LENGTH, ROOM_HEIGHT, WALL_THICKNESS } from "./roomConstants";
 import {
   TICKER_PANEL_POSITION,
   TICKER_ROD_X_OFFSET,
@@ -56,10 +60,12 @@ function textureOf(asset: Asset | null): Texture | undefined {
  * 7.5m (y: 0..7.5) — lowered back down from an earlier, much taller 12m pass
  * per explicit feedback, so the ticker/clock fascia (mounted just under the
  * ceiling) sits close under it rather than dangling in a much taller void.
- * Footprint kept as-is rather than `design.md`'s "recommended" 24x18x5, since
- * `WORLD_BOUNDS` in `packages/shared` (used for server-side movement
- * validation) is built from the original width/length and changing them
- * would ripple into the server and its tests for no gameplay benefit.
+ * Footprint otherwise kept as-is rather than `design.md`'s "recommended"
+ * 24x18x5, since `WORLD_BOUNDS` in `packages/shared` (used for server-side
+ * movement validation) is built from this width/length and changing it
+ * ripples into the server and its tests. The one deliberate exception is
+ * `WORLD_BOUNDS.maxZ`, extended 12m south to fit the office wing (see
+ * OfficeWing.tsx) — everything else about this footprint is unchanged.
  * Surfaces use tileable PBR textures from Poly Haven (CC0, freely
  * redistributable — see README), tinted toward `design.md`'s "warm beige /
  * faded blue-grey" 1980s palette rather than the neutral tones they ship with.
@@ -76,133 +82,9 @@ function textureOf(asset: Asset | null): Texture | undefined {
  *     four frameless world clocks hang just under the ceiling above it.
  *   - Four 2x2 "desk banks" (16 desks total) occupy the space between the
  *     windows and reception, flanking the pit on both sides.
+ *   - South wall now has a doorway cut into it (see OFFICE_WING_HALF_WIDTH)
+ *     leading into a small office wing — see OfficeWing.tsx.
  */
-const ROOM_WIDTH = 20;
-const ROOM_LENGTH = 25;
-const ROOM_HEIGHT = 7.5;
-const WALL_THICKNESS = 0.5;
-
-/**
- * A static box with a matching collision shape.
- *
- * IMPORTANT: PlayCanvas's box/cylinder/capsule collision shapes are built from
- * their own explicit `halfExtents`/`radius`/`height` properties — they are NEVER
- * derived from the entity's `scale` transform (only "mesh"-type colliders read
- * scale). So the physics entity here carries no `scale` at all; `Collision` gets
- * explicit world-space `halfExtents`, and the visual `Render` lives on a separate
- * child entity that carries the scale purely for rendering.
- */
-function StaticBox({
-  position,
-  size,
-  material,
-  renderVisible = true,
-}: {
-  position: [number, number, number];
-  size: [number, number, number];
-  material: ReturnType<typeof useMaterial>;
-  renderVisible?: boolean;
-}) {
-  const halfExtents: [number, number, number] = [size[0] / 2, size[1] / 2, size[2] / 2];
-
-  return (
-    <Entity position={position}>
-      <Collision type="box" halfExtents={halfExtents} />
-      <RigidBody type="static" />
-      {renderVisible && (
-        <Entity scale={size}>
-          <Render type="box" material={material} />
-        </Entity>
-      )}
-    </Entity>
-  );
-}
-
-/** A purely decorative box with no collision — for things mounted flush against an already-collidable wall, or small tabletop clutter that doesn't need its own. */
-function VisualBox({
-  position,
-  size,
-  material,
-  rotation = [0, 0, 0],
-}: {
-  position: [number, number, number];
-  size: [number, number, number];
-  material: ReturnType<typeof useMaterial>;
-  rotation?: [number, number, number];
-}) {
-  return (
-    <Entity position={position} rotation={rotation} scale={size}>
-      <Render type="box" material={material} />
-    </Entity>
-  );
-}
-
-/** A static cylinder (used for pipes/platform steps), same scale-vs-collision-shape caveat as StaticBox. */
-function StaticCylinder({
-  position,
-  rotation,
-  radius,
-  height,
-  material,
-  renderVisible = true,
-}: {
-  position: [number, number, number];
-  rotation: [number, number, number];
-  radius: number;
-  height: number;
-  material: ReturnType<typeof useMaterial>;
-  renderVisible?: boolean;
-}) {
-  return (
-    <Entity position={position} rotation={rotation}>
-      <Collision type="cylinder" radius={radius} height={height} />
-      <RigidBody type="static" />
-      {renderVisible && (
-        <Entity scale={[radius * 2, height, radius * 2]}>
-          <Render type="cylinder" material={material} />
-        </Entity>
-      )}
-    </Entity>
-  );
-}
-
-/** A purely decorative cylinder — no collision, for small fittings and tabletop/floor clutter. */
-function VisualCylinder({
-  position,
-  rotation = [0, 0, 0],
-  radius,
-  height,
-  material,
-}: {
-  position: [number, number, number];
-  rotation?: [number, number, number];
-  radius: number;
-  height: number;
-  material: ReturnType<typeof useMaterial>;
-}) {
-  return (
-    <Entity position={position} rotation={rotation} scale={[radius * 2, height, radius * 2]}>
-      <Render type="cylinder" material={material} />
-    </Entity>
-  );
-}
-
-/** A decorative sphere — used only for plant foliage. */
-function VisualSphere({
-  position,
-  radius,
-  material,
-}: {
-  position: [number, number, number];
-  radius: number;
-  material: ReturnType<typeof useMaterial>;
-}) {
-  return (
-    <Entity position={position} scale={[radius * 2, radius * 2, radius * 2]}>
-      <Render type="sphere" material={material} />
-    </Entity>
-  );
-}
 
 interface DeskBankProps {
   centerX: number;
@@ -666,7 +548,12 @@ function LowPolySkylineTower({ tower: sourceTower }: { tower: SkylineTowerSpec }
   );
 }
 
-export function RoomEnvironment() {
+interface RoomEnvironmentProps {
+  /** Content for currently-visible office slots, keyed by `OfficeSlot.id` — see OfficeWing.tsx. Populated by App.tsx once a player is near enough to have fetched it; defaults to all-vacant. */
+  officeSlotContentById?: Record<string, OfficeSlotContent>;
+}
+
+export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContentById }: RoomEnvironmentProps = {}) {
   const { asset: concreteWallDiffuse } = useTexture("/assets/textures/concrete_wall_diff_2k.jpg");
   const { asset: concreteWallNormal } = useTexture("/assets/textures/concrete_wall_nor_2k.jpg");
   const { asset: floorTileDiffuse } = useTexture("/assets/textures/granite_tile_diff_2k.jpg");
@@ -775,9 +662,20 @@ export function RoomEnvironment() {
         material={plasterWallMaterial}
         renderVisible={false}
       />
+      {/*
+        South wall has a doorway cut into it (width = 2 * OFFICE_WING_HALF_WIDTH,
+        centered at x=0) leading into the office wing — see OfficeWing.tsx,
+        mounted below. Two stub segments flank the opening instead of one
+        full-width wall.
+      */}
       <StaticBox
-        position={[0, ROOM_HEIGHT / 2, ROOM_LENGTH / 2]}
-        size={[ROOM_WIDTH, ROOM_HEIGHT, WALL_THICKNESS]}
+        position={[-(ROOM_WIDTH / 2 + OFFICE_WING_HALF_WIDTH) / 2, ROOM_HEIGHT / 2, ROOM_LENGTH / 2]}
+        size={[ROOM_WIDTH / 2 - OFFICE_WING_HALF_WIDTH, ROOM_HEIGHT, WALL_THICKNESS]}
+        material={plasterWallMaterial}
+      />
+      <StaticBox
+        position={[(ROOM_WIDTH / 2 + OFFICE_WING_HALF_WIDTH) / 2, ROOM_HEIGHT / 2, ROOM_LENGTH / 2]}
+        size={[ROOM_WIDTH / 2 - OFFICE_WING_HALF_WIDTH, ROOM_HEIGHT, WALL_THICKNESS]}
         material={plasterWallMaterial}
       />
       <StaticBox
@@ -804,8 +702,14 @@ export function RoomEnvironment() {
         renderVisible={false}
       />
       <StaticBox
-        position={[0, ROOM_HEIGHT / 2, ROOM_LENGTH / 2 - WALL_THICKNESS]}
-        size={[ROOM_WIDTH, ROOM_HEIGHT, 0.1]}
+        position={[-(ROOM_WIDTH / 2 + OFFICE_WING_HALF_WIDTH) / 2, ROOM_HEIGHT / 2, ROOM_LENGTH / 2 - WALL_THICKNESS]}
+        size={[ROOM_WIDTH / 2 - OFFICE_WING_HALF_WIDTH, ROOM_HEIGHT, 0.1]}
+        material={plasterWallMaterial}
+        renderVisible={false}
+      />
+      <StaticBox
+        position={[(ROOM_WIDTH / 2 + OFFICE_WING_HALF_WIDTH) / 2, ROOM_HEIGHT / 2, ROOM_LENGTH / 2 - WALL_THICKNESS]}
+        size={[ROOM_WIDTH / 2 - OFFICE_WING_HALF_WIDTH, ROOM_HEIGHT, 0.1]}
         material={plasterWallMaterial}
         renderVisible={false}
       />
@@ -1094,6 +998,15 @@ export function RoomEnvironment() {
         material={pipeMaterial}
       />
       <StaticCylinder position={[9.5, 0.3, 0]} rotation={[0, 0, 90]} radius={0.15} height={3} material={pipeMaterial} />
+
+      {/* Office wing: a small corridor of personal trader offices through the doorway cut into the south wall above. */}
+      <OfficeWing
+        floorMaterial={floorMaterial}
+        ceilingMaterial={plasterCeilingMaterial}
+        wallMaterial={plasterWallMaterial}
+        deskMaterial={deskMaterial}
+        slotContentById={officeSlotContentById}
+      />
     </>
   );
-}
+});

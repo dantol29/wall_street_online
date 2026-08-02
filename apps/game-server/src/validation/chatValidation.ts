@@ -1,4 +1,5 @@
 import { CHAT_RATE_LIMIT_MAX_MESSAGES, CHAT_RATE_LIMIT_WINDOW_MS, MAX_CHAT_LENGTH } from "@multiplayer/shared";
+import { SlidingWindowRateLimiter } from "./rateLimiter";
 
 export type ChatValidationResult = { valid: true; text: string } | { valid: false; reason: string };
 
@@ -15,29 +16,16 @@ export function isWithinLengthLimit(text: string): boolean {
   return text.length > 0 && text.length <= MAX_CHAT_LENGTH;
 }
 
-/**
- * Sliding-window rate limiter: tracks send timestamps per player and evicts
- * entries older than the window on every check.
- */
+/** Thin preset over the generic `SlidingWindowRateLimiter` for chat's specific limits. */
 export class ChatRateLimiter {
-  private readonly timestampsBySender = new Map<string, number[]>();
+  private readonly limiter = new SlidingWindowRateLimiter(CHAT_RATE_LIMIT_MAX_MESSAGES, CHAT_RATE_LIMIT_WINDOW_MS);
 
   isAllowed(senderId: string, nowMs: number): boolean {
-    const timestamps = this.timestampsBySender.get(senderId) ?? [];
-    const recent = timestamps.filter((timestamp) => nowMs - timestamp < CHAT_RATE_LIMIT_WINDOW_MS);
-
-    if (recent.length >= CHAT_RATE_LIMIT_MAX_MESSAGES) {
-      this.timestampsBySender.set(senderId, recent);
-      return false;
-    }
-
-    recent.push(nowMs);
-    this.timestampsBySender.set(senderId, recent);
-    return true;
+    return this.limiter.isAllowed(senderId, nowMs);
   }
 
   clear(senderId: string): void {
-    this.timestampsBySender.delete(senderId);
+    this.limiter.clear(senderId);
   }
 }
 

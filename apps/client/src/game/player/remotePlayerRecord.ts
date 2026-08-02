@@ -7,4 +7,5 @@ export interface RemotePlayerRecord {
   displayName: string;
   animation: AnimationState;
   seatedDeskId: string | null;
+  officeSlotId: string | null;
 }

@@ -2,9 +2,19 @@ import { Client, getStateCallbacks, Room } from "colyseus.js";
 import {
   ROOM_NAME,
   type ChatMessage,
+  type OfficeProfileLookup,
+  type OfficeProfileResultMessage,
+  type OfficeWatchlistItem,
   type PlayerInputMessage,
   type SeatResultMessage,
+  type ThesisPublishResultMessage,
+  type VisitorBookSignResultMessage,
   type VoiceTokenResultMessage,
+  type WalletLinkResultMessage,
+  type WatchlistUpdateResultMessage,
+  type WhiteboardShape,
+  type WhiteboardShapeDeleteMessage,
+  type WhiteboardSnapshot,
 } from "@multiplayer/shared";
 import type { ConnectionState, RemotePlayerSnapshot } from "./messages";
 
@@ -15,10 +25,14 @@ export interface MultiplayerClientCallbacks {
   onPlayerAdd: (snapshot: RemotePlayerSnapshot) => void;
   onPlayerUpdate: (snapshot: RemotePlayerSnapshot) => void;
   onPlayerRemove: (sessionId: string) => void;
+  onChatHistory: (messages: ChatMessage[]) => void;
   onChatMessage: (message: ChatMessage) => void;
   onLocalSpawn: (spawn: { x: number; y: number; z: number }) => void;
   onSeatResult: (result: SeatResultMessage) => void;
   onVoiceTokenResult: (result: VoiceTokenResultMessage) => void;
+  onWhiteboardSnapshot: (snapshot: WhiteboardSnapshot) => void;
+  onWhiteboardShapeUpsert: (shape: WhiteboardShape) => void;
+  onWhiteboardShapeDelete: (id: string) => void;
 }
 
 /**
@@ -32,6 +46,13 @@ export class MultiplayerClient {
   private readonly callbacks: MultiplayerClientCallbacks;
   private room: Room | null = null;
   private sequence = 0;
+  /** Shared monotonic counter for every one-shot request/response message below (wallet + office) — each message type has its own pending-resolvers map, so a single counter is enough to keep requestIds unique per type. */
+  private oneShotRequestSequence = 0;
+  private readonly pendingWalletLink = new Map<number, (message: WalletLinkResultMessage) => void>();
+  private readonly pendingOfficeProfile = new Map<number, (message: OfficeProfileResultMessage) => void>();
+  private readonly pendingThesisPublish = new Map<number, (message: ThesisPublishResultMessage) => void>();
+  private readonly pendingWatchlistUpdate = new Map<number, (message: WatchlistUpdateResultMessage) => void>();
+  private readonly pendingVisitorBookSign = new Map<number, (message: VisitorBookSignResultMessage) => void>();
 
   constructor(serverUrl: string, callbacks: MultiplayerClientCallbacks) {
     this.client = new Client(serverUrl);
@@ -42,7 +63,7 @@ export class MultiplayerClient {
     this.callbacks.onConnectionStateChange("connecting");
 
     try {
-      this.room = await this.client.joinOrCreate(ROOM_NAME, { displayName });
+      this.room = await this.reconnectOrJoin(displayName);
     } catch (error) {
       this.callbacks.onConnectionStateChange("disconnected");
       throw this.toReadableError(error);
@@ -51,6 +72,25 @@ export class MultiplayerClient {
     this.callbacks.onConnectionStateChange("connected");
     sessionStorage.setItem(RECONNECTION_TOKEN_STORAGE_KEY, this.room.reconnectionToken);
     this.attachRoomHandlers(this.room);
+    this.room.send("chat_history_request");
+    this.room.send("whiteboard_snapshot_request");
+  }
+
+  /**
+   * A page refresh closes the socket before the normal leave message is always
+   * delivered. The server keeps that player alive during its reconnection
+   * window, so reclaim the existing session before creating a new character.
+   */
+  private async reconnectOrJoin(displayName: string): Promise<Room> {
+    const token = sessionStorage.getItem(RECONNECTION_TOKEN_STORAGE_KEY);
+    if (token) {
+      try {
+        return await this.client.reconnect(token);
+      } catch {
+        sessionStorage.removeItem(RECONNECTION_TOKEN_STORAGE_KEY);
+      }
+    }
+    return this.client.joinOrCreate(ROOM_NAME, { displayName });
   }
 
   sendMovement(input: Omit<PlayerInputMessage, "sequence">): void {
@@ -70,6 +110,91 @@ export class MultiplayerClient {
 
   requestVoiceToken(requestId: number): void {
     this.room?.send("voice_token_request", { requestId });
+  }
+
+  requestWhiteboardPresenter(): void {
+    this.room?.send("whiteboard_present_request");
+  }
+
+  releaseWhiteboardPresenter(): void {
+    this.room?.send("whiteboard_release");
+  }
+
+  upsertWhiteboardShape(shape: WhiteboardShape): void {
+    this.room?.send("whiteboard_shape_upsert", shape);
+  }
+
+  deleteWhiteboardShape(id: string): void {
+    this.room?.send("whiteboard_shape_delete", { id } satisfies WhiteboardShapeDeleteMessage);
+  }
+
+  clearWhiteboard(): void {
+    this.room?.send("whiteboard_clear");
+  }
+
+  /**
+   * One-shot request/response over the already-connected room — wallet
+   * linking is a follow-up action taken after joining (via Privy on the
+   * client), not part of the join flow, so unlike the other room
+   * interactions this is Promise-based rather than callback-based (nothing
+   * else needs to observe it as ongoing state). `authToken` is the Privy
+   * access token (from `usePrivy().getAccessToken()`); the server verifies it
+   * against Privy directly, so no client-side signing step is needed here.
+   */
+  linkWallet(authToken: string): Promise<WalletLinkResultMessage> {
+    if (!this.room) return Promise.reject(new Error("Not connected."));
+    const requestId = this.nextRequestId();
+    const result = new Promise<WalletLinkResultMessage>((resolve) => {
+      this.pendingWalletLink.set(requestId, resolve);
+    });
+    this.room.send("wallet_link_request", { requestId, authToken });
+    return result;
+  }
+
+  /** Fetches someone's office content — see `OfficeProfileLookup` for the two ways to identify them (currently-present session, or directly by wallet address for the cross-shard/offline case). */
+  requestOfficeProfile(lookup: OfficeProfileLookup): Promise<OfficeProfileResultMessage> {
+    if (!this.room) return Promise.reject(new Error("Not connected."));
+    const requestId = this.nextRequestId();
+    const result = new Promise<OfficeProfileResultMessage>((resolve) => {
+      this.pendingOfficeProfile.set(requestId, resolve);
+    });
+    this.room.send("office_profile_request", { requestId, lookup });
+    return result;
+  }
+
+  publishThesis(body: string): Promise<ThesisPublishResultMessage> {
+    if (!this.room) return Promise.reject(new Error("Not connected."));
+    const requestId = this.nextRequestId();
+    const result = new Promise<ThesisPublishResultMessage>((resolve) => {
+      this.pendingThesisPublish.set(requestId, resolve);
+    });
+    this.room.send("thesis_publish_request", { requestId, body });
+    return result;
+  }
+
+  updateWatchlist(items: OfficeWatchlistItem[]): Promise<WatchlistUpdateResultMessage> {
+    if (!this.room) return Promise.reject(new Error("Not connected."));
+    const requestId = this.nextRequestId();
+    const result = new Promise<WatchlistUpdateResultMessage>((resolve) => {
+      this.pendingWatchlistUpdate.set(requestId, resolve);
+    });
+    this.room.send("watchlist_update_request", { requestId, items });
+    return result;
+  }
+
+  signVisitorBook(lookup: OfficeProfileLookup, message: string): Promise<VisitorBookSignResultMessage> {
+    if (!this.room) return Promise.reject(new Error("Not connected."));
+    const requestId = this.nextRequestId();
+    const result = new Promise<VisitorBookSignResultMessage>((resolve) => {
+      this.pendingVisitorBookSign.set(requestId, resolve);
+    });
+    this.room.send("visitor_book_sign_request", { requestId, lookup, message });
+    return result;
+  }
+
+  private nextRequestId(): number {
+    this.oneShotRequestSequence += 1;
+    return this.oneShotRequestSequence;
   }
 
   disconnect(): void {
@@ -113,6 +238,18 @@ export class MultiplayerClient {
       }
     });
 
+    room.onMessage<ChatMessage[]>("chat_history", (messages) => {
+      if (!Array.isArray(messages)) return;
+      const validMessages = messages.filter(
+        (message) =>
+          typeof message?.senderId === "string" &&
+          typeof message.displayName === "string" &&
+          typeof message.text === "string" &&
+          Number.isFinite(message.timestamp),
+      );
+      this.callbacks.onChatHistory(validMessages);
+    });
+
     room.onMessage<SeatResultMessage>("seat_result", (message) => {
       this.callbacks.onSeatResult(message);
     });
@@ -128,6 +265,63 @@ export class MultiplayerClient {
         return;
       }
       this.callbacks.onVoiceTokenResult(message);
+    });
+
+    room.onMessage<WhiteboardSnapshot>("whiteboard_snapshot", (snapshot) => {
+      if (
+        !snapshot ||
+        !Array.isArray(snapshot.shapes) ||
+        (snapshot.presenterSessionId !== null && typeof snapshot.presenterSessionId !== "string") ||
+        (snapshot.presenterDisplayName !== null && typeof snapshot.presenterDisplayName !== "string")
+      ) {
+        return;
+      }
+      this.callbacks.onWhiteboardSnapshot(snapshot);
+    });
+
+    room.onMessage<WhiteboardShape>("whiteboard_shape_upsert", (shape) => {
+      if (!shape || typeof shape.id !== "string" || typeof shape.type !== "string") return;
+      this.callbacks.onWhiteboardShapeUpsert(shape);
+    });
+
+    room.onMessage<WhiteboardShapeDeleteMessage>("whiteboard_shape_delete", (message) => {
+      if (!message || typeof message.id !== "string") return;
+      this.callbacks.onWhiteboardShapeDelete(message.id);
+    });
+
+    room.onMessage<WalletLinkResultMessage>("wallet_link_result", (message) => {
+      const resolve = this.pendingWalletLink.get(message.requestId);
+      if (!resolve) return;
+      this.pendingWalletLink.delete(message.requestId);
+      resolve(message);
+    });
+
+    room.onMessage<OfficeProfileResultMessage>("office_profile_result", (message) => {
+      const resolve = this.pendingOfficeProfile.get(message.requestId);
+      if (!resolve) return;
+      this.pendingOfficeProfile.delete(message.requestId);
+      resolve(message);
+    });
+
+    room.onMessage<ThesisPublishResultMessage>("thesis_publish_result", (message) => {
+      const resolve = this.pendingThesisPublish.get(message.requestId);
+      if (!resolve) return;
+      this.pendingThesisPublish.delete(message.requestId);
+      resolve(message);
+    });
+
+    room.onMessage<WatchlistUpdateResultMessage>("watchlist_update_result", (message) => {
+      const resolve = this.pendingWatchlistUpdate.get(message.requestId);
+      if (!resolve) return;
+      this.pendingWatchlistUpdate.delete(message.requestId);
+      resolve(message);
+    });
+
+    room.onMessage<VisitorBookSignResultMessage>("visitor_book_sign_result", (message) => {
+      const resolve = this.pendingVisitorBookSign.get(message.requestId);
+      if (!resolve) return;
+      this.pendingVisitorBookSign.delete(message.requestId);
+      resolve(message);
     });
 
     room.onLeave((code: number) => {
@@ -151,8 +345,12 @@ export class MultiplayerClient {
     try {
       this.room = await this.client.reconnect(token);
       this.callbacks.onConnectionStateChange("connected");
+      sessionStorage.setItem(RECONNECTION_TOKEN_STORAGE_KEY, this.room.reconnectionToken);
       this.attachRoomHandlers(this.room);
+      this.room.send("chat_history_request");
+      this.room.send("whiteboard_snapshot_request");
     } catch {
+      sessionStorage.removeItem(RECONNECTION_TOKEN_STORAGE_KEY);
       this.callbacks.onConnectionStateChange("disconnected");
     }
   }
@@ -167,6 +365,8 @@ export class MultiplayerClient {
       rotationY: player.rotationY as number,
       animation: player.animation as RemotePlayerSnapshot["animation"],
       seatedDeskId: typeof player.seatedDeskId === "string" && player.seatedDeskId ? player.seatedDeskId : null,
+      walletAddress: typeof player.walletAddress === "string" && player.walletAddress ? player.walletAddress : null,
+      officeSlotId: typeof player.officeSlotId === "string" && player.officeSlotId ? player.officeSlotId : null,
     };
   }
 

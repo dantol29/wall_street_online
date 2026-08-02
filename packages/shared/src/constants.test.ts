@@ -8,6 +8,7 @@ import {
   MAX_PLAYERS,
   MOVEMENT_CONFIG,
   MOVEMENT_SEND_RATE_HZ,
+  OFFICE_SLOTS,
   ROOM_NAME,
   SPAWN_POINTS,
   TELEPORT_DISTANCE_THRESHOLD_METERS,
@@ -44,8 +45,20 @@ describe("shared constants", () => {
     });
   });
 
-  it("matches the brief's world bounds", () => {
-    expect(WORLD_BOUNDS).toEqual({ minX: -10, maxX: 10, minY: 0, maxY: 8, minZ: -12.5, maxZ: 12.5 });
+  it("matches the brief's world bounds, extended south for the office wing", () => {
+    // maxZ extended from 12.5 to 24.5 to fit the office wing corridor (OFFICE_SLOTS).
+    expect(WORLD_BOUNDS).toEqual({ minX: -10, maxX: 10, minY: 0, maxY: 8, minZ: -12.5, maxZ: 24.5 });
+  });
+
+  it("defines 8 uniquely-identified office slots, all within WORLD_BOUNDS", () => {
+    expect(OFFICE_SLOTS).toHaveLength(8);
+    expect(new Set(OFFICE_SLOTS.map((slot) => slot.id)).size).toBe(8);
+    for (const slot of OFFICE_SLOTS) {
+      expect(slot.deskX).toBeGreaterThanOrEqual(WORLD_BOUNDS.minX);
+      expect(slot.deskX).toBeLessThanOrEqual(WORLD_BOUNDS.maxX);
+      expect(slot.deskZ).toBeGreaterThanOrEqual(WORLD_BOUNDS.minZ);
+      expect(slot.deskZ).toBeLessThanOrEqual(WORLD_BOUNDS.maxZ);
+    }
   });
 
   it("defines idle, walk/run, and left/right/backward directional animation states", () => {

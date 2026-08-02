@@ -1,4 +1,5 @@
 import http from "node:http";
+import path from "node:path";
 import express from "express";
 import { Server } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
@@ -15,6 +16,15 @@ const app = express();
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
+
+if (config.nodeEnv === "production") {
+  const clientDistDirectory =
+    process.env.CLIENT_DIST_DIR || path.resolve(process.cwd(), "apps/client/dist");
+  app.use(express.static(clientDistDirectory));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(clientDistDirectory, "index.html"));
+  });
+}
 
 const httpServer = http.createServer(app);
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { WORLD_BOUNDS } from "@multiplayer/shared";
 import { validateMovementInput, isWithinWorldBounds, isValidAnimation } from "./movementValidation";
 
 const baseCandidate = { x: 0, y: 1, z: 0, rotationY: 0, animation: "idle" as const };
@@ -50,13 +51,16 @@ describe("validateMovementInput", () => {
 
 describe("isWithinWorldBounds", () => {
   it("accepts coordinates at the exact boundary", () => {
-    expect(isWithinWorldBounds(-10, 0, -12.5)).toBe(true);
-    expect(isWithinWorldBounds(10, 8, 12.5)).toBe(true);
+    // maxZ is extended south to fit the office wing corridor (see OFFICE_SLOTS) — assert against
+    // the live WORLD_BOUNDS constant rather than a hardcoded literal so this can't silently drift.
+    expect(isWithinWorldBounds(WORLD_BOUNDS.minX, WORLD_BOUNDS.minY, WORLD_BOUNDS.minZ)).toBe(true);
+    expect(isWithinWorldBounds(WORLD_BOUNDS.maxX, WORLD_BOUNDS.maxY, WORLD_BOUNDS.maxZ)).toBe(true);
   });
 
   it("rejects coordinates just past the boundary", () => {
-    expect(isWithinWorldBounds(-10.01, 0, 0)).toBe(false);
-    expect(isWithinWorldBounds(0, 8.01, 0)).toBe(false);
+    expect(isWithinWorldBounds(WORLD_BOUNDS.minX - 0.01, 0, 0)).toBe(false);
+    expect(isWithinWorldBounds(0, WORLD_BOUNDS.maxY + 0.01, 0)).toBe(false);
+    expect(isWithinWorldBounds(0, 0, WORLD_BOUNDS.maxZ + 0.01)).toBe(false);
   });
 });
 

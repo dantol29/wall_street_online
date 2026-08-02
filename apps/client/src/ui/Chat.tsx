@@ -44,6 +44,9 @@ export function Chat({ messages, onSend, onFocusChange, disabled = false }: Chat
   }, [disabled, focused]);
 
   const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
+    // The PlayCanvas controller listens on window. Do not let keys typed into
+    // chat update its internal WASD state while gameplay input is paused.
+    event.stopPropagation();
     if (event.key === "Enter") {
       event.preventDefault();
       const trimmed = draft.trim();
@@ -83,7 +86,9 @@ export function Chat({ messages, onSend, onFocusChange, disabled = false }: Chat
         placeholder={focused ? "" : "Press Enter to chat"}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={handleInputKeyDown}
+        onKeyUp={(event) => event.stopPropagation()}
         onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
       />
     </div>
   );

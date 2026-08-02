@@ -2,22 +2,63 @@ import { Client, Room } from "colyseus";
 import {
   MAX_PLAYERS,
   RECONNECTION_TIMEOUT_SECONDS,
+  THESIS_PUBLISH_COOLDOWN_MS,
+  VISITOR_BOOK_SIGN_PER_OFFICE_COOLDOWN_MS,
+  VISITOR_BOOK_SIGN_RATE_LIMIT_MAX,
+  VISITOR_BOOK_SIGN_RATE_LIMIT_WINDOW_MS,
   VOICE_TOKEN_REQUEST_COOLDOWN_MS,
+  WATCHLIST_UPDATE_COOLDOWN_MS,
+  WHITEBOARD_MAX_SHAPES,
   type ChatMessage,
+  type OfficeProfileLookup,
+  type OfficeProfileRequestMessage,
+  type OfficeProfileResultMessage,
   type PlayerInputMessage,
   type SeatRequestMessage,
   type SeatResultMessage,
+  type ThesisPublishRequestMessage,
+  type ThesisPublishResultMessage,
+  type VisitorBookSignRequestMessage,
+  type VisitorBookSignResultMessage,
   type VoiceTokenRequestMessage,
   type VoiceTokenResultMessage,
+  type WalletLinkRequestMessage,
+  type WalletLinkResultMessage,
+  type WatchlistUpdateRequestMessage,
+  type WatchlistUpdateResultMessage,
+  type WhiteboardShape,
+  type WhiteboardShapeDeleteMessage,
+  type WhiteboardSnapshot,
 } from "@multiplayer/shared";
 import { SocialRoomState } from "./schema/SocialRoomState";
 import { PlayerState } from "./schema/PlayerState";
 import { assignSpawnPoint } from "./spawnAssignment";
+import { assignOfficeSlot } from "./officeSlotAssignment";
 import { validateMovementInput, type PreviousPlayerPosition } from "../validation/movementValidation";
 import { ChatRateLimiter, validateChatText } from "../validation/chatValidation";
 import { findDeskStation, isWithinDeskInteractionRange } from "../validation/seatValidation";
+import { SlidingWindowRateLimiter } from "../validation/rateLimiter";
+import { validateThesisBody, validateVisitorBookMessage, validateWatchlistItems } from "../validation/officeValidation";
 import { config } from "../config";
 import { createVoiceToken } from "../voice/voiceToken";
+import { verifyPrivyWallet } from "../wallet/privyAuth";
+import { validateWhiteboardShape } from "../validation/whiteboardValidation";
+import { getDb } from "../db/client";
+import {
+  addVisitorBookEntry,
+  getOfficeProfileBundle,
+  publishThesis,
+  replaceWatchlist,
+  resolveProfileIdByAddress,
+  upsertProfileAndWallet,
+} from "../db/officeRepository";
+
+const GUEST_DISPLAY_NAME_PATTERN = /^Trader-\d{4}$/;
+const MAX_CHAT_HISTORY_MESSAGES = 20;
+
+function shortenWalletAddress(address: string): string {
+  return address.length > 12 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address;
+}
 
 interface JoinOptions {
   displayName?: string;
@@ -29,7 +70,23 @@ export class SocialRoom extends Room<SocialRoomState> {
   private readonly spawnIndexBySessionId = new Map<string, number>();
   private readonly previousPositionBySessionId = new Map<string, PreviousPlayerPosition>();
   private readonly chatRateLimiter = new ChatRateLimiter();
+  private readonly chatHistory: ChatMessage[] = [];
+  private readonly whiteboardShapes = new Map<string, WhiteboardShape>();
+  private whiteboardPresenterSessionId: string | null = null;
   private readonly lastVoiceTokenRequestBySessionId = new Map<string, number>();
+  private readonly db = getDb();
+  /** Session-scoped, transient — never persisted (see officeSlotAssignment.ts). Persisted office *content* is keyed by PlayerState.playerId instead. */
+  private readonly officeSlotIndexBySessionId = new Map<string, number>();
+  private readonly thesisPublishRateLimiter = new SlidingWindowRateLimiter(1, THESIS_PUBLISH_COOLDOWN_MS);
+  private readonly watchlistUpdateRateLimiter = new SlidingWindowRateLimiter(1, WATCHLIST_UPDATE_COOLDOWN_MS);
+  private readonly visitorBookGlobalRateLimiter = new SlidingWindowRateLimiter(
+    VISITOR_BOOK_SIGN_RATE_LIMIT_MAX,
+    VISITOR_BOOK_SIGN_RATE_LIMIT_WINDOW_MS,
+  );
+  private readonly visitorBookPerOfficeRateLimiter = new SlidingWindowRateLimiter(
+    1,
+    VISITOR_BOOK_SIGN_PER_OFFICE_COOLDOWN_MS,
+  );
 
   override onCreate(): void {
     this.setState(new SocialRoomState());
@@ -42,12 +99,69 @@ export class SocialRoom extends Room<SocialRoomState> {
       this.handleChat(client, message);
     });
 
+    this.onMessage("chat_history_request", (client) => {
+      client.send("chat_history", this.chatHistory);
+    });
+
+    this.onMessage("whiteboard_snapshot_request", (client) => {
+      client.send("whiteboard_snapshot", this.whiteboardSnapshot());
+    });
+
+    this.onMessage("whiteboard_present_request", (client) => {
+      if (!this.whiteboardPresenterSessionId) {
+        this.whiteboardPresenterSessionId = client.sessionId;
+        this.broadcast("whiteboard_snapshot", this.whiteboardSnapshot());
+      } else {
+        client.send("whiteboard_snapshot", this.whiteboardSnapshot());
+      }
+    });
+
+    this.onMessage("whiteboard_release", (client) => {
+      if (this.whiteboardPresenterSessionId !== client.sessionId) return;
+      this.whiteboardPresenterSessionId = null;
+      this.broadcast("whiteboard_snapshot", this.whiteboardSnapshot());
+    });
+
+    this.onMessage("whiteboard_shape_upsert", (client, shape: unknown) => {
+      this.handleWhiteboardShapeUpsert(client, shape);
+    });
+
+    this.onMessage("whiteboard_shape_delete", (client, message: WhiteboardShapeDeleteMessage) => {
+      this.handleWhiteboardShapeDelete(client, message);
+    });
+
+    this.onMessage("whiteboard_clear", (client) => {
+      if (this.whiteboardPresenterSessionId !== client.sessionId) return;
+      this.whiteboardShapes.clear();
+      this.broadcast("whiteboard_snapshot", this.whiteboardSnapshot());
+    });
+
     this.onMessage("seat", (client, message: SeatRequestMessage) => {
       this.handleSeat(client, message);
     });
 
     this.onMessage("voice_token_request", (client, message: VoiceTokenRequestMessage) => {
       void this.handleVoiceTokenRequest(client, message);
+    });
+
+    this.onMessage("wallet_link_request", (client, message: WalletLinkRequestMessage) => {
+      void this.handleWalletLinkRequest(client, message);
+    });
+
+    this.onMessage("office_profile_request", (client, message: OfficeProfileRequestMessage) => {
+      this.handleOfficeProfileRequest(client, message);
+    });
+
+    this.onMessage("thesis_publish_request", (client, message: ThesisPublishRequestMessage) => {
+      this.handleThesisPublishRequest(client, message);
+    });
+
+    this.onMessage("watchlist_update_request", (client, message: WatchlistUpdateRequestMessage) => {
+      this.handleWatchlistUpdateRequest(client, message);
+    });
+
+    this.onMessage("visitor_book_sign_request", (client, message: VisitorBookSignRequestMessage) => {
+      this.handleVisitorBookSignRequest(client, message);
     });
   }
 
@@ -87,6 +201,14 @@ export class SocialRoom extends Room<SocialRoomState> {
       this.previousPositionBySessionId.delete(client.sessionId);
       this.chatRateLimiter.clear(client.sessionId);
       this.lastVoiceTokenRequestBySessionId.delete(client.sessionId);
+      this.officeSlotIndexBySessionId.delete(client.sessionId);
+      this.thesisPublishRateLimiter.clear(client.sessionId);
+      this.watchlistUpdateRateLimiter.clear(client.sessionId);
+      this.visitorBookGlobalRateLimiter.clear(client.sessionId);
+      if (this.whiteboardPresenterSessionId === client.sessionId) {
+        this.whiteboardPresenterSessionId = null;
+        this.broadcast("whiteboard_snapshot", this.whiteboardSnapshot());
+      }
     }
   }
 
@@ -188,7 +310,38 @@ export class SocialRoom extends Room<SocialRoomState> {
       timestamp: Date.now(),
     };
 
+    this.chatHistory.push(chatMessage);
+    if (this.chatHistory.length > MAX_CHAT_HISTORY_MESSAGES) {
+      this.chatHistory.splice(0, this.chatHistory.length - MAX_CHAT_HISTORY_MESSAGES);
+    }
     this.broadcast("chat", chatMessage);
+  }
+
+  private whiteboardSnapshot(): WhiteboardSnapshot {
+    const presenter = this.whiteboardPresenterSessionId
+      ? this.state.players.get(this.whiteboardPresenterSessionId)
+      : undefined;
+    return {
+      shapes: [...this.whiteboardShapes.values()],
+      presenterSessionId: this.whiteboardPresenterSessionId,
+      presenterDisplayName: presenter?.displayName ?? null,
+    };
+  }
+
+  private handleWhiteboardShapeUpsert(client: Client, value: unknown): void {
+    if (this.whiteboardPresenterSessionId !== client.sessionId) return;
+    if (!validateWhiteboardShape(value) || value.authorId !== client.sessionId) return;
+    if (!this.whiteboardShapes.has(value.id) && this.whiteboardShapes.size >= WHITEBOARD_MAX_SHAPES) return;
+
+    const shape = structuredClone(value);
+    this.whiteboardShapes.set(shape.id, shape);
+    this.broadcast("whiteboard_shape_upsert", shape);
+  }
+
+  private handleWhiteboardShapeDelete(client: Client, message: WhiteboardShapeDeleteMessage): void {
+    if (this.whiteboardPresenterSessionId !== client.sessionId) return;
+    if (!message || typeof message.id !== "string" || !this.whiteboardShapes.delete(message.id)) return;
+    this.broadcast("whiteboard_shape_delete", { id: message.id } satisfies WhiteboardShapeDeleteMessage);
   }
 
   private async handleVoiceTokenRequest(client: Client, message: VoiceTokenRequestMessage): Promise<void> {
@@ -244,6 +397,272 @@ export class SocialRoom extends Room<SocialRoomState> {
         message: "Voice chat is temporarily unavailable.",
       } satisfies VoiceTokenResultMessage);
     }
+  }
+
+  /**
+   * Wallet linking is optional and additive (see wallet.ts) — guests never
+   * touch this. The client already ran the full connect/sign-in flow through
+   * Privy before calling this; the server's only job is to verify the
+   * resulting access token directly against Privy and read back that user's
+   * linked wallet, rather than trusting a client-supplied address.
+   */
+  private async handleWalletLinkRequest(client: Client, message: WalletLinkRequestMessage): Promise<void> {
+    if (!message || !Number.isSafeInteger(message.requestId)) return;
+    const baseResult: Pick<WalletLinkResultMessage, "requestId"> = { requestId: message.requestId };
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    if (typeof message.authToken !== "string" || message.authToken.length === 0 || message.authToken.length > 4096) {
+      client.send("wallet_link_result", {
+        ...baseResult,
+        success: false,
+        message: "Invalid wallet link request.",
+      } satisfies WalletLinkResultMessage);
+      return;
+    }
+
+    const wallet = await verifyPrivyWallet(message.authToken);
+    if (!wallet) {
+      client.send("wallet_link_result", {
+        ...baseResult,
+        success: false,
+        message: "Could not verify wallet with Privy.",
+      } satisfies WalletLinkResultMessage);
+      return;
+    }
+
+    player.walletAddress = wallet.address;
+    player.walletChain = wallet.chain;
+    player.playerId = wallet.userId;
+    if (GUEST_DISPLAY_NAME_PATTERN.test(player.displayName)) {
+      player.displayName = shortenWalletAddress(wallet.address);
+    }
+
+    upsertProfileAndWallet(this.db, {
+      playerId: wallet.userId,
+      displayName: player.displayName,
+      address: wallet.address,
+      chain: wallet.chain,
+    });
+    this.assignOfficeSlotIfNeeded(client, player);
+
+    client.send("wallet_link_result", {
+      ...baseResult,
+      success: true,
+      address: wallet.address,
+      chain: wallet.chain,
+      ...(player.officeSlotId ? { officeSlotId: player.officeSlotId } : {}),
+    } satisfies WalletLinkResultMessage);
+  }
+
+  /** Binds a newly wallet-linked player to a free physical office slot for this shard session, if one is available (see officeSlotAssignment.ts — unlike spawn/desk assignment, there's no overlap fallback). Idempotent: a player who already has a slot keeps it. */
+  private assignOfficeSlotIfNeeded(client: Client, player: PlayerState): void {
+    if (this.officeSlotIndexBySessionId.has(client.sessionId)) return;
+
+    const occupied = new Set(this.officeSlotIndexBySessionId.values());
+    const assignment = assignOfficeSlot(occupied);
+    if (!assignment) return;
+
+    this.officeSlotIndexBySessionId.set(client.sessionId, assignment.index);
+    player.officeSlotId = assignment.slot.id;
+  }
+
+  private resolvePlayerIdFromLookup(lookup: OfficeProfileLookup): string | null {
+    if (!lookup || typeof lookup !== "object") return null;
+
+    if (lookup.type === "session") {
+      if (typeof lookup.sessionId !== "string") return null;
+      const target = this.state.players.get(lookup.sessionId);
+      return target?.playerId || null;
+    }
+
+    if (lookup.type === "wallet") {
+      if (typeof lookup.address !== "string" || typeof lookup.chain !== "string") return null;
+      return resolveProfileIdByAddress(this.db, lookup.address, lookup.chain);
+    }
+
+    return null;
+  }
+
+  private handleOfficeProfileRequest(client: Client, message: OfficeProfileRequestMessage): void {
+    if (!message || !Number.isSafeInteger(message.requestId)) return;
+    const baseResult: Pick<OfficeProfileResultMessage, "requestId"> = { requestId: message.requestId };
+
+    const targetPlayerId = this.resolvePlayerIdFromLookup(message.lookup);
+    if (!targetPlayerId) {
+      client.send("office_profile_result", {
+        ...baseResult,
+        success: false,
+        message: "Player not found.",
+      } satisfies OfficeProfileResultMessage);
+      return;
+    }
+
+    const bundle = getOfficeProfileBundle(this.db, targetPlayerId);
+    if (!bundle) {
+      client.send("office_profile_result", {
+        ...baseResult,
+        success: false,
+        message: "This player doesn't have an office yet.",
+      } satisfies OfficeProfileResultMessage);
+      return;
+    }
+
+    client.send("office_profile_result", {
+      ...baseResult,
+      success: true,
+      profile: {
+        displayName: bundle.displayName,
+        primaryWalletAddress: bundle.primaryWalletAddress,
+        currentThesis: bundle.currentThesis,
+        watchlist: bundle.watchlist,
+        visitorBook: bundle.visitorBook,
+      },
+    } satisfies OfficeProfileResultMessage);
+  }
+
+  private handleThesisPublishRequest(client: Client, message: ThesisPublishRequestMessage): void {
+    if (!message || !Number.isSafeInteger(message.requestId)) return;
+    const baseResult: Pick<ThesisPublishResultMessage, "requestId"> = { requestId: message.requestId };
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    if (!player.playerId) {
+      client.send("thesis_publish_result", {
+        ...baseResult,
+        success: false,
+        message: "Link a wallet to get your own office.",
+      } satisfies ThesisPublishResultMessage);
+      return;
+    }
+
+    if (!this.thesisPublishRateLimiter.isAllowed(client.sessionId, Date.now())) {
+      client.send("thesis_publish_result", {
+        ...baseResult,
+        success: false,
+        message: "Please wait before publishing again.",
+      } satisfies ThesisPublishResultMessage);
+      return;
+    }
+
+    const validation = validateThesisBody(typeof message.body === "string" ? message.body : "");
+    if (!validation.valid) {
+      client.send("thesis_publish_result", {
+        ...baseResult,
+        success: false,
+        message: validation.reason,
+      } satisfies ThesisPublishResultMessage);
+      return;
+    }
+
+    const thesis = publishThesis(this.db, player.playerId, validation.text);
+    client.send("thesis_publish_result", { ...baseResult, success: true, thesis } satisfies ThesisPublishResultMessage);
+  }
+
+  private handleWatchlistUpdateRequest(client: Client, message: WatchlistUpdateRequestMessage): void {
+    if (!message || !Number.isSafeInteger(message.requestId)) return;
+    const baseResult: Pick<WatchlistUpdateResultMessage, "requestId"> = { requestId: message.requestId };
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    if (!player.playerId) {
+      client.send("watchlist_update_result", {
+        ...baseResult,
+        success: false,
+        message: "Link a wallet to get your own office.",
+      } satisfies WatchlistUpdateResultMessage);
+      return;
+    }
+
+    if (!this.watchlistUpdateRateLimiter.isAllowed(client.sessionId, Date.now())) {
+      client.send("watchlist_update_result", {
+        ...baseResult,
+        success: false,
+        message: "Please wait before updating again.",
+      } satisfies WatchlistUpdateResultMessage);
+      return;
+    }
+
+    const validation = validateWatchlistItems(message.items);
+    if (!validation.valid) {
+      client.send("watchlist_update_result", {
+        ...baseResult,
+        success: false,
+        message: validation.reason,
+      } satisfies WatchlistUpdateResultMessage);
+      return;
+    }
+
+    const items = replaceWatchlist(this.db, player.playerId, validation.items);
+    client.send("watchlist_update_result", { ...baseResult, success: true, items } satisfies WatchlistUpdateResultMessage);
+  }
+
+  private handleVisitorBookSignRequest(client: Client, message: VisitorBookSignRequestMessage): void {
+    if (!message || !Number.isSafeInteger(message.requestId)) return;
+    const baseResult: Pick<VisitorBookSignResultMessage, "requestId"> = { requestId: message.requestId };
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    const ownerPlayerId = this.resolvePlayerIdFromLookup(message.lookup);
+    if (!ownerPlayerId) {
+      client.send("visitor_book_sign_result", {
+        ...baseResult,
+        success: false,
+        message: "Player not found.",
+      } satisfies VisitorBookSignResultMessage);
+      return;
+    }
+
+    if (player.playerId && ownerPlayerId === player.playerId) {
+      client.send("visitor_book_sign_result", {
+        ...baseResult,
+        success: false,
+        message: "You can't sign your own visitor book.",
+      } satisfies VisitorBookSignResultMessage);
+      return;
+    }
+
+    const now = Date.now();
+    if (!this.visitorBookGlobalRateLimiter.isAllowed(client.sessionId, now)) {
+      client.send("visitor_book_sign_result", {
+        ...baseResult,
+        success: false,
+        message: "Please wait before signing again.",
+      } satisfies VisitorBookSignResultMessage);
+      return;
+    }
+
+    if (!this.visitorBookPerOfficeRateLimiter.isAllowed(`${client.sessionId}:${ownerPlayerId}`, now)) {
+      client.send("visitor_book_sign_result", {
+        ...baseResult,
+        success: false,
+        message: "You've already signed this office recently.",
+      } satisfies VisitorBookSignResultMessage);
+      return;
+    }
+
+    const validation = validateVisitorBookMessage(typeof message.message === "string" ? message.message : "");
+    if (!validation.valid) {
+      client.send("visitor_book_sign_result", {
+        ...baseResult,
+        success: false,
+        message: validation.reason,
+      } satisfies VisitorBookSignResultMessage);
+      return;
+    }
+
+    const entry = addVisitorBookEntry(this.db, {
+      ownerPlayerId,
+      visitorPlayerId: player.playerId || null,
+      visitorDisplayName: player.displayName,
+      message: validation.text,
+    });
+
+    client.send("visitor_book_sign_result", { ...baseResult, success: true, entry } satisfies VisitorBookSignResultMessage);
   }
 
   private sanitizeDisplayName(rawName: string | undefined): string | null {

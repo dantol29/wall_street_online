@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, memo, useRef, useState } from "react";
 import { Entity } from "@playcanvas/react";
 import { Camera, Script } from "@playcanvas/react/components";
 import { usePhysics } from "@playcanvas/react/hooks";
@@ -21,13 +21,23 @@ interface LocalPlayerProps {
  * Collision + dynamic RigidBody (including a locked angularFactor so the
  * capsule can't tip over) since none is pre-declared here.
  */
-export const LocalPlayer = forwardRef<PcEntity, LocalPlayerProps>(function LocalPlayer({ spawn }, ref) {
+const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function LocalPlayer({ spawn }, ref) {
   const [cameraEntity, setCameraEntity] = useState<PcEntity | null>(null);
+  const initialPositionRef = useRef<[number, number, number]>([
+    spawn.x,
+    spawn.y,
+    spawn.z,
+  ]);
+  const cameraPositionRef = useRef<[number, number, number]>([
+    0,
+    EYE_HEIGHT_OFFSET,
+    0,
+  ]);
   const { isPhysicsLoaded } = usePhysics();
 
   return (
-    <Entity name="local-player" position={[spawn.x, spawn.y, spawn.z]} ref={ref}>
-      <Entity name="local-camera" position={[0, EYE_HEIGHT_OFFSET, 0]} ref={setCameraEntity}>
+    <Entity name="local-player" position={initialPositionRef.current} ref={ref}>
+      <Entity name="local-camera" position={cameraPositionRef.current} ref={setCameraEntity}>
         <Camera fov={75} nearClip={0.05} farClip={100} />
       </Entity>
 
@@ -44,3 +54,5 @@ export const LocalPlayer = forwardRef<PcEntity, LocalPlayerProps>(function Local
     </Entity>
   );
 });
+
+export const LocalPlayer = memo(LocalPlayerComponent);

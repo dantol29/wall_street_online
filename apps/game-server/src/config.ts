@@ -16,4 +16,12 @@ export const config = {
     apiKey: process.env.LIVEKIT_API_KEY || "",
     apiSecret: process.env.LIVEKIT_API_SECRET || "",
   },
+  privy: {
+    enabled: Boolean(process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET),
+    appId: process.env.PRIVY_APP_ID || "",
+    appSecret: process.env.PRIVY_APP_SECRET || "",
+  },
+  db: {
+    path: process.env.DB_PATH || "./data/offices.db",
+  },
 };

@@ -130,6 +130,25 @@ VOICE_ENABLED=false
 
 Restart `pnpm dev`. The rest of the game works without Docker or LiveKit.
 
+## Wallet login (optional)
+
+Players can always join and play as an anonymous guest. If you want to let
+them additionally link a crypto wallet to their session (via
+[Privy](https://www.privy.io)), create an app in the Privy dashboard and set:
+
+```text
+# apps/game-server/.env
+PRIVY_APP_ID=...
+PRIVY_APP_SECRET=...
+
+# apps/client/.env
+VITE_PRIVY_APP_ID=...   # same App ID as above
+```
+
+Restart `pnpm dev`. A **Connect Wallet** button appears once entered; linking
+a wallet replaces the player's guest name with their (shortened) address.
+Leaving these unset disables the button entirely — nothing else changes.
+
 ## Verification commands
 
 From the repository root:

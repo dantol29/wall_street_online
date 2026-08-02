@@ -9,7 +9,9 @@ export const WORLD_BOUNDS = {
   minY: 0,
   maxY: 8,
   minZ: -12.5,
-  maxZ: 12.5,
+  // Extended 12m south of the original 12.5 to fit the office wing corridor
+  // (see OFFICE_SLOTS) — the rest of the interior is unchanged.
+  maxZ: 24.5,
 } as const;
 
 export const MOVEMENT_CONFIG = {
@@ -96,4 +98,63 @@ export const DESK_STATIONS: readonly DeskStation[] = DESK_BANK_CENTERS.flatMap((
       rotationY: bank.facesPositiveX ? -Math.PI / 2 : Math.PI / 2,
     };
   });
+});
+
+// --- Personal trader offices ---
+//
+// Content is persisted (keyed by a player's durable Privy identity, see the
+// game-server's officeRepository), but the *physical* slot a player occupies
+// each session is transient — a shard has a small, bounded number of office
+// alcoves, dynamically assigned to whoever is currently wallet-linked and
+// present, mirroring how SPAWN_POINTS/DESK_STATIONS are already assigned.
+
+export const OFFICE_INTERACTION_DISTANCE_METERS = 2.2;
+export const THESIS_MAX_LENGTH = 2000;
+export const WATCHLIST_MAX_ITEMS = 15;
+export const WATCHLIST_SYMBOL_MAX_LENGTH = 20;
+export const WATCHLIST_NOTE_MAX_LENGTH = 140;
+export const VISITOR_BOOK_MESSAGE_MAX_LENGTH = 200;
+export const VISITOR_BOOK_MAX_ENTRIES = 20;
+
+export const THESIS_PUBLISH_COOLDOWN_MS = 30_000;
+export const WATCHLIST_UPDATE_COOLDOWN_MS = 5000;
+/** Global cap on how often one visitor can sign any visitor book at all. */
+export const VISITOR_BOOK_SIGN_RATE_LIMIT_MAX = 3;
+export const VISITOR_BOOK_SIGN_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+/** On top of the global cap, one visitor can only sign the *same* office's book this often, so one target can't be flooded. */
+export const VISITOR_BOOK_SIGN_PER_OFFICE_COOLDOWN_MS = 60_000;
+
+export interface OfficeSlot {
+  id: string;
+  /** Alcove center — where furniture/content displays are anchored. */
+  deskX: number;
+  deskZ: number;
+  /** Just inside the glass front, on the corridor side — where a player interacts (own office) or peeks in (visiting). */
+  interactionX: number;
+  interactionZ: number;
+  rotationY: number;
+}
+
+const OFFICE_CORRIDOR_HALF_WIDTH = 2;
+const OFFICE_ALCOVE_DEPTH = 5;
+const OFFICE_ALCOVE_ROW_CENTERS_Z = [14, 17, 20, 23] as const;
+
+const OFFICE_ALCOVE_ROWS = [
+  { id: "west", facesPositiveX: true },
+  { id: "east", facesPositiveX: false },
+] as const;
+
+/** Shared with the server so office proximity and slot assignment are authoritative. */
+export const OFFICE_SLOTS: readonly OfficeSlot[] = OFFICE_ALCOVE_ROWS.flatMap((row) => {
+  const sign = row.facesPositiveX ? 1 : -1;
+  const deskX = sign * (OFFICE_CORRIDOR_HALF_WIDTH + OFFICE_ALCOVE_DEPTH / 2);
+  const interactionX = sign * (OFFICE_CORRIDOR_HALF_WIDTH + 0.7);
+  return OFFICE_ALCOVE_ROW_CENTERS_Z.map((deskZ, index) => ({
+    id: `${row.id}-${index + 1}`,
+    deskX,
+    deskZ,
+    interactionX,
+    interactionZ: deskZ,
+    rotationY: row.facesPositiveX ? -Math.PI / 2 : Math.PI / 2,
+  }));
 });
