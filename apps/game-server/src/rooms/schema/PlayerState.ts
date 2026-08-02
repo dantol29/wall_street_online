@@ -22,4 +22,7 @@ export class PlayerState extends Schema {
 
   @type("string")
   animation: AnimationState = "idle";
+
+  @type("string")
+  seatedDeskId: string = "";
 }

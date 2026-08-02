@@ -12,4 +12,5 @@ export interface RemotePlayerSnapshot {
   z: number;
   rotationY: number;
   animation: AnimationState;
+  seatedDeskId: string | null;
 }

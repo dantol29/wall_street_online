@@ -6,6 +6,10 @@ import { ROOM_NAME } from "@multiplayer/shared";
 import { SocialRoom } from "./rooms/SocialRoom";
 import { config } from "./config";
 
+if (config.voice.enabled && (!config.voice.apiKey || !config.voice.apiSecret)) {
+  throw new Error("VOICE_ENABLED=true requires LIVEKIT_API_KEY and LIVEKIT_API_SECRET.");
+}
+
 const app = express();
 
 app.get("/health", (_req, res) => {

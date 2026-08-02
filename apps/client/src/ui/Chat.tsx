@@ -19,9 +19,10 @@ interface ChatProps {
   messages: ChatMessage[];
   onSend: (text: string) => void;
   onFocusChange: (focused: boolean) => void;
+  disabled?: boolean;
 }
 
-export function Chat({ messages, onSend, onFocusChange }: ChatProps) {
+export function Chat({ messages, onSend, onFocusChange, disabled = false }: ChatProps) {
   const [draft, setDraft] = useState("");
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -32,7 +33,7 @@ export function Chat({ messages, onSend, onFocusChange }: ChatProps) {
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Enter" && !focused) {
+      if (event.key === "Enter" && !focused && !disabled) {
         event.preventDefault();
         setFocused(true);
         inputRef.current?.focus();
@@ -40,7 +41,7 @@ export function Chat({ messages, onSend, onFocusChange }: ChatProps) {
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [focused]);
+  }, [disabled, focused]);
 
   const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key === "Enter") {
@@ -63,7 +64,7 @@ export function Chat({ messages, onSend, onFocusChange }: ChatProps) {
   const visibleMessages = messages.slice(-MAX_VISIBLE_MESSAGES);
 
   return (
-    <div className="chat-overlay">
+    <div className="chat-overlay" hidden={disabled}>
       <div className="chat-messages">
         {visibleMessages.map((message, index) => (
           <div key={`${message.senderId}-${message.timestamp}-${index}`} className="chat-message">

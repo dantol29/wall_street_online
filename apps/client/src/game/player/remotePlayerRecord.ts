@@ -6,4 +6,5 @@ export interface RemotePlayerRecord {
   transform: RemoteTransform;
   displayName: string;
   animation: AnimationState;
+  seatedDeskId: string | null;
 }

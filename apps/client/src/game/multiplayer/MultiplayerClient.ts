@@ -1,5 +1,11 @@
 import { Client, getStateCallbacks, Room } from "colyseus.js";
-import { ROOM_NAME, type ChatMessage, type PlayerInputMessage } from "@multiplayer/shared";
+import {
+  ROOM_NAME,
+  type ChatMessage,
+  type PlayerInputMessage,
+  type SeatResultMessage,
+  type VoiceTokenResultMessage,
+} from "@multiplayer/shared";
 import type { ConnectionState, RemotePlayerSnapshot } from "./messages";
 
 const RECONNECTION_TOKEN_STORAGE_KEY = "colyseusReconnectionToken";
@@ -11,6 +17,8 @@ export interface MultiplayerClientCallbacks {
   onPlayerRemove: (sessionId: string) => void;
   onChatMessage: (message: ChatMessage) => void;
   onLocalSpawn: (spawn: { x: number; y: number; z: number }) => void;
+  onSeatResult: (result: SeatResultMessage) => void;
+  onVoiceTokenResult: (result: VoiceTokenResultMessage) => void;
 }
 
 /**
@@ -56,6 +64,14 @@ export class MultiplayerClient {
     this.room?.send("chat", { text });
   }
 
+  requestSeat(deskId: string | null): void {
+    this.room?.send("seat", { deskId });
+  }
+
+  requestVoiceToken(requestId: number): void {
+    this.room?.send("voice_token_request", { requestId });
+  }
+
   disconnect(): void {
     void this.room?.leave(true);
     this.room = null;
@@ -97,6 +113,23 @@ export class MultiplayerClient {
       }
     });
 
+    room.onMessage<SeatResultMessage>("seat_result", (message) => {
+      this.callbacks.onSeatResult(message);
+    });
+
+    room.onMessage<VoiceTokenResultMessage>("voice_token_result", (message) => {
+      if (
+        !message ||
+        !Number.isSafeInteger(message.requestId) ||
+        typeof message.enabled !== "boolean" ||
+        typeof message.serverUrl !== "string"
+      ) {
+        console.warn("[MultiplayerClient] ignored invalid voice token response");
+        return;
+      }
+      this.callbacks.onVoiceTokenResult(message);
+    });
+
     room.onLeave((code: number) => {
       const abnormalClose = code !== 1000;
       if (!abnormalClose) {
@@ -133,6 +166,7 @@ export class MultiplayerClient {
       z: player.z as number,
       rotationY: player.rotationY as number,
       animation: player.animation as RemotePlayerSnapshot["animation"],
+      seatedDeskId: typeof player.seatedDeskId === "string" && player.seatedDeskId ? player.seatedDeskId : null,
     };
   }
 

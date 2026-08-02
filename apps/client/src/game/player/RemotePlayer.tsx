@@ -40,20 +40,31 @@ const MODEL_YAW_OFFSET_DEGREES = 180;
 
 /**
  * Real GLB clip names (from Quaternius's "Business Man" — poly.pizza, CC0),
- * mapped to our three animation states. Registered as anim-component states
- * under our own (short) state names below, since @playcanvas/react's <Anim>
- * only supports a single clip declaratively — see the imperative wiring below.
+ * mapped to our animation states, each with its own playback speed.
+ * Registered as anim-component states under our own (short) state names
+ * below, since @playcanvas/react's <Anim> only supports a single clip
+ * declaratively — see the imperative wiring below.
  */
-const CLIP_NAME_BY_STATE: Record<AnimationState, string> = {
+const CLIP_CONFIG_BY_STATE: Record<AnimationState, { clip: string; speed: number }> = {
   // "CharacterArmature|Idle" (the more obviously-named clip) only animates 21 of
   // the 34 bones Walk/Run drive — critically, it never touches Foot.L/Foot.R, so
   // switching from Walk to it left the legs frozen mid-stride (PlayCanvas's anim
   // layer only overwrites the bones a clip actually has curves for; anything
   // else just keeps its last value from whatever played before). "Idle_Neutral"
   // covers both feet and only misses minor wrist/finger/neck bones instead.
-  idle: "CharacterArmature|Idle_Neutral",
-  walk: "CharacterArmature|Walk",
-  run: "CharacterArmature|Run",
+  idle: { clip: "CharacterArmature|Idle_Neutral", speed: 1 },
+  walk: { clip: "CharacterArmature|Walk", speed: 1 },
+  run: { clip: "CharacterArmature|Run", speed: 1 },
+  // The model ships dedicated Run_Left/Run_Right strafe clips but no
+  // Walk_Left/Walk_Right — reusing the running strafe clips at a slower
+  // playback speed for the walking-pace states reads far better than falling
+  // back to the forward walk pose while visibly sliding sideways.
+  walk_left: { clip: "CharacterArmature|Run_Left", speed: 0.65 },
+  walk_right: { clip: "CharacterArmature|Run_Right", speed: 0.65 },
+  run_left: { clip: "CharacterArmature|Run_Left", speed: 1 },
+  run_right: { clip: "CharacterArmature|Run_Right", speed: 1 },
+  walk_back: { clip: "CharacterArmature|Run_Back", speed: 0.65 },
+  run_back: { clip: "CharacterArmature|Run_Back", speed: 1 },
 };
 
 interface RemotePlayerProps {
@@ -87,6 +98,7 @@ export function RemotePlayer({ sessionId, recordsRef }: RemotePlayerProps) {
 
     const model = modelRef.current;
     if (!model || !asset?.resource) return;
+    model.setLocalPosition(0, record.seatedDeskId ? MODEL_Y_OFFSET - 0.55 : MODEL_Y_OFFSET, 0);
 
     if (!statesRegisteredRef.current) {
       const anim = (model.anim ?? model.addComponent("anim")) as AnimComponent;
@@ -98,10 +110,10 @@ export function RemotePlayer({ sessionId, recordsRef }: RemotePlayerProps) {
       // `.resource.name`.
       const animationAssets = (asset.resource as { animations?: Asset[] }).animations ?? [];
       let registeredAny = false;
-      for (const [state, clipName] of Object.entries(CLIP_NAME_BY_STATE)) {
+      for (const [state, { clip: clipName, speed }] of Object.entries(CLIP_CONFIG_BY_STATE)) {
         const clipAsset = animationAssets.find((a) => (a.resource as AnimTrack | undefined)?.name === clipName);
         if (clipAsset?.resource) {
-          anim.assignAnimation(state, clipAsset.resource as AnimTrack, undefined, 1, true);
+          anim.assignAnimation(state, clipAsset.resource as AnimTrack, undefined, speed, true);
           registeredAny = true;
         }
       }
@@ -125,7 +137,11 @@ export function RemotePlayer({ sessionId, recordsRef }: RemotePlayerProps) {
   return (
     <Entity ref={rootRef} name={`remote-${sessionId}`}>
       {asset && (
-        <Entity ref={modelRef} position={[0, MODEL_Y_OFFSET, 0]} scale={[MODEL_SCALE, MODEL_SCALE, MODEL_SCALE]}>
+        <Entity
+          ref={modelRef}
+          position={[0, recordsRef.current.get(sessionId)?.seatedDeskId ? MODEL_Y_OFFSET - 0.55 : MODEL_Y_OFFSET, 0]}
+          scale={[MODEL_SCALE, MODEL_SCALE, MODEL_SCALE]}
+        >
           <Render type="asset" asset={asset} />
         </Entity>
       )}

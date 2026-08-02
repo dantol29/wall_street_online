@@ -62,6 +62,12 @@
   white-space: nowrap;
 }
 
+.name-label--speaking {
+  color: #dfffe7;
+  border: 1px solid rgba(95, 220, 132, 0.75);
+  box-shadow: 0 0 10px rgba(68, 220, 115, 0.32);
+}
+
 .connection-status {
   position: absolute;
   top: 12px;
@@ -81,6 +87,110 @@
 }
 .connection-status--disconnected {
   color: #ff6b6b;
+}
+
+.voice-controls {
+  position: absolute;
+  top: 46px;
+  left: 12px;
+  z-index: 7;
+  width: 220px;
+  color: #dfe7df;
+  font: 12px/1.25 "Courier New", Courier, monospace;
+}
+
+.voice-controls__row {
+  display: flex;
+  gap: 4px;
+}
+
+.voice-controls button {
+  color: inherit;
+  background: rgba(10, 14, 11, 0.86);
+  border: 1px solid rgba(211, 225, 212, 0.26);
+  font: inherit;
+  cursor: pointer;
+}
+
+.voice-controls button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.voice-controls__main {
+  flex: 1;
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 6px 9px;
+  color: inherit;
+  background: rgba(10, 14, 11, 0.86);
+  border: 1px solid rgba(211, 225, 212, 0.26);
+  text-align: left;
+}
+
+.voice-controls__off {
+  padding: 6px 8px;
+}
+
+.voice-controls__dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #767d77;
+}
+
+.voice-controls--ready .voice-controls__dot {
+  background: #65d88b;
+}
+
+.voice-controls__main--talking .voice-controls__dot {
+  background: #ff6659;
+  box-shadow: 0 0 8px rgba(255, 102, 89, 0.72);
+}
+
+.voice-controls__message {
+  margin-top: 4px;
+  padding: 6px 8px;
+  color: #ffb4a9;
+  background: rgba(34, 8, 7, 0.88);
+  border: 1px solid rgba(255, 108, 89, 0.35);
+}
+
+.voice-controls__participants {
+  display: grid;
+  gap: 2px;
+  max-height: 150px;
+  margin-top: 4px;
+  overflow: auto;
+}
+
+.voice-controls__empty {
+  margin-top: 4px;
+  padding: 6px 8px;
+  color: #8f9991;
+  background: rgba(10, 14, 11, 0.72);
+  border: 1px solid rgba(211, 225, 212, 0.14);
+}
+
+.voice-player {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 7px;
+  color: #abb4ac !important;
+  text-align: left;
+}
+
+.voice-player span:last-child {
+  color: #778179;
+  font-size: 10px;
+}
+
+.voice-player--speaking {
+  border-color: rgba(101, 216, 139, 0.58) !important;
+  color: #e6ffec !important;
 }
 
 .chat-overlay {
@@ -186,4 +296,230 @@
   border-radius: 4px;
   z-index: 5;
   pointer-events: none;
+}
+
+.desk-interaction {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 8px 12px;
+  color: #efe8d5;
+  background: rgba(10, 12, 11, 0.88);
+  border: 1px solid rgba(205, 188, 145, 0.48);
+  font: 600 13px/1.2 "Courier New", monospace;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.desk-interaction kbd,
+.plan-editor kbd {
+  padding: 2px 5px;
+  color: #181a18;
+  background: #d8c99e;
+  border: 1px solid #f1e7c7;
+  font: inherit;
+}
+
+.seat-error {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  padding: 7px 11px;
+  color: #ffb1a3;
+  background: rgba(31, 10, 8, 0.9);
+  border: 1px solid rgba(255, 118, 91, 0.55);
+  font: 13px/1.3 "Courier New", monospace;
+}
+
+.plan-editor-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 6, 5, 0.72);
+}
+
+.plan-editor {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  color: #e9e5d8;
+  background: #121512;
+  border: 1px solid #555847;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  font-family: "Courier New", Courier, monospace;
+}
+
+.plan-editor__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 24px 18px;
+  border-bottom: 1px solid #34382f;
+}
+
+.plan-editor__eyebrow,
+.plan-editor__recent > span {
+  margin: 0 0 5px;
+  color: #8e957c;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+}
+
+.plan-editor h1 {
+  margin: 0;
+  color: #f3edda;
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.plan-editor button,
+.plan-editor input,
+.plan-editor select,
+.plan-editor textarea {
+  font: inherit;
+}
+
+.plan-editor__stand {
+  min-height: 36px;
+  color: #b9bdac;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.plan-editor__form {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 22px 24px;
+}
+
+.plan-field {
+  display: grid;
+  grid-column: span 2;
+  gap: 6px;
+}
+
+.plan-field--wide {
+  grid-column: 1 / -1;
+}
+
+.plan-field > span {
+  color: #a8ad9b;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.plan-field input,
+.plan-field select,
+.plan-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  color: #f0ecdf;
+  background: #0b0d0b;
+  border: 1px solid #3e4338;
+  border-radius: 0;
+  padding: 10px 11px;
+  outline: none;
+}
+
+.plan-field input:focus,
+.plan-field select:focus,
+.plan-field textarea:focus {
+  border-color: #c8b979;
+  box-shadow: 0 0 0 2px rgba(200, 185, 121, 0.14);
+}
+
+.plan-field textarea {
+  resize: vertical;
+  min-height: 104px;
+  line-height: 1.5;
+}
+
+.plan-editor__footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.plan-editor__saved {
+  color: #8db88e;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.plan-editor__saved--visible {
+  opacity: 1;
+}
+
+.plan-editor__save {
+  min-height: 40px;
+  padding: 0 18px;
+  color: #171912;
+  background: #d2c181;
+  border: 1px solid #eee1b2;
+  cursor: pointer;
+}
+
+.plan-editor__save:hover {
+  background: #dfcf91;
+}
+
+.plan-editor__recent {
+  display: grid;
+  gap: 6px;
+  padding: 0 24px 22px;
+}
+
+.plan-editor__recent > div {
+  display: grid;
+  grid-template-columns: 70px 70px 1fr;
+  gap: 12px;
+  padding: 8px 10px;
+  color: #aaae9e;
+  background: #0d100d;
+  border-left: 2px solid #5f654f;
+  font-size: 12px;
+}
+
+.plan-editor__recent strong {
+  color: #d8c985;
+}
+
+@media (max-width: 640px) {
+  .plan-editor-backdrop {
+    padding: 0;
+  }
+  .plan-editor {
+    max-height: 100vh;
+    min-height: 100vh;
+    border: 0;
+  }
+  .plan-editor__form {
+    grid-template-columns: 1fr;
+  }
+  .plan-field,
+  .plan-field--wide {
+    grid-column: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-editor__saved {
+    transition: none;
+  }
 }

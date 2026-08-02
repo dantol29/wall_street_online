@@ -48,7 +48,17 @@ describe("shared constants", () => {
     expect(WORLD_BOUNDS).toEqual({ minX: -10, maxX: 10, minY: 0, maxY: 8, minZ: -12.5, maxZ: 12.5 });
   });
 
-  it("defines exactly idle, walk, and run animation states", () => {
-    expect(ANIMATION_STATES).toEqual(["idle", "walk", "run"]);
+  it("defines idle, walk/run, and left/right/backward directional animation states", () => {
+    expect(ANIMATION_STATES).toEqual([
+      "idle",
+      "walk",
+      "run",
+      "walk_left",
+      "walk_right",
+      "run_left",
+      "run_right",
+      "walk_back",
+      "run_back",
+    ]);
   });
 });

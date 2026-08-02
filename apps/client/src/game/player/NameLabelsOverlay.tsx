@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useApp, useAppEvent } from "@playcanvas/react/hooks";
 import { Vec3, type Entity } from "playcanvas";
-import { NAME_LABEL_MAX_DISTANCE_METERS } from "@multiplayer/shared";
+import { NAME_LABEL_MAX_DISTANCE_METERS, VOICE_MAX_DISTANCE_METERS } from "@multiplayer/shared";
 import { getVisualTransform } from "../multiplayer/interpolation";
 import type { RemotePlayerRecord } from "./remotePlayerRecord";
 
@@ -18,6 +18,7 @@ interface NameLabelsOverlayProps {
   remoteIds: string[];
   recordsRef: React.RefObject<Map<string, RemotePlayerRecord>>;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  speakingPlayerIds: ReadonlySet<string>;
 }
 
 /**
@@ -29,7 +30,12 @@ interface NameLabelsOverlayProps {
  * canvas declared in App.tsx. Avoids PlayCanvas's world-space Text Element,
  * which requires a pre-built SDF font asset we don't have.
  */
-export function NameLabelsOverlay({ remoteIds, recordsRef, containerRef }: NameLabelsOverlayProps) {
+export function NameLabelsOverlay({
+  remoteIds,
+  recordsRef,
+  containerRef,
+  speakingPlayerIds,
+}: NameLabelsOverlayProps) {
   const app = useApp();
   const nodesRef = useRef(new Map<string, HTMLDivElement>());
 
@@ -89,6 +95,10 @@ export function NameLabelsOverlay({ remoteIds, recordsRef, containerRef }: NameL
       const toHead = new Vec3().sub2(headPosition, cameraPosition);
       const isInFrontOfCamera = toHead.dot(cameraForward) > 0;
       const distance = toHead.length();
+      node.classList.toggle(
+        "name-label--speaking",
+        speakingPlayerIds.has(id) && distance <= VOICE_MAX_DISTANCE_METERS,
+      );
 
       if (!isInFrontOfCamera || distance > NAME_LABEL_MAX_DISTANCE_METERS) {
         node.style.display = "none";
