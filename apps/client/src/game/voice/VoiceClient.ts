@@ -31,10 +31,21 @@ export interface VoiceParticipantState {
   locallyMuted: boolean;
 }
 
+export interface VoiceAudioOutputDevice {
+  deviceId: string;
+  label: string;
+}
+
 export interface VoiceClientCallbacks {
   onStateChange: (state: VoiceConnectionState, message?: string) => void;
   onTalkingChange: (talking: boolean) => void;
+  onMicrophoneLevelChange: (level: number) => void;
   onParticipantsChange: (participants: VoiceParticipantState[]) => void;
+  onAudioOutputsChange: (
+    devices: VoiceAudioOutputDevice[],
+    selectedDeviceId: string,
+    supported: boolean,
+  ) => void;
 }
 
 interface RemoteAudioOutput {
@@ -53,6 +64,9 @@ export class VoiceClient {
   private talking = false;
   private desiredTalking = false;
   private talkingUpdate: Promise<void> = Promise.resolve();
+  private microphoneLevel = 0;
+  private lastMicrophoneLevelEmitAt = 0;
+  private selectedAudioOutputId = "default";
   private intentionalDisconnect = false;
   private disposed = false;
 
@@ -98,6 +112,7 @@ export class VoiceClient {
       this.setTalkingState(false);
       this.callbacks.onStateChange("ready");
       this.emitParticipants();
+      await this.refreshAudioOutputs();
     } catch (error) {
       await this.disconnect(false);
       this.callbacks.onStateChange("error", this.readableError(error));
@@ -141,7 +156,18 @@ export class VoiceClient {
     this.emitParticipants();
   }
 
+  async setAudioOutputDevice(deviceId: string): Promise<boolean> {
+    if (!this.supportsAudioOutputSelection()) return false;
+    const switched = await this.room.switchActiveDevice("audiooutput", deviceId);
+    if (switched) {
+      this.selectedAudioOutputId = deviceId;
+      await this.refreshAudioOutputs();
+    }
+    return switched;
+  }
+
   updateSpatialAudio(): void {
+    this.updateMicrophoneLevel();
     const listenerTransform = this.spatialProvider.getListenerTransform();
     if (!listenerTransform) return;
 
@@ -171,6 +197,8 @@ export class VoiceClient {
     this.clearOutputs();
     this.speakingIds.clear();
     this.locallyMutedIds.clear();
+    this.setMicrophoneLevel(0, true);
+    this.callbacks.onAudioOutputsChange([], "default", this.supportsAudioOutputSelection());
     this.emitParticipants();
     this.intentionalDisconnect = false;
     if (!this.disposed) this.callbacks.onStateChange("disabled");
@@ -205,6 +233,9 @@ export class VoiceClient {
       },
     );
     this.room.on(RoomEvent.ParticipantConnected, () => this.emitParticipants());
+    this.room.on(RoomEvent.MediaDevicesChanged, () => {
+      void this.refreshAudioOutputs();
+    });
     this.room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
       this.removeRemoteTrack(participant.identity);
       this.locallyMutedIds.delete(participant.identity);
@@ -226,7 +257,7 @@ export class VoiceClient {
       if (playing || this.room.state !== "connected") return;
       this.callbacks.onStateChange(
         "ready",
-        "Audio is blocked by the browser. Click the game, then hold V.",
+        "Audio playback is paused by the browser. Tap or click the game to resume it.",
       );
     });
     this.room.on(RoomEvent.Disconnected, () => {
@@ -268,6 +299,62 @@ export class VoiceClient {
     }
   }
 
+  private supportsAudioOutputSelection(): boolean {
+    return (
+      typeof HTMLMediaElement !== "undefined" &&
+      "setSinkId" in HTMLMediaElement.prototype
+    );
+  }
+
+  private async refreshAudioOutputs(): Promise<void> {
+    const supported = this.supportsAudioOutputSelection();
+    if (!supported) {
+      this.callbacks.onAudioOutputsChange([], "default", false);
+      return;
+    }
+    try {
+      const devices = await Room.getLocalDevices("audiooutput");
+      const outputs = devices.map((device, index) => ({
+        deviceId: device.deviceId,
+        label: device.label || (index === 0 ? "System default" : `Audio output ${index + 1}`),
+      }));
+      const activeDevice = this.room.getActiveDevice("audiooutput");
+      if (activeDevice) this.selectedAudioOutputId = activeDevice;
+      if (
+        outputs.length > 0 &&
+        !outputs.some((output) => output.deviceId === this.selectedAudioOutputId)
+      ) {
+        this.selectedAudioOutputId = outputs[0].deviceId;
+      }
+      this.callbacks.onAudioOutputsChange(outputs, this.selectedAudioOutputId, true);
+    } catch {
+      this.callbacks.onAudioOutputsChange([], this.selectedAudioOutputId, true);
+    }
+  }
+
+  private updateMicrophoneLevel(): void {
+    const rawLevel =
+      this.talking && this.room.state === "connected"
+        ? Math.max(0, Math.min(1, this.room.localParticipant.audioLevel || 0))
+        : 0;
+    const visibleLevel = Math.sqrt(rawLevel);
+    const response = visibleLevel > this.microphoneLevel ? 0.42 : 0.16;
+    const nextLevel = this.microphoneLevel + (visibleLevel - this.microphoneLevel) * response;
+    this.setMicrophoneLevel(nextLevel);
+  }
+
+  private setMicrophoneLevel(level: number, force = false): void {
+    const nextLevel = level < 0.005 ? 0 : level;
+    const now = performance.now();
+    if (!force && now - this.lastMicrophoneLevelEmitAt < 66) {
+      this.microphoneLevel = nextLevel;
+      return;
+    }
+    this.microphoneLevel = nextLevel;
+    this.lastMicrophoneLevelEmitAt = now;
+    this.callbacks.onMicrophoneLevelChange(nextLevel);
+  }
+
   private emitParticipants(): void {
     const participants = [...this.room.remoteParticipants.values()]
       .map((participant) => ({
@@ -283,6 +370,7 @@ export class VoiceClient {
   private setTalkingState(talking: boolean): void {
     if (this.talking === talking) return;
     this.talking = talking;
+    if (!talking) this.setMicrophoneLevel(0, true);
     this.callbacks.onTalkingChange(talking);
   }
 

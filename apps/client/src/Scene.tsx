@@ -1,9 +1,10 @@
 import { forwardRef, useImperativeHandle, useRef, useState, type Ref } from "react";
 import type { Entity as PcEntity } from "playcanvas";
-import { SPAWN_POINTS, type WhiteboardSnapshot } from "@multiplayer/shared";
+import { SPAWN_POINTS, type StickyNote, type WhiteboardSnapshot } from "@multiplayer/shared";
 import { RoomEnvironment } from "./game/scene/Environment";
 import type { OfficeSlotContent } from "./game/scene/OfficeContentDisplay";
 import { CollaborativeWhiteboardDisplay } from "./game/scene/CollaborativeWhiteboardDisplay";
+import { StickyWallDisplay } from "./game/scene/StickyWallDisplay";
 import { Lighting } from "./game/scene/Lighting";
 import { LocalPlayer } from "./game/player/LocalPlayer";
 import { RemotePlayer } from "./game/player/RemotePlayer";
@@ -22,6 +23,7 @@ interface SceneProps {
   speakingPlayerIds: ReadonlySet<string>;
   whiteboardSnapshot: WhiteboardSnapshot;
   officeSlotContentById?: Record<string, OfficeSlotContent>;
+  stickyNotes: StickyNote[];
 }
 
 export interface SceneHandle {
@@ -42,7 +44,7 @@ export interface SceneHandle {
 const DEFAULT_SPAWN = SPAWN_POINTS[0];
 
 const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
-  { playerEntityRef, nameLabelsContainerRef, speakingPlayerIds, whiteboardSnapshot, officeSlotContentById },
+  { playerEntityRef, nameLabelsContainerRef, speakingPlayerIds, whiteboardSnapshot, officeSlotContentById, stickyNotes },
   ref,
 ) {
   const recordsRef = useRef<Map<string, RemotePlayerRecord>>(new Map());
@@ -106,6 +108,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     <>
       <RoomEnvironment officeSlotContentById={officeSlotContentById} />
       <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
+      <StickyWallDisplay notes={stickyNotes} />
       <Lighting />
       <LocalPlayer spawn={DEFAULT_SPAWN} ref={playerEntityRef} />
 

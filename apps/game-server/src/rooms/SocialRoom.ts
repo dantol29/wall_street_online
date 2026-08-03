@@ -2,6 +2,7 @@ import { Client, Room } from "colyseus";
 import {
   MAX_PLAYERS,
   RECONNECTION_TIMEOUT_SECONDS,
+  STICKY_NOTE_UPDATE_COOLDOWN_MS,
   THESIS_PUBLISH_COOLDOWN_MS,
   VISITOR_BOOK_SIGN_PER_OFFICE_COOLDOWN_MS,
   VISITOR_BOOK_SIGN_RATE_LIMIT_MAX,
@@ -16,6 +17,11 @@ import {
   type PlayerInputMessage,
   type SeatRequestMessage,
   type SeatResultMessage,
+  type StickyNote,
+  type StickyNoteDeleteMessage,
+  type StickyNoteSnapshot,
+  type StickyNoteUpsertRequestMessage,
+  type StickyNoteUpsertResultMessage,
   type ThesisPublishRequestMessage,
   type ThesisPublishResultMessage,
   type VisitorBookSignRequestMessage,
@@ -39,6 +45,7 @@ import { ChatRateLimiter, validateChatText } from "../validation/chatValidation"
 import { findDeskStation, isWithinDeskInteractionRange } from "../validation/seatValidation";
 import { SlidingWindowRateLimiter } from "../validation/rateLimiter";
 import { validateThesisBody, validateVisitorBookMessage, validateWatchlistItems } from "../validation/officeValidation";
+import { validateStickyNoteText } from "../validation/stickyNoteValidation";
 import { config } from "../config";
 import { createVoiceToken } from "../voice/voiceToken";
 import { verifyPrivyWallet } from "../wallet/privyAuth";
@@ -87,6 +94,9 @@ export class SocialRoom extends Room<SocialRoomState> {
     1,
     VISITOR_BOOK_SIGN_PER_OFFICE_COOLDOWN_MS,
   );
+  /** Ephemeral, like whiteboardShapes — one note per session, keyed by sessionId so there's structurally no way to add a second or edit someone else's. Reset when the shard empties/restarts, not persisted. */
+  private readonly stickyNotesBySessionId = new Map<string, StickyNote>();
+  private readonly stickyNoteUpdateRateLimiter = new SlidingWindowRateLimiter(1, STICKY_NOTE_UPDATE_COOLDOWN_MS);
 
   override onCreate(): void {
     this.setState(new SocialRoomState());
@@ -163,6 +173,14 @@ export class SocialRoom extends Room<SocialRoomState> {
     this.onMessage("visitor_book_sign_request", (client, message: VisitorBookSignRequestMessage) => {
       this.handleVisitorBookSignRequest(client, message);
     });
+
+    this.onMessage("sticky_note_snapshot_request", (client) => {
+      client.send("sticky_note_snapshot", this.stickyNoteSnapshot());
+    });
+
+    this.onMessage("sticky_note_upsert_request", (client, message: StickyNoteUpsertRequestMessage) => {
+      this.handleStickyNoteUpsertRequest(client, message);
+    });
   }
 
   override onJoin(client: Client, options: JoinOptions): void {
@@ -205,6 +223,10 @@ export class SocialRoom extends Room<SocialRoomState> {
       this.thesisPublishRateLimiter.clear(client.sessionId);
       this.watchlistUpdateRateLimiter.clear(client.sessionId);
       this.visitorBookGlobalRateLimiter.clear(client.sessionId);
+      this.stickyNoteUpdateRateLimiter.clear(client.sessionId);
+      if (this.stickyNotesBySessionId.delete(client.sessionId)) {
+        this.broadcast("sticky_note_delete", { authorSessionId: client.sessionId } satisfies StickyNoteDeleteMessage);
+      }
       if (this.whiteboardPresenterSessionId === client.sessionId) {
         this.whiteboardPresenterSessionId = null;
         this.broadcast("whiteboard_snapshot", this.whiteboardSnapshot());
@@ -342,6 +364,55 @@ export class SocialRoom extends Room<SocialRoomState> {
     if (this.whiteboardPresenterSessionId !== client.sessionId) return;
     if (!message || typeof message.id !== "string" || !this.whiteboardShapes.delete(message.id)) return;
     this.broadcast("whiteboard_shape_delete", { id: message.id } satisfies WhiteboardShapeDeleteMessage);
+  }
+
+  private stickyNoteSnapshot(): StickyNoteSnapshot {
+    return { notes: [...this.stickyNotesBySessionId.values()] };
+  }
+
+  /**
+   * Always an upsert keyed by the caller's own sessionId — there is no
+   * "target" field, so this message can never create a second note for one
+   * player or edit anyone else's. Broadcast to everyone (like whiteboard
+   * shapes) since the board is meant to be read live, not fetched on demand
+   * like the office thesis wall.
+   */
+  private handleStickyNoteUpsertRequest(client: Client, message: StickyNoteUpsertRequestMessage): void {
+    if (!message || !Number.isSafeInteger(message.requestId)) return;
+    const baseResult: Pick<StickyNoteUpsertResultMessage, "requestId"> = { requestId: message.requestId };
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    if (!this.stickyNoteUpdateRateLimiter.isAllowed(client.sessionId, Date.now())) {
+      client.send("sticky_note_upsert_result", {
+        ...baseResult,
+        success: false,
+        message: "Please wait before updating your note again.",
+      } satisfies StickyNoteUpsertResultMessage);
+      return;
+    }
+
+    const textValidation = validateStickyNoteText(typeof message.text === "string" ? message.text : "");
+    if (!textValidation.valid) {
+      client.send("sticky_note_upsert_result", {
+        ...baseResult,
+        success: false,
+        message: textValidation.reason,
+      } satisfies StickyNoteUpsertResultMessage);
+      return;
+    }
+
+    const note: StickyNote = {
+      authorSessionId: client.sessionId,
+      authorDisplayName: player.displayName,
+      text: textValidation.text,
+      updatedAt: Date.now(),
+    };
+    this.stickyNotesBySessionId.set(client.sessionId, note);
+
+    client.send("sticky_note_upsert_result", { ...baseResult, success: true, note } satisfies StickyNoteUpsertResultMessage);
+    this.broadcast("sticky_note_upsert", note);
   }
 
   private async handleVoiceTokenRequest(client: Client, message: VoiceTokenRequestMessage): Promise<void> {

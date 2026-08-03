@@ -65,9 +65,13 @@ export function Chat({ messages, onSend, onFocusChange, disabled = false }: Chat
   };
 
   const visibleMessages = messages.slice(-MAX_VISIBLE_MESSAGES);
+  const openChat = (): void => {
+    setFocused(true);
+    inputRef.current?.focus({ preventScroll: true });
+  };
 
   return (
-    <div className="chat-overlay" hidden={disabled}>
+    <div className={`chat-overlay${focused ? " chat-overlay--focused" : ""}`} hidden={disabled}>
       <div className="chat-messages">
         {visibleMessages.map((message, index) => (
           <div key={`${message.senderId}-${message.timestamp}-${index}`} className="chat-message">
@@ -84,12 +88,29 @@ export function Chat({ messages, onSend, onFocusChange, disabled = false }: Chat
         value={draft}
         maxLength={MAX_CHAT_LENGTH}
         placeholder={focused ? "" : "Press Enter to chat"}
+        enterKeyHint="send"
+        aria-label="Chat message"
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={handleInputKeyDown}
         onKeyUp={(event) => event.stopPropagation()}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
       />
+      <button
+        type="button"
+        className="chat-mobile-toggle"
+        aria-label="Open chat"
+        aria-expanded={focused}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          openChat();
+        }}
+      >
+        Chat
+      </button>
     </div>
   );
 }

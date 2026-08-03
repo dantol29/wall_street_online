@@ -7,6 +7,11 @@ import {
   MOVEMENT_SEND_RATE_HZ,
   OFFICE_INTERACTION_DISTANCE_METERS,
   OFFICE_SLOTS,
+  STICKY_WALL_INTERACTION_DISTANCE_METERS,
+  STICKY_WALL_INTERACTION_POSITION,
+  STICKY_WALL_POSITION,
+  STICKY_WALL_WORLD_HEIGHT,
+  STICKY_WALL_WORLD_WIDTH,
   WHITEBOARD_INTERACTION_DISTANCE_METERS,
   WHITEBOARD_INTERACTION_POSITION,
   WHITEBOARD_POSITION,
@@ -15,6 +20,7 @@ import {
   type ChatMessage,
   type OfficeProfileLookup,
   type SeatResultMessage,
+  type StickyNote,
   type VoiceTokenResultMessage,
   type WhiteboardShape,
   type WhiteboardSnapshot,
@@ -33,11 +39,14 @@ import { ApplicationErrorBoundary } from "./ui/ApplicationErrorBoundary";
 import { TradingPlanEditor } from "./ui/TradingPlanEditor";
 import { InWorldWhiteboardControls } from "./ui/InWorldWhiteboardControls";
 import { OfficeEditor, type OfficeVisitorBookEntryView, type OfficeWatchlistItemInput } from "./ui/OfficeEditor";
-import { VoiceControls } from "./ui/VoiceControls";
+import { StickyNoteEditor } from "./ui/StickyNoteEditor";
+import { VoiceControls, type VoiceTalkMode } from "./ui/VoiceControls";
 import { WalletPanel } from "./ui/WalletPanel";
 import { Minimap } from "./ui/Minimap";
+import { MobileGameControls } from "./ui/MobileGameControls";
 import {
   VoiceClient,
+  type VoiceAudioOutputDevice,
   type VoiceConnectionState,
   type VoiceParticipantState,
 } from "./game/voice/VoiceClient";
@@ -55,6 +64,7 @@ const FIRST_PERSON_CONTROLLER_SCRIPT_NAME = "firstPersonController";
 const STANDING_CAMERA_HEIGHT = 0.8;
 const SEATED_CAMERA_HEIGHT = 0.25;
 const WALLET_LINK_TIMEOUT_MS = 10_000;
+const VOICE_TALK_MODE_STORAGE_KEY = "voiceTalkMode";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -171,20 +181,67 @@ function frameWhiteboardCamera(player: PcEntity | null): void {
   const aspect = Math.max(0.5, canvasBounds.width / Math.max(1, canvasBounds.height));
   const halfVerticalFov = (camera.fov * Math.PI) / 360;
   const verticalScale = Math.tan(halfVerticalFov);
-  const distanceForHeight = WHITEBOARD_WORLD_HEIGHT / 2 / verticalScale;
+  // Include the marker tray below the board, with enough breathing room to
+  // make each physical tool easy to see and click.
+  const framedHeight = WHITEBOARD_WORLD_HEIGHT + 0.8;
+  const framedCenterY = WHITEBOARD_POSITION.y - 0.12;
+  const distanceForHeight = framedHeight / 2 / verticalScale;
   const distanceForWidth = WHITEBOARD_WORLD_WIDTH / 2 / (verticalScale * aspect);
   const distance = Math.max(distanceForHeight, distanceForWidth) * 1.14;
 
   cameraEntity.setPosition(
     WHITEBOARD_POSITION.x + distance,
-    WHITEBOARD_POSITION.y,
+    framedCenterY,
     WHITEBOARD_POSITION.z,
   );
   cameraEntity.lookAt(
     WHITEBOARD_POSITION.x,
-    WHITEBOARD_POSITION.y,
+    framedCenterY,
     WHITEBOARD_POSITION.z,
   );
+}
+
+function enterStickyWallCamera(
+  player: PcEntity | null,
+  savedViewRef: MutableRefObject<SavedCameraView | null>,
+): void {
+  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+  const camera = cameraEntity?.camera;
+  if (!cameraEntity || !camera) return;
+  const controller = player?.script?.get(
+    FIRST_PERSON_CONTROLLER_SCRIPT_NAME,
+  ) as FirstPersonControllerRuntime | undefined;
+
+  if (!savedViewRef.current) {
+    savedViewRef.current = {
+      localPosition: cameraEntity.getLocalPosition().clone(),
+      localEulerAngles: cameraEntity.getLocalEulerAngles().clone(),
+      controllerAngles: controller?._angles?.clone() ?? null,
+    };
+  }
+
+  frameStickyWallOverview(player);
+  controller?._angles?.copy(cameraEntity.getLocalEulerAngles());
+}
+
+/** Establishing shot: the whole board in view — mirrors frameWhiteboardCamera's fit-to-FOV math. */
+function frameStickyWallOverview(player: PcEntity | null): void {
+  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+  const camera = cameraEntity?.camera;
+  if (!cameraEntity || !camera) return;
+
+  const canvasBounds = camera.system.app.graphicsDevice.canvas.getBoundingClientRect();
+  const aspect = Math.max(0.5, canvasBounds.width / Math.max(1, canvasBounds.height));
+  const halfVerticalFov = (camera.fov * Math.PI) / 360;
+  const verticalScale = Math.tan(halfVerticalFov);
+  const distanceForHeight = STICKY_WALL_WORLD_HEIGHT / 2 / verticalScale;
+  const distanceForWidth = STICKY_WALL_WORLD_WIDTH / 2 / (verticalScale * aspect);
+  const distance = Math.max(distanceForHeight, distanceForWidth) * 1.25;
+
+  // Board is on the east wall (+X) — approach from the room-interior side
+  // (lower x), mirroring how the whiteboard (west wall, -X) approaches from +x.
+  cameraEntity.setPosition(STICKY_WALL_POSITION.x - distance, STICKY_WALL_POSITION.y, STICKY_WALL_POSITION.z);
+  cameraEntity.lookAt(STICKY_WALL_POSITION.x, STICKY_WALL_POSITION.y, STICKY_WALL_POSITION.z);
 }
 
 function restoreFirstPersonCamera(
@@ -218,7 +275,12 @@ function App() {
   const voiceClientRef = useRef<VoiceClient | null>(null);
   const voiceRequestedRef = useRef(false);
   const voiceRequestIdRef = useRef(0);
+  const voiceTalkModeRef = useRef<VoiceTalkMode>(
+    window.localStorage.getItem(VOICE_TALK_MODE_STORAGE_KEY) === "toggle" ? "toggle" : "hold",
+  );
+  const voiceDesiredTalkingRef = useRef(false);
   const attemptConnectRef = useRef<() => void>(() => {});
+  const primaryInteractionRef = useRef<() => void>(() => {});
   const isRunningRef = useRef(false);
   const nearbyDeskIdRef = useRef<string | null>(null);
   const seatedDeskIdRef = useRef<string | null>(null);
@@ -235,6 +297,10 @@ function App() {
   const officeEditorLookupRef = useRef<OfficeProfileLookup | null>(null);
   /** Slot ids whose content has already been fetched once this session — avoids re-fetching on every schema onChange tick for the same occupant. */
   const fetchedOfficeSlotIdsRef = useRef<Set<string>>(new Set());
+  const nearStickyWallRef = useRef(false);
+  const stickyNoteEditorOpenRef = useRef(false);
+  /** Mirrors the `stickyNotes` state for synchronous reads from `triggerPrimaryInteraction`'s closure (created once, so it can't see fresh state directly). */
+  const stickyNotesRef = useRef<StickyNote[]>([]);
   const [entered, setEntered] = useState(false);
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
   const [connectErrorMessage, setConnectErrorMessage] = useState<string | null>(null);
@@ -250,7 +316,12 @@ function App() {
   const [voiceState, setVoiceState] = useState<VoiceConnectionState>("disabled");
   const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
   const [voiceTalking, setVoiceTalking] = useState(false);
+  const [voiceMicrophoneLevel, setVoiceMicrophoneLevel] = useState(0);
+  const [voiceTalkMode, setVoiceTalkMode] = useState<VoiceTalkMode>(voiceTalkModeRef.current);
   const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipantState[]>([]);
+  const [voiceAudioOutputs, setVoiceAudioOutputs] = useState<VoiceAudioOutputDevice[]>([]);
+  const [voiceSelectedAudioOutputId, setVoiceSelectedAudioOutputId] = useState("default");
+  const [voiceAudioOutputSelectionSupported, setVoiceAudioOutputSelectionSupported] = useState(false);
   const [nearOfficeSlotId, setNearOfficeSlotId] = useState<string | null>(null);
   const [officeSlotContentById, setOfficeSlotContentById] = useState<Record<string, OfficeSlotContent>>({});
   const [officeError, setOfficeError] = useState<string | null>(null);
@@ -261,6 +332,9 @@ function App() {
     watchlist: OfficeWatchlistItemInput[];
     visitorBook: OfficeVisitorBookEntryView[];
   } | null>(null);
+  const [nearStickyWall, setNearStickyWall] = useState(false);
+  const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
+  const [stickyNoteEditorOpen, setStickyNoteEditorOpen] = useState(false);
 
   useEffect(() => {
     let seatErrorTimer: number | null = null;
@@ -340,6 +414,20 @@ function App() {
       }
     }
 
+    /**
+     * Unlike offices, no fetch is needed here — the client already holds the
+     * full live snapshot (see onStickyNoteSnapshot/onStickyNoteUpsert). Enters
+     * an in-world camera shot of the whole board, mirroring the whiteboard.
+     */
+    function openStickyNoteEditor(): void {
+      const client = clientRef.current;
+      if (!client) return;
+      stickyNoteEditorOpenRef.current = true;
+      setStickyNoteEditorOpen(true);
+      setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
+      enterStickyWallCamera(playerEntityRef.current, savedCameraViewRef);
+    }
+
     const applySeatResult = (result: SeatResultMessage): void => {
       if (!result.success) {
         setSeatError(result.message ?? "Unable to use this desk.");
@@ -392,8 +480,17 @@ function App() {
           setVoiceState(state);
           setVoiceMessage(message ?? null);
         },
-        onTalkingChange: setVoiceTalking,
+        onTalkingChange: (talking) => {
+          voiceDesiredTalkingRef.current = talking;
+          setVoiceTalking(talking);
+        },
+        onMicrophoneLevelChange: setVoiceMicrophoneLevel,
         onParticipantsChange: setVoiceParticipants,
+        onAudioOutputsChange: (devices, selectedDeviceId, supported) => {
+          setVoiceAudioOutputs(devices);
+          setVoiceSelectedAudioOutputId(selectedDeviceId);
+          setVoiceAudioOutputSelectionSupported(supported);
+        },
       },
     );
     voiceClientRef.current = voice;
@@ -444,8 +541,54 @@ function App() {
           shapes: current.shapes.filter((shape) => shape.id !== id),
         }));
       },
+      onStickyNoteSnapshot: (snapshot) => {
+        stickyNotesRef.current = snapshot.notes;
+        setStickyNotes(snapshot.notes);
+      },
+      onStickyNoteUpsert: (note) => {
+        setStickyNotes((prev) => {
+          const index = prev.findIndex((candidate) => candidate.authorSessionId === note.authorSessionId);
+          const next =
+            index < 0
+              ? [...prev, note]
+              : prev.map((candidate, candidateIndex) => (candidateIndex === index ? note : candidate));
+          stickyNotesRef.current = next;
+          return next;
+        });
+      },
+      onStickyNoteDelete: (authorSessionId) => {
+        setStickyNotes((prev) => {
+          const next = prev.filter((note) => note.authorSessionId !== authorSessionId);
+          stickyNotesRef.current = next;
+          return next;
+        });
+      },
     });
     clientRef.current = client;
+
+    const triggerPrimaryInteraction = (): void => {
+      if (
+        seatedDeskIdRef.current ||
+        whiteboardOpenRef.current ||
+        officeEditorOpenRef.current ||
+        stickyNoteEditorOpenRef.current
+      )
+        return;
+      if (nearWhiteboardRef.current) {
+        whiteboardOpenRef.current = true;
+        setWhiteboardOpen(true);
+        setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
+        enterWhiteboardCamera(playerEntityRef.current, savedCameraViewRef);
+        client.requestWhiteboardPresenter();
+      } else if (nearbyDeskIdRef.current) {
+        client.requestSeat(nearbyDeskIdRef.current);
+      } else if (nearOfficeSlotIdRef.current) {
+        void handleOfficeInteract(nearOfficeSlotIdRef.current);
+      } else if (nearStickyWallRef.current) {
+        openStickyNoteEditor();
+      }
+    };
+    primaryInteractionRef.current = triggerPrimaryInteraction;
 
     const attemptConnect = (): void => {
       setConnectErrorMessage(null);
@@ -460,6 +603,10 @@ function App() {
 
     // The ready-made controller tracks its own key state internally; we only need
     // Shift here to label outgoing movement as "run" vs "walk" for other clients.
+    const requestTalking = (talking: boolean): void => {
+      voiceDesiredTalkingRef.current = talking;
+      void voice.setTalking(talking);
+    };
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Shift") isRunningRef.current = true;
       const target = event.target;
@@ -469,7 +616,11 @@ function App() {
         target instanceof HTMLSelectElement;
       if (event.code === "KeyV" && !event.repeat && !typing) {
         event.preventDefault();
-        void voice.setTalking(true);
+        requestTalking(
+          voiceTalkModeRef.current === "toggle"
+            ? !voiceDesiredTalkingRef.current
+            : true,
+        );
       }
       if (
         event.code === "KeyE" &&
@@ -477,28 +628,25 @@ function App() {
         !typing &&
         !seatedDeskIdRef.current
       ) {
-        if (nearWhiteboardRef.current) {
+        if (
+          nearWhiteboardRef.current ||
+          nearbyDeskIdRef.current ||
+          nearOfficeSlotIdRef.current ||
+          nearStickyWallRef.current
+        ) {
           event.preventDefault();
-          whiteboardOpenRef.current = true;
-          setWhiteboardOpen(true);
-          setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
-          enterWhiteboardCamera(playerEntityRef.current, savedCameraViewRef);
-          client.requestWhiteboardPresenter();
-        } else if (nearbyDeskIdRef.current) {
-          event.preventDefault();
-          client.requestSeat(nearbyDeskIdRef.current);
-        } else if (nearOfficeSlotIdRef.current && !officeEditorOpenRef.current) {
-          event.preventDefault();
-          void handleOfficeInteract(nearOfficeSlotIdRef.current);
+          triggerPrimaryInteraction();
         }
       }
     };
     const handleKeyUp = (event: KeyboardEvent): void => {
       if (event.key === "Shift") isRunningRef.current = false;
-      if (event.code === "KeyV") void voice.setTalking(false);
+      if (event.code === "KeyV" && voiceTalkModeRef.current === "hold") {
+        requestTalking(false);
+      }
     };
     const stopTalking = (): void => {
-      void voice.setTalking(false);
+      requestTalking(false);
     };
     const handleVisibilityChange = (): void => {
       if (document.hidden) stopTalking();
@@ -587,6 +735,16 @@ function App() {
           nearOfficeSlotIdRef.current = nearestOfficeSlotId;
           setNearOfficeSlotId(nearestOfficeSlotId);
         }
+
+        const stickyWallDistance = Math.hypot(
+          position.x - STICKY_WALL_INTERACTION_POSITION.x,
+          position.z - STICKY_WALL_INTERACTION_POSITION.z,
+        );
+        const isNearStickyWall = stickyWallDistance <= STICKY_WALL_INTERACTION_DISTANCE_METERS;
+        if (isNearStickyWall !== nearStickyWallRef.current) {
+          nearStickyWallRef.current = isNearStickyWall;
+          setNearStickyWall(isNearStickyWall);
+        }
       }
     }, sendIntervalMs);
 
@@ -601,6 +759,7 @@ function App() {
       if (officeErrorTimer !== null) window.clearTimeout(officeErrorTimer);
       client.disconnect();
       clientRef.current = null;
+      primaryInteractionRef.current = () => {};
       voiceClientRef.current = null;
       void voice.dispose();
     };
@@ -646,7 +805,45 @@ function App() {
 
   const handleVoiceDisable = (): void => {
     voiceRequestedRef.current = false;
+    voiceDesiredTalkingRef.current = false;
     void voiceClientRef.current?.disconnect();
+  };
+
+  const handleVoiceTalkModeChange = (mode: VoiceTalkMode): void => {
+    voiceTalkModeRef.current = mode;
+    setVoiceTalkMode(mode);
+    window.localStorage.setItem(VOICE_TALK_MODE_STORAGE_KEY, mode);
+    voiceDesiredTalkingRef.current = false;
+    void voiceClientRef.current?.setTalking(false);
+  };
+
+  const handleVoiceAudioOutputChange = (deviceId: string): void => {
+    setVoiceSelectedAudioOutputId(deviceId);
+    void voiceClientRef.current?.setAudioOutputDevice(deviceId).then((switched) => {
+      if (switched) {
+        setVoiceMessage(null);
+      } else {
+        setVoiceMessage("This browser could not switch the audio output.");
+      }
+    }).catch(() => {
+      setVoiceMessage("This browser could not switch the audio output.");
+    });
+  };
+
+  const handleVoiceTalkStart = (): void => {
+    voiceDesiredTalkingRef.current = true;
+    void voiceClientRef.current?.setTalking(true);
+  };
+
+  const handleVoiceTalkEnd = (): void => {
+    voiceDesiredTalkingRef.current = false;
+    void voiceClientRef.current?.setTalking(false);
+  };
+
+  const handleVoiceTalkToggle = (): void => {
+    const talking = !voiceDesiredTalkingRef.current;
+    voiceDesiredTalkingRef.current = talking;
+    void voiceClientRef.current?.setTalking(talking);
   };
 
   const handleParticipantMuteChange = (sessionId: string, muted: boolean): void => {
@@ -672,6 +869,32 @@ function App() {
   const handleWhiteboardDelete = useCallback((id: string): void => {
     clientRef.current?.deleteWhiteboardShape(id);
   }, []);
+
+  useEffect(() => {
+    if (!whiteboardOpen) return;
+    const reframe = (): void => frameWhiteboardCamera(playerEntityRef.current);
+    const animationFrame = window.requestAnimationFrame(reframe);
+    window.addEventListener("resize", reframe);
+    window.addEventListener("orientationchange", reframe);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", reframe);
+      window.removeEventListener("orientationchange", reframe);
+    };
+  }, [whiteboardOpen]);
+
+  useEffect(() => {
+    if (!stickyNoteEditorOpen) return;
+    const reframe = (): void => frameStickyWallOverview(playerEntityRef.current);
+    const animationFrame = window.requestAnimationFrame(reframe);
+    window.addEventListener("resize", reframe);
+    window.addEventListener("orientationchange", reframe);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", reframe);
+      window.removeEventListener("orientationchange", reframe);
+    };
+  }, [stickyNoteEditorOpen]);
 
   const handleOfficeEditorClose = useCallback((): void => {
     officeEditorOpenRef.current = false;
@@ -722,6 +945,22 @@ function App() {
     return { success: result.success, message: result.message };
   }, []);
 
+  const handleStickyNoteEditorClose = useCallback((): void => {
+    stickyNoteEditorOpenRef.current = false;
+    setStickyNoteEditorOpen(false);
+    restoreFirstPersonCamera(playerEntityRef.current, savedCameraViewRef);
+    setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef);
+  }, []);
+
+  const handleStickyNoteSubmit = useCallback(async (text: string) => {
+    const client = clientRef.current;
+    if (!client) return { success: false, message: "Not connected." };
+    const result = await client.upsertStickyNote(text);
+    // No local state update here — the server broadcasts `sticky_note_upsert`
+    // (including back to the author), so onStickyNoteUpsert applies it.
+    return { success: result.success, message: result.message };
+  }, []);
+
   const handleLinkWallet = useCallback(async (authToken: string) => {
     const client = clientRef.current;
     if (!client) return { success: false, message: "Not connected." };
@@ -756,6 +995,21 @@ function App() {
   const isNearOwnOffice = nearOfficeSlotId !== null && nearOfficeSlotId === myOfficeSlotIdRef.current;
   const nearOfficeOccupantSessionId =
     nearOfficeSlotId && !isNearOwnOffice ? (sceneRef.current?.getSessionIdForOfficeSlot(nearOfficeSlotId) ?? null) : null;
+  const mySessionId = clientRef.current?.getSessionId() ?? null;
+  const myStickyNote = mySessionId ? stickyNotes.find((note) => note.authorSessionId === mySessionId) ?? null : null;
+  const mobileActionLabel = nearWhiteboard
+    ? "Use board"
+    : nearbyDeskId
+      ? "Sit at desk"
+      : isNearOwnOffice
+        ? "Manage office"
+        : nearOfficeOccupantSessionId
+          ? "Visit office"
+          : nearStickyWall
+            ? myStickyNote
+              ? "Update note"
+              : "Post note"
+            : null;
 
   return (
     <div className="full-bleed">
@@ -768,6 +1022,7 @@ function App() {
             speakingPlayerIds={speakingPlayerIds}
             whiteboardSnapshot={whiteboardSnapshot}
             officeSlotContentById={officeSlotContentById}
+            stickyNotes={stickyNotes}
           />
         </Application>
       </ApplicationErrorBoundary>
@@ -781,16 +1036,24 @@ function App() {
       )}
       {entered && (
         <VoiceControls
+          gameConnected={connectionState === "connected"}
           state={voiceState}
           talking={voiceTalking}
+          microphoneLevel={voiceMicrophoneLevel}
           message={voiceMessage}
           participants={voiceParticipants}
+          talkMode={voiceTalkMode}
+          audioOutputs={voiceAudioOutputs}
+          selectedAudioOutputId={voiceSelectedAudioOutputId}
+          audioOutputSelectionSupported={voiceAudioOutputSelectionSupported}
           onEnable={handleVoiceEnable}
           onDisable={handleVoiceDisable}
+          onTalkModeChange={handleVoiceTalkModeChange}
+          onAudioOutputChange={handleVoiceAudioOutputChange}
           onParticipantMuteChange={handleParticipantMuteChange}
         />
       )}
-      {entered && !whiteboardOpen && !officeEditorData && (
+      {entered && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
         <Minimap playerEntityRef={playerEntityRef} sceneRef={sceneRef} />
       )}
       <Chat
@@ -801,6 +1064,20 @@ function App() {
       />
       {entered && !seatedDeskId && !whiteboardOpen && <div className="crosshair" />}
       {entered && !hasMoved && !seatedDeskId && !whiteboardOpen && <div className="wasd-hint">WASD to move</div>}
+      {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
+        <MobileGameControls
+          actionLabel={mobileActionLabel}
+          showMovementHint={!hasMoved}
+          voiceReady={voiceState === "ready"}
+          talking={voiceTalking}
+          microphoneLevel={voiceMicrophoneLevel}
+          talkMode={voiceTalkMode}
+          onAction={() => primaryInteractionRef.current()}
+          onTalkStart={handleVoiceTalkStart}
+          onTalkEnd={handleVoiceTalkEnd}
+          onTalkToggle={handleVoiceTalkToggle}
+        />
+      )}
       {entered && nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
         <div className="desk-interaction"><kbd>E</kbd> Open live analysis board</div>
       )}
@@ -812,6 +1089,11 @@ function App() {
       )}
       {entered && nearOfficeOccupantSessionId && !seatedDeskId && !whiteboardOpen && !officeEditorData && (
         <div className="desk-interaction"><kbd>E</kbd> Sign the visitor book</div>
+      )}
+      {entered && nearStickyWall && !seatedDeskId && !whiteboardOpen && !stickyNoteEditorOpen && (
+        <div className="desk-interaction">
+          <kbd>E</kbd> {myStickyNote ? "Update your note" : "Post a note"}
+        </div>
       )}
       {seatError && <div className="seat-error">{seatError}</div>}
       {officeError && <div className="seat-error">{officeError}</div>}
@@ -827,6 +1109,13 @@ function App() {
           onPublishThesis={handlePublishThesis}
           onUpdateWatchlist={handleUpdateWatchlist}
           onSignVisitorBook={handleSignVisitorBook}
+        />
+      )}
+      {stickyNoteEditorOpen && (
+        <StickyNoteEditor
+          initialText={myStickyNote?.text ?? ""}
+          onClose={handleStickyNoteEditorClose}
+          onSubmit={handleStickyNoteSubmit}
         />
       )}
       {whiteboardOpen && (

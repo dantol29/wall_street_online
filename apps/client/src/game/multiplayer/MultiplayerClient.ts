@@ -7,6 +7,10 @@ import {
   type OfficeWatchlistItem,
   type PlayerInputMessage,
   type SeatResultMessage,
+  type StickyNote,
+  type StickyNoteDeleteMessage,
+  type StickyNoteSnapshot,
+  type StickyNoteUpsertResultMessage,
   type ThesisPublishResultMessage,
   type VisitorBookSignResultMessage,
   type VoiceTokenResultMessage,
@@ -33,6 +37,9 @@ export interface MultiplayerClientCallbacks {
   onWhiteboardSnapshot: (snapshot: WhiteboardSnapshot) => void;
   onWhiteboardShapeUpsert: (shape: WhiteboardShape) => void;
   onWhiteboardShapeDelete: (id: string) => void;
+  onStickyNoteSnapshot: (snapshot: StickyNoteSnapshot) => void;
+  onStickyNoteUpsert: (note: StickyNote) => void;
+  onStickyNoteDelete: (authorSessionId: string) => void;
 }
 
 /**
@@ -53,6 +60,7 @@ export class MultiplayerClient {
   private readonly pendingThesisPublish = new Map<number, (message: ThesisPublishResultMessage) => void>();
   private readonly pendingWatchlistUpdate = new Map<number, (message: WatchlistUpdateResultMessage) => void>();
   private readonly pendingVisitorBookSign = new Map<number, (message: VisitorBookSignResultMessage) => void>();
+  private readonly pendingStickyNoteUpsert = new Map<number, (message: StickyNoteUpsertResultMessage) => void>();
 
   constructor(serverUrl: string, callbacks: MultiplayerClientCallbacks) {
     this.client = new Client(serverUrl);
@@ -74,6 +82,7 @@ export class MultiplayerClient {
     this.attachRoomHandlers(this.room);
     this.room.send("chat_history_request");
     this.room.send("whiteboard_snapshot_request");
+    this.room.send("sticky_note_snapshot_request");
   }
 
   /**
@@ -189,6 +198,17 @@ export class MultiplayerClient {
       this.pendingVisitorBookSign.set(requestId, resolve);
     });
     this.room.send("visitor_book_sign_request", { requestId, lookup, message });
+    return result;
+  }
+
+  /** Always an upsert of the caller's own note — see `sticky_note_upsert_request`'s doc comment for why there's no "target" concept here. */
+  upsertStickyNote(text: string): Promise<StickyNoteUpsertResultMessage> {
+    if (!this.room) return Promise.reject(new Error("Not connected."));
+    const requestId = this.nextRequestId();
+    const result = new Promise<StickyNoteUpsertResultMessage>((resolve) => {
+      this.pendingStickyNoteUpsert.set(requestId, resolve);
+    });
+    this.room.send("sticky_note_upsert_request", { requestId, text });
     return result;
   }
 
@@ -324,6 +344,28 @@ export class MultiplayerClient {
       resolve(message);
     });
 
+    room.onMessage<StickyNoteSnapshot>("sticky_note_snapshot", (snapshot) => {
+      if (!snapshot || !Array.isArray(snapshot.notes)) return;
+      this.callbacks.onStickyNoteSnapshot(snapshot);
+    });
+
+    room.onMessage<StickyNote>("sticky_note_upsert", (note) => {
+      if (!note || typeof note.authorSessionId !== "string" || typeof note.text !== "string") return;
+      this.callbacks.onStickyNoteUpsert(note);
+    });
+
+    room.onMessage<StickyNoteDeleteMessage>("sticky_note_delete", (message) => {
+      if (!message || typeof message.authorSessionId !== "string") return;
+      this.callbacks.onStickyNoteDelete(message.authorSessionId);
+    });
+
+    room.onMessage<StickyNoteUpsertResultMessage>("sticky_note_upsert_result", (message) => {
+      const resolve = this.pendingStickyNoteUpsert.get(message.requestId);
+      if (!resolve) return;
+      this.pendingStickyNoteUpsert.delete(message.requestId);
+      resolve(message);
+    });
+
     room.onLeave((code: number) => {
       const abnormalClose = code !== 1000;
       if (!abnormalClose) {
@@ -349,6 +391,7 @@ export class MultiplayerClient {
       this.attachRoomHandlers(this.room);
       this.room.send("chat_history_request");
       this.room.send("whiteboard_snapshot_request");
+      this.room.send("sticky_note_snapshot_request");
     } catch {
       sessionStorage.removeItem(RECONNECTION_TOKEN_STORAGE_KEY);
       this.callbacks.onConnectionStateChange("disconnected");
