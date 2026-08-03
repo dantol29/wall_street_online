@@ -123,6 +123,37 @@
   font: 11px/1.2 "Courier New", monospace;
 }
 
+.main-menu__scenes {
+  display: flex;
+  gap: 10px;
+}
+
+.main-menu__scene-card {
+  padding: 10px 18px;
+  color: #cbc2a4;
+  background: rgba(30, 32, 30, 0.6);
+  border: 1px solid rgba(205, 188, 145, 0.25);
+  font: 600 13px/1.2 "Courier New", monospace;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.main-menu__scene-card:hover {
+  color: #f1e7c7;
+  border-color: rgba(205, 188, 145, 0.55);
+}
+
+.main-menu__scene-card--selected {
+  color: #181a18;
+  background: #d8c99e;
+  border-color: #f1e7c7;
+}
+
+.main-menu__scene-card--selected:hover {
+  color: #181a18;
+}
+
 .name-labels-container {
   position: absolute;
   inset: 0;
