@@ -38,15 +38,89 @@
   mix-blend-mode: screen;
 }
 
-.enter-overlay {
+.main-menu {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.35);
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(216, 201, 158, 0.08), transparent 60%),
+    rgba(6, 7, 6, 0.82);
   z-index: 10;
+}
+
+.main-menu__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 36px 44px;
+  color: #efe8d5;
+  text-align: center;
+  background: rgba(10, 12, 11, 0.72);
+  border: 1px solid rgba(205, 188, 145, 0.42);
+  cursor: default;
+}
+
+.main-menu__eyebrow {
+  margin: 0;
+  color: #a89049;
+  font: 600 11px/1.2 "Courier New", monospace;
+  letter-spacing: 0.16em;
+}
+
+.main-menu__title {
+  margin: 0;
+  color: #f1e7c7;
+  font: 700 2.4rem/1.1 "Courier New", monospace;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 24px rgba(216, 201, 158, 0.28);
+}
+
+.main-menu__controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 18px;
+}
+
+.main-menu__control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #cbc2a4;
+  font: 12px/1.2 "Courier New", monospace;
+}
+
+.main-menu__control kbd {
+  padding: 3px 7px;
+  color: #181a18;
+  background: #d8c99e;
+  border: 1px solid #f1e7c7;
+  font: inherit;
+}
+
+.main-menu__play {
+  min-height: 46px;
+  padding: 10px 32px;
+  color: #181a18;
+  background: #d8c99e;
+  border: 1px solid #f1e7c7;
+  font: 700 15px/1.2 "Courier New", monospace;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.main-menu__play:hover {
+  background: #e6d9ae;
+}
+
+.main-menu__hint {
+  margin: 0;
+  color: #7c7461;
+  font: 11px/1.2 "Courier New", monospace;
 }
 
 .name-labels-container {
@@ -104,6 +178,49 @@
     box-shadow:
       0 0 0 0 rgba(101, 216, 139, 0),
       0 0 8px rgba(101, 216, 139, 0.85);
+  }
+}
+
+/* Transient speech bubble over a remote player's head when they send a chat message — see ChatBubblesOverlay.tsx. */
+.chat-bubble {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 180px;
+  padding: 6px 10px;
+  color: #1a1a1a;
+  background: #f1ede2;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  font: 13px/1.3 "Courier New", Courier, monospace;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+  /* Only opacity animates here — `transform` is driven every frame from JS
+     (see ChatBubblesOverlay.tsx) to track screen position, and a running CSS
+     animation on that same property would fight it and win for its duration. */
+  animation: chat-bubble-fade-in 140ms ease-out;
+}
+
+.chat-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #f1ede2;
+}
+
+@keyframes chat-bubble-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -469,17 +586,8 @@
 
 .chat-mobile-toggle,
 .mobile-game-controls,
-.enter-overlay__touch-label {
+.main-menu__hint-touch {
   display: none;
-}
-
-.enter-overlay__prompt {
-  color: #fff;
-  font-size: 1.25rem;
-  padding: 10px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.5);
 }
 
 .error-overlay {
@@ -564,6 +672,81 @@
   font: inherit;
 }
 
+.seated-stand-button,
+.seated-terminal-button {
+  display: none;
+}
+
+.hyperliquid-terminal {
+  position: fixed;
+  inset: 0;
+  z-index: 32;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.hyperliquid-terminal__screen {
+  position: relative;
+  width: min(94vw, calc(72vmin * 1.6542));
+  aspect-ratio: 1.6542;
+  overflow: hidden;
+  pointer-events: auto;
+  background: #071114;
+  border-radius: 1.5%;
+  clip-path: inset(0 round 1.5%);
+  box-shadow:
+    inset 0 0 26px rgba(0, 0, 0, 0.72),
+    0 0 5px rgba(75, 220, 202, 0.16);
+  filter: saturate(0.82) contrast(0.94) brightness(0.88);
+}
+
+.hyperliquid-terminal__screen iframe {
+  width: 160%;
+  height: 160%;
+  border: 0;
+  background: #071114;
+  transform: scale(0.625);
+  transform-origin: 0 0;
+}
+
+.hyperliquid-terminal__glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.025) 0,
+      rgba(255, 255, 255, 0.025) 1px,
+      rgba(0, 0, 0, 0.055) 2px,
+      rgba(0, 0, 0, 0.055) 3px
+    ),
+    radial-gradient(ellipse at center, transparent 58%, rgba(0, 0, 0, 0.34) 100%);
+  box-shadow:
+    inset 0 0 18px rgba(0, 0, 0, 0.7),
+    inset 1px 1px 2px rgba(214, 255, 249, 0.12);
+  mix-blend-mode: multiply;
+}
+
+.hyperliquid-terminal__exit {
+  position: absolute;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  pointer-events: auto;
+  padding: 9px 13px;
+  color: rgba(231, 240, 238, 0.84);
+  background: rgba(7, 15, 16, 0.84);
+  border: 1px solid rgba(139, 186, 179, 0.34);
+  border-radius: 4px;
+  font: 600 12px/1 "Courier New", monospace;
+}
+
+.hyperliquid-terminal__exit:hover {
+  color: #ffffff;
+  border-color: rgba(139, 226, 213, 0.68);
+}
+
 .wave-emote-button {
   position: absolute;
   left: calc(12px + env(safe-area-inset-left));
@@ -610,6 +793,21 @@
   background: rgba(31, 10, 8, 0.9);
   border: 1px solid rgba(255, 118, 91, 0.55);
   font: 13px/1.3 "Courier New", monospace;
+}
+
+/* Shown when the browser drops pointer lock outside our control (Escape, focus loss, etc.) — see App.tsx's handlePointerLockChange. Clicking anywhere (not this label itself, which is inert) re-engages it. */
+.pointer-lock-hint {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  padding: 7px 11px;
+  color: #ffe1a3;
+  background: rgba(31, 22, 8, 0.9);
+  border: 1px solid rgba(255, 209, 102, 0.55);
+  font: 13px/1.3 "Courier New", monospace;
+  pointer-events: none;
 }
 
 .plan-editor-backdrop {
@@ -1255,16 +1453,26 @@
 }
 
 @media (hover: none) and (pointer: coarse) {
-  .enter-overlay {
+  .main-menu {
     touch-action: manipulation;
   }
 
-  .enter-overlay__desktop-label {
+  .main-menu__hint-desktop {
     display: none;
   }
 
-  .enter-overlay__touch-label {
+  .main-menu__hint-touch {
     display: inline;
+  }
+
+  .main-menu__panel {
+    max-width: calc(100vw - 32px);
+    padding: 28px 22px;
+    box-sizing: border-box;
+  }
+
+  .main-menu__title {
+    font-size: 1.7rem;
   }
 
   .connection-status {
@@ -1330,6 +1538,36 @@
   .desk-interaction,
   .wave-emote-button {
     display: none;
+  }
+
+  .seated-stand-button,
+  .seated-terminal-button {
+    position: absolute;
+    right: calc(14px + env(safe-area-inset-right));
+    z-index: 9;
+    display: flex;
+    min-width: 96px;
+    min-height: 52px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    color: #f4f1e8;
+    background: rgba(10, 12, 11, 0.78);
+    border: 1px solid rgba(224, 215, 188, 0.52);
+    border-radius: 26px;
+    font: 600 12px/1 "Courier New", monospace;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .seated-stand-button {
+    bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .seated-terminal-button {
+    bottom: calc(80px + env(safe-area-inset-bottom));
   }
 
   .mobile-game-controls {
@@ -1700,4 +1938,57 @@
   .mobile-gesture-hints {
     inset-block-start: 60%;
   }
+}
+.day-night-debug {
+  position: fixed;
+  z-index: 40;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  display: grid;
+  grid-template-columns: minmax(150px, 240px) auto;
+  gap: 6px 10px;
+  width: min(330px, calc(100vw - 28px));
+  padding: 9px 11px;
+  color: #e8eadf;
+  border: 1px solid rgb(147 159 142 / 35%);
+  border-radius: 8px;
+  background: rgb(8 12 11 / 84%);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 30%);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+  font: 12px/1.2 "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.day-night-debug__header {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  color: #a7b0a5;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.day-night-debug__header strong {
+  color: #f0c987;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.day-night-debug input {
+  width: 100%;
+  accent-color: #e2af61;
+}
+
+.day-night-debug button {
+  min-width: 48px;
+  color: #dce2d8;
+  border: 1px solid rgb(190 204 188 / 25%);
+  border-radius: 5px;
+  background: rgb(255 255 255 / 7%);
+  font: inherit;
+}
+
+.day-night-debug button:disabled {
+  opacity: 0.4;
 }

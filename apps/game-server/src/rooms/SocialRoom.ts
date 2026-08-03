@@ -11,6 +11,9 @@ import {
   VOICE_TOKEN_REQUEST_COOLDOWN_MS,
   WATCHLIST_UPDATE_COOLDOWN_MS,
   WHITEBOARD_MAX_SHAPES,
+  WORLD_DAY_DURATION_MS,
+  WORLD_START_HOUR,
+  WORLD_TIME_SYNC_INTERVAL_MS,
   type ChatMessage,
   type OfficeProfileLookup,
   type OfficeProfileRequestMessage,
@@ -38,6 +41,8 @@ import {
   type WhiteboardShape,
   type WhiteboardShapeDeleteMessage,
   type WhiteboardSnapshot,
+  type WorldTimeSyncMessage,
+  worldPhaseAtTime,
 } from "@multiplayer/shared";
 import { SocialRoomState } from "./schema/SocialRoomState";
 import { PlayerState } from "./schema/PlayerState";
@@ -65,6 +70,8 @@ import {
 
 const GUEST_DISPLAY_NAME_PATTERN = /^Trader-\d{4}$/;
 const MAX_CHAT_HISTORY_MESSAGES = 20;
+/** Shared by every room/shard in this server process, so all traders see the same time. */
+const WORLD_TIME_EPOCH_MS = Date.now() - (WORLD_START_HOUR / 24) * WORLD_DAY_DURATION_MS;
 
 function shortenWalletAddress(address: string): string {
   return address.length > 12 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address;
@@ -103,6 +110,18 @@ export class SocialRoom extends Room<SocialRoomState> {
 
   override onCreate(): void {
     this.setState(new SocialRoomState());
+    this.clock.setInterval(() => this.broadcast("world_time_sync", this.worldTimeSync()), WORLD_TIME_SYNC_INTERVAL_MS);
+
+    this.onMessage("world_time_request", (client) => {
+      client.send("world_time_sync", this.worldTimeSync());
+    });
+
+    // Lightweight round trip measurement used by the opt-in Colyseus bot test.
+    // It is harmless in production and intentionally does not mutate room state.
+    this.onMessage("loadtest_ping", (client, message: { sentAt?: unknown }) => {
+      if (!Number.isFinite(message?.sentAt)) return;
+      client.send("loadtest_pong", { sentAt: message.sentAt });
+    });
 
     this.onMessage("move", (client, message: PlayerInputMessage) => {
       this.handleMove(client, message);
@@ -211,6 +230,16 @@ export class SocialRoom extends Room<SocialRoomState> {
       z: point.z,
       updatedAtMs: Date.now(),
     });
+    client.send("world_time_sync", this.worldTimeSync());
+  }
+
+  private worldTimeSync(): WorldTimeSyncMessage {
+    const serverTimeMs = Date.now();
+    return {
+      phase: worldPhaseAtTime(WORLD_TIME_EPOCH_MS, serverTimeMs),
+      dayDurationMs: WORLD_DAY_DURATION_MS,
+      serverTimeMs,
+    };
   }
 
   override async onLeave(client: Client, consented: boolean): Promise<void> {
@@ -244,7 +273,16 @@ export class SocialRoom extends Room<SocialRoomState> {
   private handleMove(client: Client, message: PlayerInputMessage): void {
     const player = this.state.players.get(client.sessionId);
     if (!player || !message) return;
-    if (player.seatedDeskId) return;
+    if (player.seatedDeskId) {
+      // A seated player cannot move away from the server-owned chair
+      // position, but their look direction is still replicated so nearby
+      // players see them turn while they sit and talk.
+      if (Number.isFinite(message.rotationY)) {
+        player.rotationY = message.rotationY;
+        player.animation = "idle";
+      }
+      return;
+    }
 
     const previous = this.previousPositionBySessionId.get(client.sessionId) ?? null;
     const now = Date.now();

@@ -1,8 +1,16 @@
-import { Fragment, memo } from "react";
+import { Fragment, memo, useEffect, useRef } from "react";
 import { Entity } from "@playcanvas/react";
-import { Light, Render } from "@playcanvas/react/components";
-import { useMaterial, useTexture } from "@playcanvas/react/hooks";
-import type { Asset, Texture } from "playcanvas";
+import { Render } from "@playcanvas/react/components";
+import { useApp, useMaterial, useModel, useTexture } from "@playcanvas/react/hooks";
+import {
+  BLEND_NORMAL,
+  Mesh,
+  MeshInstance,
+  calculateNormals,
+  type Asset,
+  type Entity as PcEntity,
+  type Texture,
+} from "playcanvas";
 import { Prop } from "./Props";
 import { TickerDisplay } from "./TickerDisplay";
 import { WorldClocksDisplay } from "./WorldClockDisplay";
@@ -15,22 +23,26 @@ import {
   TICKER_ROD_X_OFFSET,
   TICKER_SIZE,
 } from "./tradingFloorLayout";
+import { useDayNight } from "./DayNightContext";
 
 /** Office Pack trading desk, authored at 1.82m × 0.92m × 0.85m. */
 const DESK_MODEL_SCALE = 0.95;
 const DESK_MODEL_HEIGHT = 0.92 * DESK_MODEL_SCALE;
 const DESK_PIVOT_OFFSET: [number, number, number] = [0, 0, 0.03];
-const COMPUTER_SCREEN_SCALE: [number, number, number] = [1.5, 1.5, 1.5];
-const COMPUTER_SCREEN_PIVOT: [number, number, number] = [0.195, 0, -0.05];
+/** Poly by Google widescreen monitor, normalized to roughly 95cm wide. */
+const DESK_MONITOR_SCALE = 0.011;
 const KEYBOARD_SCALE: [number, number, number] = [0.006, 0.006, 0.006];
 const KEYBOARD_PIVOT: [number, number, number] = [0, 0, -8.805];
 const OFFICE_CHAIR_SCALE: [number, number, number] = [0.8, 0.8, 0.8];
-const OFFICE_PHONE_SCALE: [number, number, number] = [0.08, 0.08, 0.08];
-const OFFICE_PHONE_PIVOT: [number, number, number] = [0.535, 1.56, 0.865];
-/** Coffee cup mesh has no baked-in scale correction (unlike most of this pack) — raw ~0.68m × 0.96m × 0.68m, so this scales a ~9cm-tall mug down directly. */
+const OFFICE_CHAIR_BASE_Y = 0.26;
+/** Coffee mug raw mesh ~0.68m × 0.96m × 0.68m; scaled down to a real ~9cm-tall mug. */
 const MUG_MODEL_SCALE: [number, number, number] = [0.095, 0.095, 0.095];
 /** Recenters the mug's off-center bounding box (origin sits near its rim, not its base/center) onto the entity's own origin. */
 const MUG_PIVOT_OFFSET: [number, number, number] = [0.026, 0.658, 0];
+/** A small stack of papers/notes; raw mesh ~0.33m × 0.14m × 0.5m, scaled to a modest desk-clutter size. */
+const PAPER_STACK_SCALE: [number, number, number] = [0.42, 0.42, 0.42];
+/** Recenters the paper stack horizontally and drops its base onto the desk surface. */
+const PAPER_STACK_PIVOT_OFFSET: [number, number, number] = [0.011, 0.054, 0.03];
 
 /**
  * Small deterministic "randomness" seeded per desk index — stable across
@@ -53,6 +65,74 @@ function signedJitter(seed: number): number {
 /** `Asset.resource` is typed as a generic `object` since its shape depends on asset type; narrow it here. */
 function textureOf(asset: Asset | null): Texture | undefined {
   return (asset?.resource as Texture | undefined) ?? undefined;
+}
+
+interface DeskMonitorProps {
+  position: [number, number, number];
+  rotationY: number;
+  screenMaterial: ReturnType<typeof useMaterial>;
+  scaleMultiplier?: number;
+}
+
+/** UV-mapped surface fitted exactly over the monitor's modeled, angled screen. */
+function MonitorScreenSurface({ material }: { material: ReturnType<typeof useMaterial> }) {
+  const app = useApp();
+  const entityRef = useRef<PcEntity | null>(null);
+
+  useEffect(() => {
+    const entity = entityRef.current;
+    if (!entity) return;
+
+    // Exact screen corners read from the downloaded GLB. A tiny offset along
+    // the screen-facing -X axis prevents z-fighting with the modeled panel.
+    const positions = [
+      -16.166, 17.417, 40.102,
+      -16.166, 17.417, -40.102,
+      -8.293, 65.258, 40.102,
+      -8.293, 65.258, -40.102,
+    ];
+    // The source site's captured texture is mirrored vertically and
+    // horizontally relative to PlayCanvas' mesh UV convention.
+    const uvs = [1, 1, 0, 1, 1, 0, 0, 0];
+    const indices = [0, 2, 1, 1, 2, 3];
+
+    const mesh = new Mesh(app.graphicsDevice);
+    mesh.setPositions(positions);
+    mesh.setNormals(calculateNormals(positions, indices));
+    mesh.setUvs(0, uvs);
+    mesh.setIndices(indices);
+    mesh.update();
+
+    const meshInstance = new MeshInstance(mesh, material, entity);
+    entity.addComponent("render", { meshInstances: [meshInstance] });
+
+    return () => {
+      if (entity.render) entity.removeComponent("render");
+      mesh.destroy();
+    };
+  }, [app, material]);
+
+  return <Entity ref={entityRef} />;
+}
+
+/** Large Poly Pizza monitor whose panel carries the ambient HyperLiquid view. */
+function DeskMonitor({
+  position,
+  rotationY,
+  screenMaterial,
+  scaleMultiplier = 1,
+}: DeskMonitorProps) {
+  const { asset } = useModel("/assets/office/monitor-poly-google.glb");
+  const scale = DESK_MONITOR_SCALE * scaleMultiplier;
+  return (
+    <Entity position={position} rotation={[0, rotationY, 0]} scale={[scale, scale, scale]}>
+      {/* The source model faces -X; normalize it so every placement faces local -Z. */}
+      <Entity rotation={[0, -90, 0]}>
+        {asset && <Render type="asset" asset={asset} />}
+        <MonitorScreenSurface material={screenMaterial} />
+      </Entity>
+    </Entity>
+  );
 }
 
 /**
@@ -93,7 +173,6 @@ interface DeskBankProps {
   bankIndex: number;
   deskMaterial: ReturnType<typeof useMaterial>;
   terminalScreenMaterial: ReturnType<typeof useMaterial>;
-  tradingPlanMaterial: ReturnType<typeof useMaterial>;
 }
 
 /** Spacing between adjacent desks within a bank — wide enough that their (axis-aligned) collision boxes never overlap regardless of facing. */
@@ -101,15 +180,12 @@ const DESK_BANK_SPACING = 2.2;
 
 /**
  * A 2x2 cluster of 4 trading desks, all facing the same direction (into the
- * room, away from whichever side wall the bank is against), each with a
- * office-pack chair and desk-phone models alongside the existing desk, CRT,
- * and lamp assets — plus a coffee mug, a green monochrome "market terminal"
- * overlay on the monitor, and (on alternating desks) a printed "TRADING
- * PLAN" sheet, per the trading-desk brief. Every desk gets a small, stable
- * per-desk jitter (monitor angle, prop offsets, chair angle) so 16 repeated
- * desks don't look artificially identical.
+ * room, away from whichever side wall the bank is against). The desk surfaces
+ * intentionally contain only a Poly Pizza CRT and keyboard; chairs remain
+ * behind the desks for seating. Small deterministic angle/position differences
+ * keep the repeated workstations from looking artificially identical.
  */
-function DeskBank({ centerX, centerZ, facesPositiveX, bankIndex, deskMaterial, terminalScreenMaterial, tradingPlanMaterial }: DeskBankProps) {
+function DeskBank({ centerX, centerZ, facesPositiveX, bankIndex, deskMaterial, terminalScreenMaterial }: DeskBankProps) {
   // Rotate each complete workstation toward the room center.
   const rotationY = facesPositiveX ? -90 : 90;
   const deskFacingSign = facesPositiveX ? 1 : -1;
@@ -123,11 +199,9 @@ function DeskBank({ centerX, centerZ, facesPositiveX, bankIndex, deskMaterial, t
   // The chair sits on the wall side of the desk (away from the room center,
   // where the trader would sit facing in); the desk's own footprint is ~0.8m
   // deep, so this clears it without overlapping. The monitor/screen sit
-  // toward that same side (slightly left of desk center, per the brief),
-  // so "toward the viewer" for anything mounted proud of the glass is the
-  // opposite sign.
+  // toward that same side (slightly left of desk center, per the brief).
   const chairSideSign = facesPositiveX ? -1 : 1;
-  const towardViewerSign = chairSideSign;
+  const monitorRotationY = facesPositiveX ? 90 : -90;
 
   return (
     <>
@@ -141,12 +215,9 @@ function DeskBank({ centerX, centerZ, facesPositiveX, bankIndex, deskMaterial, t
         const monitorRotationJitter = signedJitter(seed * 7 + 1) * 10; // ±10°, per the brief
         const keyboardJitterX = signedJitter(seed * 7 + 2) * 0.025;
         const keyboardJitterZ = signedJitter(seed * 7 + 3) * 0.025;
-        const phoneJitterZ = signedJitter(seed * 7 + 4) * 0.08;
-        const paperRotationJitter = signedJitter(seed * 7 + 5) * 45;
-        const mugJitterX = signedJitter(seed * 7 + 6) * 0.05;
-        const mugJitterZ = signedJitter(seed * 7 + 6.5) * 0.05;
         const chairAngleJitter = signedJitter(seed * 7 + 7) * 10;
-        const hasPaperStack = index % 2 === 0;
+        const mugAngleJitter = signedJitter(seed * 7 + 8) * 30;
+        const paperAngleJitter = signedJitter(seed * 7 + 9) * 15;
 
         return (
           <Fragment key={index}>
@@ -158,23 +229,10 @@ function DeskBank({ centerX, centerZ, facesPositiveX, bankIndex, deskMaterial, t
               scale={[DESK_MODEL_SCALE, DESK_MODEL_SCALE, DESK_MODEL_SCALE]}
               pivotOffset={DESK_PIVOT_OFFSET}
             />
-            <Prop
-              src="/assets/office/computer-screen.glb"
+            <DeskMonitor
               position={[x + deskFacingSign * 0.18, DESK_MODEL_HEIGHT, z]}
-              rotation={[0, rotationY + monitorRotationJitter, 0]}
-              scale={COMPUTER_SCREEN_SCALE}
-              pivotOffset={COMPUTER_SCREEN_PIVOT}
-            />
-            {/* Green monochrome "market terminal" overlay on the monitor's glass — a static shared texture (not a modern trading UI), mounted slightly proud of the screen, best-effort placement since the model's exact glass rect wasn't inspected. */}
-            <VisualBox
-              position={[
-                x + deskFacingSign * 0.18 + towardViewerSign * 0.045,
-                DESK_MODEL_HEIGHT + 0.09,
-                z,
-              ]}
-              rotation={[0, rotationY + monitorRotationJitter, 0]}
-              size={[0.15, 0.115, 0.01]}
-              material={terminalScreenMaterial}
+              rotationY={monitorRotationY + monitorRotationJitter}
+              screenMaterial={terminalScreenMaterial}
             />
             <Prop
               src="/assets/office/keyboard.glb"
@@ -184,60 +242,26 @@ function DeskBank({ centerX, centerZ, facesPositiveX, bankIndex, deskMaterial, t
               pivotOffset={KEYBOARD_PIVOT}
             />
             <Prop
-              src="/assets/office/mouse.glb"
-              position={[x - deskFacingSign * 0.15, DESK_MODEL_HEIGHT + 0.02, z + 0.25]}
-              rotation={[0, rotationY, 0]}
-              scale={[1.2, 1.2, 1.2]}
+              src="/assets/office/office-chair.glb"
+              position={[x + chairSideSign * 0.65, OFFICE_CHAIR_BASE_Y, z]}
+              rotation={[0, (facesPositiveX ? 90 : -90) + chairAngleJitter, 0]}
+              scale={OFFICE_CHAIR_SCALE}
             />
-            <Prop
-              src="/assets/office/desk-light.glb"
-              position={[x, DESK_MODEL_HEIGHT, z - 0.28]}
-              rotation={[0, rotationY, 0]}
-            />
-            {/* Warm pool of light from the lamp head, per the brief ("turned on, casting a warm pool of light"). No shadows — 16 of these would blow well past the scene's shadow-casting-light budget. */}
-            <Entity position={[x, DESK_MODEL_HEIGHT + 0.32, z - 0.28]}>
-              <Light type="omni" color="#ffcf94" intensity={0.5} range={1.6} castShadows={false} />
-            </Entity>
-            {/* Office-pack phone, on the right side of the desk (opposite the monitor), per the brief. */}
-            <Prop
-              src="/assets/office/office-phone.glb"
-              position={[x - deskFacingSign * 0.52, DESK_MODEL_HEIGHT + 0.05, z - 0.15 + phoneJitterZ]}
-              rotation={[0, rotationY, 0]}
-              scale={OFFICE_PHONE_SCALE}
-              pivotOffset={OFFICE_PHONE_PIVOT}
-            />
-            {/* Coffee mug near the keyboard. */}
+            {/* Mug shares the monitor's side of the desk; papers share the keyboard's but pushed well back in Z, clear of the keyboard itself. */}
             <Prop
               src="/assets/office/coffee-mug.glb"
-              position={[x - deskFacingSign * 0.3 + mugJitterX, DESK_MODEL_HEIGHT, z + 0.22 + mugJitterZ]}
-              rotation={[0, index * 60, 0]}
+              position={[x + deskFacingSign * 0.15, DESK_MODEL_HEIGHT, z + 0.32]}
+              rotation={[0, rotationY + mugAngleJitter, 0]}
               scale={MUG_MODEL_SCALE}
               pivotOffset={MUG_PIVOT_OFFSET}
             />
             <Prop
-              src="/assets/office/office-chair.glb"
-              position={[x + chairSideSign * 0.65, 0, z]}
-              rotation={[0, (facesPositiveX ? 90 : -90) + chairAngleJitter, 0]}
-              scale={OFFICE_CHAIR_SCALE}
+              src="/assets/office/paper-stacks.glb"
+              position={[x - deskFacingSign * 0.1, DESK_MODEL_HEIGHT, z - 0.42]}
+              rotation={[0, rotationY + paperAngleJitter, 0]}
+              scale={PAPER_STACK_SCALE}
+              pivotOffset={PAPER_STACK_PIVOT_OFFSET}
             />
-            {hasPaperStack && (
-              <Fragment>
-                <Prop
-                  src="/assets/office/paper-stacks.glb"
-                  position={[x, DESK_MODEL_HEIGHT + 0.03, z + 0.32]}
-                  rotation={[0, index * 35 + paperRotationJitter, 0]}
-                  scale={[0.65, 0.65, 0.65]}
-                  pivotOffset={[0.01, 0.05, 0.03]}
-                />
-                {/* "TRADING PLAN" top sheet — a flat printed page, not baked into the paper-stack model. */}
-                <VisualBox
-                  position={[x, DESK_MODEL_HEIGHT + 0.075, z + 0.32]}
-                  rotation={[90, index * 35 + paperRotationJitter, 0]}
-                  size={[0.16, 0.2, 0.002]}
-                  material={tradingPlanMaterial}
-                />
-              </Fragment>
-            )}
           </Fragment>
         );
       })}
@@ -548,6 +572,59 @@ function LowPolySkylineTower({ tower: sourceTower }: { tower: SkylineTowerSpec }
   );
 }
 
+/**
+ * Sparse warm office windows on the handmade skyline layer. Keeping these as
+ * a separate transparent layer lets the original imported skyscraper model
+ * retain its authored glass/reflections while the city still visibly wakes up
+ * at dusk.
+ */
+function SkylineNightWindows() {
+  const { night } = useDayNight();
+  const litWindowMaterial = useMaterial({
+    diffuse: "#5b3b18",
+    emissive: "#ffc46b",
+    emissiveIntensity: night * 4.5,
+    opacity: night * 0.92,
+    blendType: BLEND_NORMAL,
+    depthWrite: false,
+    gloss: 0.2,
+    metalness: 0,
+  });
+
+  return (
+    <>
+      {REFERENCE_SKYLINE_TOWERS.flatMap((sourceTower, towerIndex) => {
+        const x = sourceTower.x * PROCEDURAL_TOWER_POSITION_SCALE;
+        const z = sourceTower.z * PROCEDURAL_TOWER_DEPTH_SCALE;
+        const width = sourceTower.width * PROCEDURAL_TOWER_WIDTH_SCALE;
+        const depth = sourceTower.depth * PROCEDURAL_TOWER_WIDTH_SCALE;
+        const height = sourceTower.height * PROCEDURAL_TOWER_HEIGHT_SCALE;
+        const columns = Math.max(3, Math.floor(width / 3.1));
+        const rows = Math.max(5, Math.floor(height / 8));
+        const windows: React.ReactNode[] = [];
+
+        for (let row = 1; row < rows; row += 1) {
+          for (let column = 0; column < columns; column += 1) {
+            // Stable checker/noise pattern: roughly half the offices stay dark.
+            if ((row * 7 + column * 11 + towerIndex * 5) % 5 < 2) continue;
+            const xOffset = ((column + 0.5) / columns - 0.5) * width * 0.76;
+            const y = SKYLINE_GROUND_Y + 3 + (row / rows) * height * 0.78;
+            windows.push(
+              <VisualBox
+                key={`night-window-${towerIndex}-${row}-${column}`}
+                position={[x + xOffset, y, z + depth / 2 + 0.09]}
+                size={[Math.max(0.5, width / columns * 0.42), 1.25, 0.035]}
+                material={litWindowMaterial}
+              />,
+            );
+          }
+        }
+        return windows;
+      })}
+    </>
+  );
+}
+
 interface RoomEnvironmentProps {
   /** Content for currently-visible office slots, keyed by `OfficeSlot.id` — see OfficeWing.tsx. Populated by App.tsx once a player is near enough to have fetched it; defaults to all-vacant. */
   officeSlotContentById?: Record<string, OfficeSlotContent>;
@@ -559,8 +636,7 @@ export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContent
   const { asset: floorTileDiffuse } = useTexture("/assets/textures/granite_tile_diff_2k.jpg");
   const { asset: floorTileNormal } = useTexture("/assets/textures/granite_tile_nor_2k.jpg");
   const { asset: ceilingGridDiffuse } = useTexture("/assets/textures/ceiling_grid.jpg");
-  const { asset: terminalScreenDiffuse } = useTexture("/assets/textures/terminal_screen.png");
-  const { asset: tradingPlanDiffuse } = useTexture("/assets/textures/trading_plan.png");
+  const { asset: hyperliquidScreenDiffuse } = useTexture("/assets/textures/hyperliquid-screen.png");
 
   // Wall material: Poly Haven "Concrete Wall 009" (CC0), smooth cast concrete
   // with formwork seams and tie-bolt marks, tinted to the user's explicitly
@@ -603,20 +679,15 @@ export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContent
   });
 
   const deskMaterial = useMaterial({ diffuse: "#4a3a2a" });
-  // Static green-monochrome "market terminal" texture shared by every desk's
-  // CRT (the big ticker already provides the scene's one live-updating
-  // display; a per-desk canvas texture x16 isn't worth the cost). Lit rather
-  // than emissive so it still reads as a screen under the desk lamp, not a
-  // light source itself.
   const terminalScreenMaterial = useMaterial({
-    diffuseMap: textureOf(terminalScreenDiffuse),
-    diffuse: "#0a140a",
-    emissive: "#183018",
-    emissiveIntensity: 0.6,
-    gloss: 0.6,
+    diffuseMap: textureOf(hyperliquidScreenDiffuse),
+    emissiveMap: textureOf(hyperliquidScreenDiffuse),
+    diffuse: "#b7c5c2",
+    emissive: "#263c39",
+    emissiveIntensity: 0.48,
+    gloss: 0.72,
     metalness: 0,
   });
-  const tradingPlanMaterial = useMaterial({ diffuseMap: textureOf(tradingPlanDiffuse), diffuse: "#ffffff", gloss: 0.1, metalness: 0 });
   const crateMaterial = useMaterial({ diffuse: "#6b5a3a" });
   const pipeMaterial = useMaterial({ diffuse: "#5a3a30", metalness: 0.5, gloss: 0.4 });
 
@@ -755,6 +826,7 @@ export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContent
       {REFERENCE_SKYLINE_TOWERS.map((tower) => (
         <LowPolySkylineTower key={`${tower.x}-${tower.z}`} tower={tower} />
       ))}
+      <SkylineNightWindows />
 
       {WINDOW_MULLION_X_POSITIONS.map((x) => (
         <VisualBox
@@ -792,12 +864,17 @@ export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContent
         scale={[DESK_MODEL_SCALE, DESK_MODEL_SCALE, DESK_MODEL_SCALE]}
         pivotOffset={DESK_PIVOT_OFFSET}
       />
+      <DeskMonitor
+        position={[0, DESK_MODEL_HEIGHT, -10.45]}
+        rotationY={180}
+        screenMaterial={terminalScreenMaterial}
+      />
       <Prop
-        src="/assets/office/computer-screen.glb"
-        position={[0, DESK_MODEL_HEIGHT, -10.3]}
+        src="/assets/office/keyboard.glb"
+        position={[0, DESK_MODEL_HEIGHT + 0.015, -10]}
         rotation={[0, 0, 0]}
-        scale={COMPUTER_SCREEN_SCALE}
-        pivotOffset={COMPUTER_SCREEN_PIVOT}
+        scale={KEYBOARD_SCALE}
+        pivotOffset={KEYBOARD_PIVOT}
       />
 
       {/*
@@ -873,7 +950,6 @@ export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContent
           bankIndex={index}
           deskMaterial={deskMaterial}
           terminalScreenMaterial={terminalScreenMaterial}
-          tradingPlanMaterial={tradingPlanMaterial}
         />
       ))}
 
@@ -904,15 +980,16 @@ export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContent
             material={terminalDeskMaterial}
             renderVisible={true}
           />
-          <Prop
-            src="/assets/office/computer-screen.glb"
+          <DeskMonitor
             position={[dx, 0.9, dz]}
-            rotation={[0, index % 2 === 0 ? 0 : 180, 0]}
-            scale={COMPUTER_SCREEN_SCALE}
-            pivotOffset={COMPUTER_SCREEN_PIVOT}
+            rotationY={index % 2 === 0 ? 0 : 180}
+            screenMaterial={terminalScreenMaterial}
+            scaleMultiplier={0.65}
           />
         </Fragment>
       ))}
+
+      {/* First token-launch booth prototype, facing inward toward the IPO floor. */}
 
       {/* Filing cabinets along the side walls between the desk banks and reception — "peripheral office clutter". */}
       {FILING_CABINET_POSITIONS.map((position, index) => (

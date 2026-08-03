@@ -3,7 +3,7 @@ import path from "node:path";
 import express from "express";
 import { Server } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
-import { ROOM_NAME } from "@multiplayer/shared";
+import { MAX_PLAYERS, ROOM_NAME } from "@multiplayer/shared";
 import { SocialRoom } from "./rooms/SocialRoom";
 import { config } from "./config";
 
@@ -35,5 +35,8 @@ const gameServer = new Server({
 gameServer.define(ROOM_NAME, SocialRoom);
 
 gameServer.listen(config.port).then(() => {
-  console.log(`[game-server] listening on ws://localhost:${config.port} (env: ${config.nodeEnv})`);
+  console.log(
+    `[game-server] listening on ws://localhost:${config.port} ` +
+      `(env: ${config.nodeEnv}, room max: ${MAX_PLAYERS})`,
+  );
 });

@@ -1,5 +1,5 @@
 export const ROOM_NAME = "social_room";
-export const MAX_PLAYERS = 20;
+export const MAX_PLAYERS = 50;
 export const MOVEMENT_SEND_RATE_HZ = 12;
 export const MAX_CHAT_LENGTH = 200;
 
@@ -93,7 +93,7 @@ export const DESK_STATIONS: readonly DeskStation[] = DESK_BANK_CENTERS.flatMap((
       deskX,
       deskZ,
       seatX: deskX + chairSideSign * 0.65,
-      seatY: 1,
+      seatY: 1.26,
       seatZ: deskZ,
       rotationY: bank.facesPositiveX ? -Math.PI / 2 : Math.PI / 2,
     };

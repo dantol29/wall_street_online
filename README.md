@@ -162,6 +162,48 @@ pnpm build
 The production client is written to `apps/client/dist`, and the bundled game
 server is written to `apps/game-server/dist`.
 
+## Multiplayer load testing
+
+The repository includes an `@colyseus/loadtest` bot scenario that behaves like
+active floor users. Every bot joins a room, requests the normal initial
+snapshots, moves at the game's real 12 Hz send rate, occasionally runs, idles,
+waves, and chats, and continuously measures round-trip latency.
+
+Start the game server in one terminal:
+
+```sh
+VOICE_ENABLED=false pnpm --filter @multiplayer/game-server dev
+```
+
+Then start 50 bots in a second terminal:
+
+```sh
+pnpm loadtest -- --numClients 50 --endpoint ws://localhost:2567 --delay 50
+```
+
+The load-test dashboard shows connections and network traffic. The bot log also
+reports:
+
+- `connected` — currently connected bots.
+- `rooms` — bot population per room. More than one room means the room cap was
+  reached and `joinOrCreate` created another floor.
+- `movement` — bot movement messages sent per second.
+- `patches` — aggregate Colyseus state changes received per second.
+- `rtt-p50` and `rtt-p95` — median and 95th-percentile application round-trip
+  latency.
+
+Press `q` or `Ctrl+C` to stop. To write the test summary to a file:
+
+```sh
+pnpm loadtest -- --numClients 50 --endpoint ws://localhost:2567 --delay 50 --output loadtest.log
+```
+
+The room maximum is 50. Additional `joinOrCreate` clients are placed in another
+floor. For a real browser rendering test, open the game first and run 49 bots
+so the browser plus bots fill one 50-player room. These bots test Colyseus networking
+and server behavior; they do not render PlayCanvas characters or connect to
+LiveKit voice.
+
 ## Stopping the game
 
 Press `Ctrl+C` in the terminal running `pnpm dev`.
@@ -226,3 +268,6 @@ infra/livekit     Same-VM production LiveKit and Caddy templates
 
 Production voice deployment instructions are in
 [`infra/livekit/README.md`](infra/livekit/README.md).
+
+Third-party model credits are listed in
+[`docs/ASSET_ATTRIBUTIONS.md`](docs/ASSET_ATTRIBUTIONS.md).

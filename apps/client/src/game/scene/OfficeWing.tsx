@@ -29,6 +29,7 @@ const ROW_DIVIDER_Z = [WING_MIN_Z, 15.5, 18.5, 21.5, WING_MAX_Z];
 const CONTENT_PANEL_SIZE: [number, number, number] = [0.04, 2.2, 2.6];
 const DESK_SCALE: [number, number, number] = [0.75, 0.75, 0.75];
 const CHAIR_SCALE: [number, number, number] = [0.75, 0.75, 0.75];
+const CHAIR_BASE_Y = 0.26;
 
 interface OfficeWingProps {
   floorMaterial: ReturnType<typeof useMaterial>;
@@ -138,7 +139,7 @@ export function OfficeWing({ floorMaterial, ceilingMaterial, wallMaterial, deskM
             />
             <Prop
               src="/assets/office/office-chair.glb"
-              position={[slot.deskX - contentSign * 1.1, 0, slot.deskZ]}
+              position={[slot.deskX - contentSign * 1.1, CHAIR_BASE_Y, slot.deskZ]}
               rotation={[0, facesPositiveX ? 90 : -90, 0]}
               scale={CHAIR_SCALE}
             />

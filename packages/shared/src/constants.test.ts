@@ -19,7 +19,7 @@ import { ANIMATION_STATES } from "./messages";
 describe("shared constants", () => {
   it("match the brief's exact values", () => {
     expect(ROOM_NAME).toBe("social_room");
-    expect(MAX_PLAYERS).toBe(20);
+    expect(MAX_PLAYERS).toBe(50);
     expect(MOVEMENT_SEND_RATE_HZ).toBe(12);
     expect(MAX_CHAT_LENGTH).toBe(200);
     expect(CHAT_RATE_LIMIT_MAX_MESSAGES).toBe(3);
@@ -72,6 +72,7 @@ describe("shared constants", () => {
       "run_right",
       "walk_back",
       "run_back",
+      "wave",
     ]);
   });
 });

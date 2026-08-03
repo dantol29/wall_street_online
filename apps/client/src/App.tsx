@@ -17,6 +17,7 @@ import {
   WHITEBOARD_WORLD_WIDTH,
   findOverlappingStickyNote,
   isStickyWallPositionValid,
+  type AnimationState,
   type ChatMessage,
   type OfficeProfileLookup,
   type SeatResultMessage,
@@ -24,6 +25,7 @@ import {
   type VoiceTokenResultMessage,
   type WhiteboardShape,
   type WhiteboardSnapshot,
+  type WorldTimeSyncMessage,
 } from "@multiplayer/shared";
 import { selectAnimationState } from "./game/player/animationState";
 import {
@@ -37,12 +39,11 @@ import { getOrCreateGuestDisplayName } from "./game/multiplayer/guestName";
 import type { ConnectionState } from "./game/multiplayer/messages";
 import { PRIVY_ENABLED } from "./game/wallet/privyConfig";
 import type { OfficeSlotContent } from "./game/scene/OfficeContentDisplay";
-import { EnterGameOverlay } from "./ui/EnterGameOverlay";
+import { MainMenuOverlay } from "./ui/MainMenuOverlay";
 import { ConnectionStatus } from "./ui/ConnectionStatus";
 import { Chat } from "./ui/Chat";
 import { ErrorOverlay } from "./ui/ErrorOverlay";
 import { ApplicationErrorBoundary } from "./ui/ApplicationErrorBoundary";
-import { TradingPlanEditor } from "./ui/TradingPlanEditor";
 import { InWorldWhiteboardControls } from "./ui/InWorldWhiteboardControls";
 import { OfficeEditor, type OfficeVisitorBookEntryView, type OfficeWatchlistItemInput } from "./ui/OfficeEditor";
 import { StickyNoteEditor } from "./ui/StickyNoteEditor";
@@ -50,6 +51,13 @@ import { VoiceControls, type VoiceTalkMode } from "./ui/VoiceControls";
 import { WalletPanel } from "./ui/WalletPanel";
 import { Minimap } from "./ui/Minimap";
 import { MobileGameControls } from "./ui/MobileGameControls";
+import { DayNightDebugControls } from "./ui/DayNightDebugControls";
+import { HyperliquidTerminal } from "./ui/HyperliquidTerminal";
+import {
+  anchorWorldTime,
+  createInitialWorldTimeAnchor,
+  type WorldTimeAnchor,
+} from "./game/scene/dayNight";
 import {
   VoiceClient,
   type VoiceAudioOutputDevice,
@@ -300,10 +308,13 @@ function App() {
   const waveUntilRef = useRef(0);
   const waveTimeoutRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
+  /** Mirrors whatever animation state was last sent to the server (see the movement tick below) — read by LocalPlayer's own body model, which has no server round trip for its own state the way RemotePlayer gets one. */
+  const localAnimationRef = useRef<AnimationState>("idle");
   const nearbyDeskIdRef = useRef<string | null>(null);
   const seatedDeskIdRef = useRef<string | null>(null);
   const nearWhiteboardRef = useRef(false);
   const whiteboardOpenRef = useRef(false);
+  const terminalOpenRef = useRef(false);
   const savedCameraViewRef = useRef<SavedCameraView | null>(null);
   const gameplayInputDetachedRef = useRef(false);
   const nameLabelsContainerRef = useRef<HTMLDivElement | null>(null);
@@ -328,7 +339,8 @@ function App() {
   const pendingStickyNotePositionRef = useRef<{ xFraction: number; yFraction: number } | null>(null);
   const stickyWallHintTimerRef = useRef<number | null>(null);
   const justPlacedStickyNoteTimerRef = useRef<number | null>(null);
-  const [entered, setEntered] = useState(false);
+  // Menu hidden for now — starts "entered" so MainMenuOverlay (gated on !entered) never renders. Flip back to false to re-enable it.
+  const [entered, setEntered] = useState(true);
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
   const [connectErrorMessage, setConnectErrorMessage] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -337,8 +349,11 @@ function App() {
   const [nearbyDeskId, setNearbyDeskId] = useState<string | null>(null);
   const [seatedDeskId, setSeatedDeskId] = useState<string | null>(null);
   const [seatError, setSeatError] = useState<string | null>(null);
+  /** True right after the browser drops pointer lock outside our control (Escape, focus loss, etc.) during normal gameplay — see handlePointerLockChange. */
+  const [pointerLockLost, setPointerLockLost] = useState(false);
   const [nearWhiteboard, setNearWhiteboard] = useState(false);
   const [whiteboardOpen, setWhiteboardOpen] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
   const [whiteboardSnapshot, setWhiteboardSnapshot] =
     useState<WhiteboardSnapshot>(EMPTY_WHITEBOARD_SNAPSHOT);
   const [voiceState, setVoiceState] = useState<VoiceConnectionState>("disabled");
@@ -375,10 +390,29 @@ function App() {
   const [justPlacedStickyNoteAuthorSessionId, setJustPlacedStickyNoteAuthorSessionId] = useState<string | null>(
     null,
   );
+  const [worldTime, setWorldTime] = useState<WorldTimeAnchor>(() => createInitialWorldTimeAnchor());
+  const [worldTimeOverridePhase, setWorldTimeOverridePhase] = useState<number | null>(null);
+
+  const openHyperliquidTerminal = useCallback((): void => {
+    const player = playerEntityRef.current;
+    if (!seatedDeskIdRef.current || !player || terminalOpenRef.current) return;
+    terminalOpenRef.current = true;
+    setPlayerControllerPaused(player, true, gameplayInputDetachedRef);
+    setTerminalOpen(true);
+  }, []);
+
+  const closeHyperliquidTerminal = useCallback((): void => {
+    if (!terminalOpenRef.current) return;
+    terminalOpenRef.current = false;
+    setTerminalOpen(false);
+    setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef);
+    setPointerLockLost(true);
+  }, []);
 
   const triggerWaveEmote = useCallback((): void => {
     if (
       seatedDeskIdRef.current ||
+      terminalOpenRef.current ||
       whiteboardOpenRef.current ||
       officeEditorOpenRef.current ||
       stickyNoteEditorOpenRef.current ||
@@ -570,14 +604,24 @@ function App() {
       setNearbyDeskId(null);
 
       if (!player || !camera) return;
-      const controller = player.script?.get(FIRST_PERSON_CONTROLLER_SCRIPT_NAME);
+      const controller = player.script?.get(
+        FIRST_PERSON_CONTROLLER_SCRIPT_NAME,
+      ) as FirstPersonControllerRuntime | undefined;
       if (result.deskId) {
-        document.exitPointerLock();
-        if (controller) controller.enabled = false;
-        if (player.rigidbody) player.rigidbody.enabled = false;
+        if (controller) resetControllerInput(controller);
+        if (player.rigidbody) {
+          player.rigidbody.linearVelocity = new Vec3(0, 0, 0);
+          player.rigidbody.enabled = false;
+        }
         player.setPosition(result.x, result.y, result.z);
         camera.setLocalPosition(0, SEATED_CAMERA_HEIGHT, 0);
-        camera.setLocalEulerAngles(0, (result.rotationY * 180) / Math.PI, 0);
+        const seatedYawDegrees = (result.rotationY * 180) / Math.PI;
+        camera.setLocalEulerAngles(0, seatedYawDegrees, 0);
+        controller?._angles?.set(0, seatedYawDegrees, 0);
+        // Keep look input active while the rigid body is disabled: the player
+        // stays anchored to the chair but can freely look around the room.
+        if (player.script) player.script.enabled = true;
+        if (controller) controller.enabled = true;
       } else {
         camera.setLocalPosition(0, STANDING_CAMERA_HEIGHT, 0);
         if (player.rigidbody) player.rigidbody.enabled = true;
@@ -695,6 +739,9 @@ function App() {
           return next;
         });
       },
+      onWorldTimeSync: (message: WorldTimeSyncMessage) => {
+        setWorldTime(anchorWorldTime(message));
+      },
     });
     clientRef.current = client;
 
@@ -759,12 +806,20 @@ function App() {
         waveEmoteRef.current();
       }
       if (
-        event.code === "KeyE" &&
+        event.code === "KeyF" &&
         !event.repeat &&
         !typing &&
-        !seatedDeskIdRef.current
+        seatedDeskIdRef.current &&
+        !terminalOpenRef.current
       ) {
-        if (
+        event.preventDefault();
+        openHyperliquidTerminal();
+      }
+      if (event.code === "KeyE" && !event.repeat && !typing) {
+        if (seatedDeskIdRef.current && !terminalOpenRef.current) {
+          event.preventDefault();
+          client.requestSeat(null);
+        } else if (
           nearWhiteboardRef.current ||
           nearbyDeskIdRef.current ||
           nearOfficeSlotIdRef.current ||
@@ -787,10 +842,45 @@ function App() {
     const handleVisibilityChange = (): void => {
       if (document.hidden) stopTalking();
     };
+    /**
+     * Browsers can silently drop pointer lock outside our control (Escape is
+     * the common case, but focus loss and various OS/browser heuristics can
+     * too) — and the ready-made first-person-controller's own input source
+     * explicitly ignores every mouse-move event while it thinks lock should
+     * be on but isn't (see `first-person-controller.mjs`'s `_onPointerMove`),
+     * so look/turn input silently goes dead until something re-requests lock.
+     * Its own `_onPointerDown` already does that on the next click — this
+     * just surfaces a visible cue for why turning "stopped" and takes one
+     * extra shot at silently reacquiring lock immediately, in case that
+     * particular drop wasn't an Escape-triggered one (browsers deliberately
+     * block re-locking right after Escape, as an anti "lock trap" measure —
+     * this request will just no-op then, and the visible hint is what
+     * actually gets the player to click again).
+     */
+    const handlePointerLockChange = (): void => {
+      if (document.pointerLockElement) {
+        setPointerLockLost(false);
+        return;
+      }
+      const inFreeLookGameplay =
+        !terminalOpenRef.current &&
+        !whiteboardOpenRef.current &&
+        !officeEditorOpenRef.current &&
+        !stickyNoteEditorOpenRef.current;
+      if (!inFreeLookGameplay) return;
+      setPointerLockLost(true);
+      const cameraEntity = playerEntityRef.current?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+      const canvas = cameraEntity?.camera?.system.app.graphicsDevice.canvas;
+      const request = canvas?.requestPointerLock();
+      if (request && typeof request.catch === "function") {
+        request.catch(() => {});
+      }
+    };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
     window.addEventListener("blur", stopTalking);
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("pointerlockchange", handlePointerLockChange);
 
     const updateSpatialAudio = (): void => {
       voice.updateSpatialAudio();
@@ -805,7 +895,22 @@ function App() {
 
       const position = player.getPosition();
       const cameraEntity = player.findByName(LOCAL_CAMERA_ENTITY_NAME);
-      const rotationY = cameraEntity ? (cameraEntity.getLocalEulerAngles().y * Math.PI) / 180 : 0;
+      const controller = player.script?.get(
+        FIRST_PERSON_CONTROLLER_SCRIPT_NAME,
+      ) as FirstPersonControllerRuntime | undefined;
+      // Read the controller's own yaw accumulator rather than decomposing it
+      // back out of the camera's rotation quaternion: `getLocalEulerAngles()`
+      // re-derives yaw from a quaternion that also encodes pitch, and that
+      // decomposition degrades (and can misreport) as pitch approaches ±90°
+      // (straight up/down) — classic Euler gimbal lock. `_angles.y` is the
+      // plain accumulator the controller itself increments every frame,
+      // entirely independent of pitch, so it's immune to that. Falls back to
+      // the old method only if the controller script isn't mounted yet.
+      const rotationY = controller?._angles
+        ? (controller._angles.y * Math.PI) / 180
+        : cameraEntity
+          ? (cameraEntity.getLocalEulerAngles().y * Math.PI) / 180
+          : 0;
       const velocity = player.rigidbody.linearVelocity;
       const horizontalSpeed = Math.hypot(velocity.x, velocity.z);
 
@@ -838,12 +943,16 @@ function App() {
         forwardAmount,
         rightAmount,
       );
+      const finalAnimation = Date.now() < waveUntilRef.current ? "wave" : movementAnimation;
+      // Drives the local player's own body model (LocalPlayer.tsx) — there's no
+      // server round trip for your own state the way RemotePlayer gets one.
+      localAnimationRef.current = finalAnimation;
       client.sendMovement({
         x: position.x,
         y: position.y,
         z: position.z,
         rotationY,
-        animation: Date.now() < waveUntilRef.current ? "wave" : movementAnimation,
+        animation: finalAnimation,
       });
 
       if (!seatedDeskIdRef.current) {
@@ -905,6 +1014,7 @@ function App() {
       window.removeEventListener("blur", stopTalking);
       window.removeEventListener("click", handleStickyWallCanvasClick);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("pointerlockchange", handlePointerLockChange);
       window.cancelAnimationFrame(spatialAnimationFrame);
       if (seatErrorTimer !== null) window.clearTimeout(seatErrorTimer);
       if (officeErrorTimer !== null) window.clearTimeout(officeErrorTimer);
@@ -931,7 +1041,6 @@ function App() {
   };
 
   const handleChatFocusChange = useCallback((focused: boolean): void => {
-    if (seatedDeskIdRef.current) return;
     if (whiteboardOpenRef.current) return;
     setPlayerControllerPaused(
       playerEntityRef.current,
@@ -1215,13 +1324,18 @@ function App() {
         <Application className="playcanvas-app" usePhysics fillMode={FILLMODE_FILL_WINDOW}>
           <Scene
             playerEntityRef={playerEntityRef}
+            localAnimationRef={localAnimationRef}
+            localSeated={Boolean(seatedDeskId)}
             ref={sceneRef}
             nameLabelsContainerRef={nameLabelsContainerRef}
             speakingPlayerIds={speakingPlayerIds}
+            messages={messages}
             whiteboardSnapshot={whiteboardSnapshot}
             officeSlotContentById={officeSlotContentById}
             stickyNotes={stickyNotes}
             justPlacedStickyNoteAuthorSessionId={justPlacedStickyNoteAuthorSessionId}
+            worldTime={worldTime}
+            worldTimeOverridePhase={worldTimeOverridePhase}
           />
         </Application>
       </ApplicationErrorBoundary>
@@ -1230,6 +1344,13 @@ function App() {
       </div>
       <div className="name-labels-container" ref={nameLabelsContainerRef} />
       <ConnectionStatus state={connectionState} />
+      {entered && (
+        <DayNightDebugControls
+          worldTime={worldTime}
+          overridePhase={worldTimeOverridePhase}
+          onOverridePhaseChange={setWorldTimeOverridePhase}
+        />
+      )}
       {entered && PRIVY_ENABLED && (
         <WalletPanel connected={connectionState === "connected"} onLinkWallet={handleLinkWallet} />
       )}
@@ -1252,14 +1373,14 @@ function App() {
           onParticipantMuteChange={handleParticipantMuteChange}
         />
       )}
-      {entered && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
+      {entered && !whiteboardOpen && !terminalOpen && !officeEditorData && !stickyNoteEditorOpen && (
         <Minimap playerEntityRef={playerEntityRef} sceneRef={sceneRef} />
       )}
       <Chat
         messages={messages}
         onSend={handleChatSend}
         onFocusChange={handleChatFocusChange}
-        disabled={Boolean(seatedDeskId) || whiteboardOpen}
+        disabled={whiteboardOpen || terminalOpen}
       />
       {entered && !seatedDeskId && !whiteboardOpen && <div className="crosshair" />}
       {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
@@ -1293,7 +1414,36 @@ function App() {
         <div className="desk-interaction"><kbd>E</kbd> Open live analysis board</div>
       )}
       {entered && nearbyDeskId && !nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
-        <div className="desk-interaction"><kbd>E</kbd> Sit and create a trade plan</div>
+        <div className="desk-interaction"><kbd>E</kbd> Sit down</div>
+      )}
+      {entered && seatedDeskId && !whiteboardOpen && !terminalOpen && (
+        <>
+          <div className="desk-interaction">
+            <kbd>F</kbd> Use HyperLiquid terminal &nbsp;·&nbsp; <kbd>E</kbd> Stand up
+          </div>
+          <button
+            type="button"
+            className="seated-terminal-button"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              openHyperliquidTerminal();
+            }}
+          >
+            Use terminal
+          </button>
+          <button
+            type="button"
+            className="seated-stand-button"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleStand();
+            }}
+          >
+            Stand up
+          </button>
+        </>
       )}
       {entered && isNearOwnOffice && !seatedDeskId && !whiteboardOpen && !officeEditorData && (
         <div className="desk-interaction"><kbd>E</kbd> Manage your office</div>
@@ -1308,7 +1458,8 @@ function App() {
       )}
       {seatError && <div className="seat-error">{seatError}</div>}
       {officeError && <div className="seat-error">{officeError}</div>}
-      {seatedDeskId && <TradingPlanEditor deskId={seatedDeskId} onStand={handleStand} />}
+      {entered && pointerLockLost && <div className="pointer-lock-hint">Click to keep looking around</div>}
+      {terminalOpen && <HyperliquidTerminal onClose={closeHyperliquidTerminal} />}
       {officeEditorData && (
         <OfficeEditor
           mode={officeEditorData.mode}
@@ -1347,7 +1498,11 @@ function App() {
           onDeleteShape={handleWhiteboardDelete}
         />
       )}
-      <EnterGameOverlay visible={!entered && !showErrorOverlay} onEnter={handleEnter} />
+      <MainMenuOverlay
+        visible={!entered && !showErrorOverlay}
+        connecting={connectionState !== "connected"}
+        onEnter={handleEnter}
+      />
       <ErrorOverlay message={showErrorOverlay} onRetry={handleRetry} />
     </div>
   );

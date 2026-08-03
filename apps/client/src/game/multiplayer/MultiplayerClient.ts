@@ -20,6 +20,7 @@ import {
   type WhiteboardShape,
   type WhiteboardShapeDeleteMessage,
   type WhiteboardSnapshot,
+  type WorldTimeSyncMessage,
 } from "@multiplayer/shared";
 import type { ConnectionState, RemotePlayerSnapshot } from "./messages";
 
@@ -41,6 +42,7 @@ export interface MultiplayerClientCallbacks {
   onStickyNoteSnapshot: (snapshot: StickyNoteSnapshot) => void;
   onStickyNoteUpsert: (note: StickyNote) => void;
   onStickyNoteDelete: (authorSessionId: string) => void;
+  onWorldTimeSync: (message: WorldTimeSyncMessage) => void;
 }
 
 /**
@@ -85,6 +87,7 @@ export class MultiplayerClient {
     this.room.send("chat_history_request");
     this.room.send("whiteboard_snapshot_request");
     this.room.send("sticky_note_snapshot_request");
+    this.room.send("world_time_request");
   }
 
   /**
@@ -386,6 +389,19 @@ export class MultiplayerClient {
       resolve(message);
     });
 
+    room.onMessage<WorldTimeSyncMessage>("world_time_sync", (message) => {
+      if (
+        !message ||
+        !Number.isFinite(message.phase) ||
+        !Number.isFinite(message.dayDurationMs) ||
+        message.dayDurationMs <= 0 ||
+        !Number.isFinite(message.serverTimeMs)
+      ) {
+        return;
+      }
+      this.callbacks.onWorldTimeSync(message);
+    });
+
     room.onLeave((code: number) => {
       const abnormalClose = code !== 1000;
       if (!abnormalClose) {
@@ -412,6 +428,7 @@ export class MultiplayerClient {
       this.room.send("chat_history_request");
       this.room.send("whiteboard_snapshot_request");
       this.room.send("sticky_note_snapshot_request");
+      this.room.send("world_time_request");
     } catch {
       sessionStorage.removeItem(RECONNECTION_TOKEN_STORAGE_KEY);
       this.callbacks.onConnectionStateChange("disconnected");

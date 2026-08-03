@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "concurrently -n server,client -c blue,green \"pnpm --filter @multiplayer/game-server dev\" \"pnpm --filter @multiplayer/client dev\"",
     "build": "pnpm --filter @multiplayer/shared build && pnpm --filter @multiplayer/game-server build && pnpm --filter @multiplayer/client build",
+    "loadtest": "pnpm --filter @multiplayer/game-server loadtest",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test"

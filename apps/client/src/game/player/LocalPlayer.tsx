@@ -1,27 +1,57 @@
-import { forwardRef, memo, useRef, useState } from "react";
+import { forwardRef, memo, useRef, useState, type MutableRefObject } from "react";
 import { Entity } from "@playcanvas/react";
-import { Camera, Script } from "@playcanvas/react/components";
-import { usePhysics } from "@playcanvas/react/hooks";
+import { Camera, Render, Script } from "@playcanvas/react/components";
+import { useAppEvent, useModel, usePhysics } from "@playcanvas/react/hooks";
 import type { Entity as PcEntity } from "playcanvas";
 // @ts-expect-error - PlayCanvas ESM scripts don't have type declarations
 import { FirstPersonController } from "playcanvas/scripts/esm/first-person-controller.mjs";
+import type { AnimationState } from "@multiplayer/shared";
+import {
+  CHARACTER_ANIM_TRANSITION_BLEND_SECONDS,
+  CHARACTER_HEAD_NODE_NAME,
+  CHARACTER_MODEL_ASSET_PATH,
+  CHARACTER_MODEL_SCALE,
+  CHARACTER_MODEL_YAW_OFFSET_DEGREES,
+  CHARACTER_MODEL_Y_OFFSET,
+  CHARACTER_SEATED_MODEL_Y_OFFSET,
+  applyCharacterSeatedPose,
+  registerCharacterAnimationStates,
+  resolveCharacterSeatedPoseRig,
+  type CharacterSeatedPoseRig,
+} from "./characterAnimation";
 
 const EYE_HEIGHT_OFFSET = 0.8;
 
+/** Just enough of first-person-controller.mjs's runtime shape to read its yaw accumulator — see the note below. */
+interface FirstPersonControllerRuntime {
+  _angles?: { y: number };
+}
+
 interface LocalPlayerProps {
   spawn: { x: number; y: number; z: number };
+  seated: boolean;
+  /** Updated every movement tick in App.tsx (the same value sent to the server) — read here each frame since there's no server round trip for your own state the way RemotePlayer gets one. */
+  animationRef: MutableRefObject<AnimationState>;
 }
 
 /**
- * The local player is rendered as camera-only per the brief — no visible body.
- * Movement/look is handled entirely by PlayCanvas's own ready-made
- * `first-person-controller.mjs` (shipped with the engine, same one used by its
- * official tutorial), not custom logic — it self-manages pointer lock, WASD,
- * mouse-look, jumping, and ground/air movement, and creates its own capsule
- * Collision + dynamic RigidBody (including a locked angularFactor so the
- * capsule can't tip over) since none is pre-declared here.
+ * The local player now has a visible body (the same Business Man model
+ * RemotePlayer uses), not just a camera — previously it was camera-only,
+ * which meant looking down showed nothing at all. The head mesh node is
+ * disabled specifically for this instance (see CHARACTER_HEAD_NODE_NAME):
+ * left alone, it would sit right in front of the eye-height camera and clip
+ * into view whenever looking down or spinning around. Movement/look is
+ * still handled entirely by PlayCanvas's own ready-made
+ * `first-person-controller.mjs`, not custom logic — it self-manages pointer
+ * lock, WASD, mouse-look, jumping, and ground/air movement, and creates its
+ * own capsule Collision + dynamic RigidBody (including a locked
+ * angularFactor so the capsule can't tip over) since none is pre-declared
+ * here.
  */
-const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function LocalPlayer({ spawn }, ref) {
+const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function LocalPlayer(
+  { spawn, seated, animationRef },
+  ref,
+) {
   const [cameraEntity, setCameraEntity] = useState<PcEntity | null>(null);
   const initialPositionRef = useRef<[number, number, number]>([
     spawn.x,
@@ -34,12 +64,73 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
     0,
   ]);
   const { isPhysicsLoaded } = usePhysics();
+  const { asset } = useModel(CHARACTER_MODEL_ASSET_PATH);
+  const modelRef = useRef<PcEntity | null>(null);
+  const statesRegisteredRef = useRef(false);
+  const headHiddenRef = useRef(false);
+  const lastRequestedAnimationRef = useRef<AnimationState | null>(null);
+  const seatedPoseRigRef = useRef<CharacterSeatedPoseRig | null>(null);
+
+  useAppEvent("update", () => {
+    const model = modelRef.current;
+    if (!model || !asset?.resource || !cameraEntity) return;
+    model.setLocalPosition(0, seated ? CHARACTER_SEATED_MODEL_Y_OFFSET : CHARACTER_MODEL_Y_OFFSET, 0);
+
+    if (!headHiddenRef.current) {
+      const head = model.findByName(CHARACTER_HEAD_NODE_NAME);
+      if (head) {
+        head.enabled = false;
+        headHiddenRef.current = true;
+      }
+    }
+
+    // Reads the controller's own yaw accumulator rather than decomposing it
+    // back out of the camera's rotation quaternion via getLocalEulerAngles():
+    // that decomposition also encodes pitch, and degrades (misreporting yaw)
+    // as pitch approaches ±90° — classic Euler gimbal lock, which is exactly
+    // why the body would sometimes end up facing a different way than the
+    // camera/movement direction actually was. `_angles.y` is the plain float
+    // the controller itself increments every frame, entirely independent of
+    // pitch, so it's immune to that. Falls back to the old method only if the
+    // controller script isn't mounted yet.
+    const controller = (cameraEntity.parent as PcEntity | null)?.script?.get(
+      FirstPersonController.scriptName,
+    ) as FirstPersonControllerRuntime | undefined;
+    const yaw = controller?._angles ? controller._angles.y : cameraEntity.getLocalEulerAngles().y;
+    model.setLocalEulerAngles(0, yaw + CHARACTER_MODEL_YAW_OFFSET_DEGREES, 0);
+
+    if (!statesRegisteredRef.current) {
+      if (registerCharacterAnimationStates(model, asset)) statesRegisteredRef.current = true;
+    }
+
+    const anim = model.anim;
+    const targetState = animationRef.current;
+    if (anim?.baseLayer && statesRegisteredRef.current && lastRequestedAnimationRef.current !== targetState) {
+      anim.baseLayer.transition(targetState, CHARACTER_ANIM_TRANSITION_BLEND_SECONDS);
+      lastRequestedAnimationRef.current = targetState;
+    }
+  });
+
+  useAppEvent("prerender", () => {
+    const model = modelRef.current;
+    if (!seated || !model) return;
+    const rig = seatedPoseRigRef.current ?? resolveCharacterSeatedPoseRig(model);
+    if (!rig) return;
+    seatedPoseRigRef.current = rig;
+    applyCharacterSeatedPose(model, rig);
+  });
 
   return (
     <Entity name="local-player" position={initialPositionRef.current} ref={ref}>
       <Entity name="local-camera" position={cameraPositionRef.current} ref={setCameraEntity}>
         <Camera fov={75} nearClip={0.05} farClip={100} />
       </Entity>
+
+      {asset && (
+        <Entity ref={modelRef} position={[0, CHARACTER_MODEL_Y_OFFSET, 0]} scale={[CHARACTER_MODEL_SCALE, CHARACTER_MODEL_SCALE, CHARACTER_MODEL_SCALE]}>
+          <Render type="asset" asset={asset} />
+        </Entity>
+      )}
 
       {/*
         Only mounted once the camera entity ref AND physics are ready. The script

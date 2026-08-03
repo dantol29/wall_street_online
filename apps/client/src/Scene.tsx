@@ -1,6 +1,12 @@
-import { forwardRef, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState, type MutableRefObject, type Ref } from "react";
 import type { Entity as PcEntity } from "playcanvas";
-import { SPAWN_POINTS, type StickyNote, type WhiteboardSnapshot } from "@multiplayer/shared";
+import {
+  SPAWN_POINTS,
+  type AnimationState,
+  type ChatMessage,
+  type StickyNote,
+  type WhiteboardSnapshot,
+} from "@multiplayer/shared";
 import { RoomEnvironment } from "./game/scene/Environment";
 import type { OfficeSlotContent } from "./game/scene/OfficeContentDisplay";
 import { CollaborativeWhiteboardDisplay } from "./game/scene/CollaborativeWhiteboardDisplay";
@@ -9,6 +15,7 @@ import { Lighting } from "./game/scene/Lighting";
 import { LocalPlayer } from "./game/player/LocalPlayer";
 import { RemotePlayer } from "./game/player/RemotePlayer";
 import { NameLabelsOverlay } from "./game/player/NameLabelsOverlay";
+import { ChatBubblesOverlay } from "./game/player/ChatBubblesOverlay";
 import {
   createRemoteTransform,
   getVisualTransform,
@@ -16,15 +23,24 @@ import {
 } from "./game/multiplayer/interpolation";
 import type { RemotePlayerRecord } from "./game/player/remotePlayerRecord";
 import type { RemotePlayerSnapshot } from "./game/multiplayer/messages";
+import type { WorldTimeAnchor } from "./game/scene/dayNight";
+import { DayNightProvider } from "./game/scene/DayNightContext";
 
 interface SceneProps {
   playerEntityRef?: Ref<PcEntity>;
+  /** Read every frame by LocalPlayer's own body model — see App.tsx's movement tick. */
+  localAnimationRef: MutableRefObject<AnimationState>;
+  localSeated: boolean;
   nameLabelsContainerRef: React.RefObject<HTMLDivElement | null>;
   speakingPlayerIds: ReadonlySet<string>;
+  /** Drives ChatBubblesOverlay — a transient speech bubble over a remote sender's head, in addition to the side chat panel. */
+  messages: ChatMessage[];
   whiteboardSnapshot: WhiteboardSnapshot;
   officeSlotContentById?: Record<string, OfficeSlotContent>;
   stickyNotes: StickyNote[];
   justPlacedStickyNoteAuthorSessionId?: string | null;
+  worldTime: WorldTimeAnchor;
+  worldTimeOverridePhase: number | null;
 }
 
 export interface SceneHandle {
@@ -47,12 +63,17 @@ const DEFAULT_SPAWN = SPAWN_POINTS[0];
 const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
   {
     playerEntityRef,
+    localAnimationRef,
+    localSeated,
     nameLabelsContainerRef,
     speakingPlayerIds,
+    messages,
     whiteboardSnapshot,
     officeSlotContentById,
     stickyNotes,
     justPlacedStickyNoteAuthorSessionId,
+    worldTime,
+    worldTimeOverridePhase,
   },
   ref,
 ) {
@@ -114,12 +135,17 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
   );
 
   return (
-    <>
+    <DayNightProvider worldTime={worldTime} overridePhase={worldTimeOverridePhase}>
       <RoomEnvironment officeSlotContentById={officeSlotContentById} />
       <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
       <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />
       <Lighting />
-      <LocalPlayer spawn={DEFAULT_SPAWN} ref={playerEntityRef} />
+      <LocalPlayer
+        spawn={DEFAULT_SPAWN}
+        seated={localSeated}
+        animationRef={localAnimationRef}
+        ref={playerEntityRef}
+      />
 
       {remoteIds.map((sessionId) => (
         <RemotePlayer key={sessionId} sessionId={sessionId} recordsRef={recordsRef} />
@@ -131,7 +157,8 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
         containerRef={nameLabelsContainerRef}
         speakingPlayerIds={speakingPlayerIds}
       />
-    </>
+      <ChatBubblesOverlay messages={messages} recordsRef={recordsRef} containerRef={nameLabelsContainerRef} />
+    </DayNightProvider>
   );
 });
 
