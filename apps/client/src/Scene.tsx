@@ -1,12 +1,13 @@
 import { forwardRef, useImperativeHandle, useRef, useState, type MutableRefObject, type Ref } from "react";
 import type { Entity as PcEntity } from "playcanvas";
 import {
-  SPAWN_POINTS,
   type AnimationState,
   type ChatMessage,
   type StickyNote,
   type WhiteboardSnapshot,
 } from "@multiplayer/shared";
+import { getSceneConfig } from "./scenes/registry";
+import { EditorScene } from "./game/scene/EditorScene";
 import { RoomEnvironment } from "./game/scene/Environment";
 import type { OfficeSlotContent } from "./game/scene/OfficeContentDisplay";
 import { CollaborativeWhiteboardDisplay } from "./game/scene/CollaborativeWhiteboardDisplay";
@@ -27,6 +28,7 @@ import type { WorldTimeAnchor } from "./game/scene/dayNight";
 import { DayNightProvider } from "./game/scene/DayNightContext";
 
 interface SceneProps {
+  sceneId: string;
   playerEntityRef?: Ref<PcEntity>;
   /** Read every frame by LocalPlayer's own body model — see App.tsx's movement tick. */
   localAnimationRef: MutableRefObject<AnimationState>;
@@ -58,10 +60,9 @@ export interface SceneHandle {
   getSessionIdForOfficeSlot: (slotId: string) => string | null;
 }
 
-const DEFAULT_SPAWN = SPAWN_POINTS[0];
-
 const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
   {
+    sceneId,
     playerEntityRef,
     localAnimationRef,
     localSeated,
@@ -134,14 +135,26 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     []
   );
 
+  const sceneConfig = getSceneConfig(sceneId);
+  const spawn = sceneConfig.spawnPoints[0];
+
+  const sceneEnvironment =
+    sceneConfig.type === "editor" && sceneConfig.configUrl && sceneConfig.sceneUrl ? (
+      <EditorScene configUrl={sceneConfig.configUrl} sceneUrl={sceneConfig.sceneUrl} />
+    ) : (
+      <DayNightProvider worldTime={worldTime} overridePhase={worldTimeOverridePhase}>
+        <RoomEnvironment officeSlotContentById={officeSlotContentById} />
+        <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
+        <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />
+        <Lighting />
+      </DayNightProvider>
+    );
+
   return (
-    <DayNightProvider worldTime={worldTime} overridePhase={worldTimeOverridePhase}>
-      <RoomEnvironment officeSlotContentById={officeSlotContentById} />
-      <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
-      <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />
-      <Lighting />
+    <>
+      {sceneEnvironment}
       <LocalPlayer
-        spawn={DEFAULT_SPAWN}
+        spawn={spawn}
         seated={localSeated}
         animationRef={localAnimationRef}
         ref={playerEntityRef}
@@ -158,7 +171,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
         speakingPlayerIds={speakingPlayerIds}
       />
       <ChatBubblesOverlay messages={messages} recordsRef={recordsRef} containerRef={nameLabelsContainerRef} />
-    </DayNightProvider>
+    </>
   );
 });
 
