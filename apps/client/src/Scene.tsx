@@ -24,6 +24,7 @@ interface SceneProps {
   whiteboardSnapshot: WhiteboardSnapshot;
   officeSlotContentById?: Record<string, OfficeSlotContent>;
   stickyNotes: StickyNote[];
+  justPlacedStickyNoteAuthorSessionId?: string | null;
 }
 
 export interface SceneHandle {
@@ -44,7 +45,15 @@ export interface SceneHandle {
 const DEFAULT_SPAWN = SPAWN_POINTS[0];
 
 const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
-  { playerEntityRef, nameLabelsContainerRef, speakingPlayerIds, whiteboardSnapshot, officeSlotContentById, stickyNotes },
+  {
+    playerEntityRef,
+    nameLabelsContainerRef,
+    speakingPlayerIds,
+    whiteboardSnapshot,
+    officeSlotContentById,
+    stickyNotes,
+    justPlacedStickyNoteAuthorSessionId,
+  },
   ref,
 ) {
   const recordsRef = useRef<Map<string, RemotePlayerRecord>>(new Map());
@@ -108,7 +117,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     <>
       <RoomEnvironment officeSlotContentById={officeSlotContentById} />
       <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
-      <StickyWallDisplay notes={stickyNotes} />
+      <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />
       <Lighting />
       <LocalPlayer spawn={DEFAULT_SPAWN} ref={playerEntityRef} />
 

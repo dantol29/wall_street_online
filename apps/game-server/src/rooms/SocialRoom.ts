@@ -3,6 +3,7 @@ import {
   MAX_PLAYERS,
   RECONNECTION_TIMEOUT_SECONDS,
   STICKY_NOTE_UPDATE_COOLDOWN_MS,
+  isStickyWallSpotFree,
   THESIS_PUBLISH_COOLDOWN_MS,
   VISITOR_BOOK_SIGN_PER_OFFICE_COOLDOWN_MS,
   VISITOR_BOOK_SIGN_RATE_LIMIT_MAX,
@@ -19,6 +20,8 @@ import {
   type SeatResultMessage,
   type StickyNote,
   type StickyNoteDeleteMessage,
+  type StickyNoteDeleteRequestMessage,
+  type StickyNoteDeleteResultMessage,
   type StickyNoteSnapshot,
   type StickyNoteUpsertRequestMessage,
   type StickyNoteUpsertResultMessage,
@@ -45,7 +48,7 @@ import { ChatRateLimiter, validateChatText } from "../validation/chatValidation"
 import { findDeskStation, isWithinDeskInteractionRange } from "../validation/seatValidation";
 import { SlidingWindowRateLimiter } from "../validation/rateLimiter";
 import { validateThesisBody, validateVisitorBookMessage, validateWatchlistItems } from "../validation/officeValidation";
-import { validateStickyNoteText } from "../validation/stickyNoteValidation";
+import { validateStickyNoteText, validateStickyNotePosition } from "../validation/stickyNoteValidation";
 import { config } from "../config";
 import { createVoiceToken } from "../voice/voiceToken";
 import { verifyPrivyWallet } from "../wallet/privyAuth";
@@ -180,6 +183,10 @@ export class SocialRoom extends Room<SocialRoomState> {
 
     this.onMessage("sticky_note_upsert_request", (client, message: StickyNoteUpsertRequestMessage) => {
       this.handleStickyNoteUpsertRequest(client, message);
+    });
+
+    this.onMessage("sticky_note_delete_request", (client, message: StickyNoteDeleteRequestMessage) => {
+      this.handleStickyNoteDeleteRequest(client, message);
     });
   }
 
@@ -384,15 +391,10 @@ export class SocialRoom extends Room<SocialRoomState> {
     const player = this.state.players.get(client.sessionId);
     if (!player) return;
 
-    if (!this.stickyNoteUpdateRateLimiter.isAllowed(client.sessionId, Date.now())) {
-      client.send("sticky_note_upsert_result", {
-        ...baseResult,
-        success: false,
-        message: "Please wait before updating your note again.",
-      } satisfies StickyNoteUpsertResultMessage);
-      return;
-    }
-
+    // Validated before the rate limit is consumed: clicking an occupied spot
+    // while choosing where to place a note is an expected, frequent part of
+    // that flow, not a "retry" that should cost the same cooldown as an
+    // actual post.
     const textValidation = validateStickyNoteText(typeof message.text === "string" ? message.text : "");
     if (!textValidation.valid) {
       client.send("sticky_note_upsert_result", {
@@ -403,16 +405,70 @@ export class SocialRoom extends Room<SocialRoomState> {
       return;
     }
 
+    const positionValidation = validateStickyNotePosition(message.xFraction, message.yFraction);
+    if (!positionValidation.valid) {
+      client.send("sticky_note_upsert_result", {
+        ...baseResult,
+        success: false,
+        message: positionValidation.reason,
+      } satisfies StickyNoteUpsertResultMessage);
+      return;
+    }
+
+    if (
+      !isStickyWallSpotFree(
+        [...this.stickyNotesBySessionId.values()],
+        positionValidation.xFraction,
+        positionValidation.yFraction,
+        client.sessionId,
+      )
+    ) {
+      client.send("sticky_note_upsert_result", {
+        ...baseResult,
+        success: false,
+        message: "That spot's taken — try another.",
+      } satisfies StickyNoteUpsertResultMessage);
+      return;
+    }
+
+    if (!this.stickyNoteUpdateRateLimiter.isAllowed(client.sessionId, Date.now())) {
+      client.send("sticky_note_upsert_result", {
+        ...baseResult,
+        success: false,
+        message: "Please wait before updating your note again.",
+      } satisfies StickyNoteUpsertResultMessage);
+      return;
+    }
+
     const note: StickyNote = {
       authorSessionId: client.sessionId,
       authorDisplayName: player.displayName,
       text: textValidation.text,
+      xFraction: positionValidation.xFraction,
+      yFraction: positionValidation.yFraction,
       updatedAt: Date.now(),
     };
     this.stickyNotesBySessionId.set(client.sessionId, note);
 
     client.send("sticky_note_upsert_result", { ...baseResult, success: true, note } satisfies StickyNoteUpsertResultMessage);
     this.broadcast("sticky_note_upsert", note);
+  }
+
+  /** Always deletes the caller's own note — same no-target-field reasoning as the upsert. Deleting a note you don't have is a harmless no-op. */
+  private handleStickyNoteDeleteRequest(client: Client, message: StickyNoteDeleteRequestMessage): void {
+    if (!message || !Number.isSafeInteger(message.requestId)) return;
+    const baseResult: Pick<StickyNoteDeleteResultMessage, "requestId"> = { requestId: message.requestId };
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    const existed = this.stickyNotesBySessionId.delete(client.sessionId);
+    this.stickyNoteUpdateRateLimiter.clear(client.sessionId);
+
+    client.send("sticky_note_delete_result", { ...baseResult, success: true } satisfies StickyNoteDeleteResultMessage);
+    if (existed) {
+      this.broadcast("sticky_note_delete", { authorSessionId: client.sessionId } satisfies StickyNoteDeleteMessage);
+    }
   }
 
   private async handleVoiceTokenRequest(client: Client, message: VoiceTokenRequestMessage): Promise<void> {

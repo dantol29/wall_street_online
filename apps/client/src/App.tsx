@@ -10,13 +10,13 @@ import {
   STICKY_WALL_INTERACTION_DISTANCE_METERS,
   STICKY_WALL_INTERACTION_POSITION,
   STICKY_WALL_POSITION,
-  STICKY_WALL_WORLD_HEIGHT,
-  STICKY_WALL_WORLD_WIDTH,
   WHITEBOARD_INTERACTION_DISTANCE_METERS,
   WHITEBOARD_INTERACTION_POSITION,
   WHITEBOARD_POSITION,
   WHITEBOARD_WORLD_HEIGHT,
   WHITEBOARD_WORLD_WIDTH,
+  findOverlappingStickyNote,
+  isStickyWallPositionValid,
   type ChatMessage,
   type OfficeProfileLookup,
   type SeatResultMessage,
@@ -26,6 +26,12 @@ import {
   type WhiteboardSnapshot,
 } from "@multiplayer/shared";
 import { selectAnimationState } from "./game/player/animationState";
+import {
+  boardFractionToScreenRatio,
+  computeStickyWallCameraFrame,
+  screenRatioToBoardFraction,
+  type StickyWallCameraFrame,
+} from "./game/scene/stickyWallBoardProjection";
 import { MultiplayerClient } from "./game/multiplayer/MultiplayerClient";
 import { getOrCreateGuestDisplayName } from "./game/multiplayer/guestName";
 import type { ConnectionState } from "./game/multiplayer/messages";
@@ -65,6 +71,8 @@ const STANDING_CAMERA_HEIGHT = 0.8;
 const SEATED_CAMERA_HEIGHT = 0.25;
 const WALLET_LINK_TIMEOUT_MS = 10_000;
 const VOICE_TALK_MODE_STORAGE_KEY = "voiceTalkMode";
+const WAVE_EMOTE_DURATION_MS = 1_800;
+const EMOTE_MOVEMENT_CANCEL_SPEED = 0.15;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -224,23 +232,30 @@ function enterStickyWallCamera(
   controller?._angles?.copy(cameraEntity.getLocalEulerAngles());
 }
 
+/**
+ * The overview camera's fit-to-FOV frame, also used to map screen clicks onto
+ * the board and back (see stickyWallBoardProjection.ts) — computed once here
+ * so the camera framing and the click math can never drift out of sync.
+ */
+function getStickyWallCameraFrame(player: PcEntity | null): StickyWallCameraFrame | null {
+  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+  const camera = cameraEntity?.camera;
+  if (!camera) return null;
+  const canvasBounds = camera.system.app.graphicsDevice.canvas.getBoundingClientRect();
+  const aspect = Math.max(0.5, canvasBounds.width / Math.max(1, canvasBounds.height));
+  return computeStickyWallCameraFrame(camera.fov, aspect);
+}
+
 /** Establishing shot: the whole board in view — mirrors frameWhiteboardCamera's fit-to-FOV math. */
 function frameStickyWallOverview(player: PcEntity | null): void {
   const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
   const camera = cameraEntity?.camera;
-  if (!cameraEntity || !camera) return;
-
-  const canvasBounds = camera.system.app.graphicsDevice.canvas.getBoundingClientRect();
-  const aspect = Math.max(0.5, canvasBounds.width / Math.max(1, canvasBounds.height));
-  const halfVerticalFov = (camera.fov * Math.PI) / 360;
-  const verticalScale = Math.tan(halfVerticalFov);
-  const distanceForHeight = STICKY_WALL_WORLD_HEIGHT / 2 / verticalScale;
-  const distanceForWidth = STICKY_WALL_WORLD_WIDTH / 2 / (verticalScale * aspect);
-  const distance = Math.max(distanceForHeight, distanceForWidth) * 1.25;
+  const frame = getStickyWallCameraFrame(player);
+  if (!cameraEntity || !camera || !frame) return;
 
   // Board is on the east wall (+X) — approach from the room-interior side
   // (lower x), mirroring how the whiteboard (west wall, -X) approaches from +x.
-  cameraEntity.setPosition(STICKY_WALL_POSITION.x - distance, STICKY_WALL_POSITION.y, STICKY_WALL_POSITION.z);
+  cameraEntity.setPosition(STICKY_WALL_POSITION.x - frame.distance, STICKY_WALL_POSITION.y, STICKY_WALL_POSITION.z);
   cameraEntity.lookAt(STICKY_WALL_POSITION.x, STICKY_WALL_POSITION.y, STICKY_WALL_POSITION.z);
 }
 
@@ -281,6 +296,9 @@ function App() {
   const voiceDesiredTalkingRef = useRef(false);
   const attemptConnectRef = useRef<() => void>(() => {});
   const primaryInteractionRef = useRef<() => void>(() => {});
+  const waveEmoteRef = useRef<() => void>(() => {});
+  const waveUntilRef = useRef(0);
+  const waveTimeoutRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
   const nearbyDeskIdRef = useRef<string | null>(null);
   const seatedDeskIdRef = useRef<string | null>(null);
@@ -301,11 +319,21 @@ function App() {
   const stickyNoteEditorOpenRef = useRef(false);
   /** Mirrors the `stickyNotes` state for synchronous reads from `triggerPrimaryInteraction`'s closure (created once, so it can't see fresh state directly). */
   const stickyNotesRef = useRef<StickyNote[]>([]);
+  /**
+   * "viewing" = board overview shown, no writer — click your own note to
+   * edit/delete it, or click free space to add one if you don't have one
+   * yet. "writing" = the sticky-note writer is open at a chosen spot.
+   */
+  const stickyWallStageRef = useRef<"viewing" | "writing">("viewing");
+  const pendingStickyNotePositionRef = useRef<{ xFraction: number; yFraction: number } | null>(null);
+  const stickyWallHintTimerRef = useRef<number | null>(null);
+  const justPlacedStickyNoteTimerRef = useRef<number | null>(null);
   const [entered, setEntered] = useState(false);
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
   const [connectErrorMessage, setConnectErrorMessage] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [hasMoved, setHasMoved] = useState(false);
+  const [waveActive, setWaveActive] = useState(false);
   const [nearbyDeskId, setNearbyDeskId] = useState<string | null>(null);
   const [seatedDeskId, setSeatedDeskId] = useState<string | null>(null);
   const [seatError, setSeatError] = useState<string | null>(null);
@@ -335,6 +363,39 @@ function App() {
   const [nearStickyWall, setNearStickyWall] = useState(false);
   const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
   const [stickyNoteEditorOpen, setStickyNoteEditorOpen] = useState(false);
+  const [stickyWallStage, setStickyWallStage] = useState<"viewing" | "writing">("viewing");
+  const [pendingStickyNotePosition, setPendingStickyNotePosition] = useState<{
+    xFraction: number;
+    yFraction: number;
+  } | null>(null);
+  const [stickyNoteWriterAnchor, setStickyNoteWriterAnchor] = useState<{ xRatio: number; yRatio: number } | null>(
+    null,
+  );
+  const [stickyWallHint, setStickyWallHint] = useState<string | null>(null);
+  const [justPlacedStickyNoteAuthorSessionId, setJustPlacedStickyNoteAuthorSessionId] = useState<string | null>(
+    null,
+  );
+
+  const triggerWaveEmote = useCallback((): void => {
+    if (
+      seatedDeskIdRef.current ||
+      whiteboardOpenRef.current ||
+      officeEditorOpenRef.current ||
+      stickyNoteEditorOpenRef.current ||
+      Date.now() < waveUntilRef.current
+    ) {
+      return;
+    }
+    waveUntilRef.current = Date.now() + WAVE_EMOTE_DURATION_MS;
+    setWaveActive(true);
+    if (waveTimeoutRef.current !== null) window.clearTimeout(waveTimeoutRef.current);
+    waveTimeoutRef.current = window.setTimeout(() => {
+      waveUntilRef.current = 0;
+      waveTimeoutRef.current = null;
+      setWaveActive(false);
+    }, WAVE_EMOTE_DURATION_MS);
+  }, []);
+  waveEmoteRef.current = triggerWaveEmote;
 
   useEffect(() => {
     let seatErrorTimer: number | null = null;
@@ -414,10 +475,28 @@ function App() {
       }
     }
 
+    const flashStickyWallHint = (message: string): void => {
+      setStickyWallHint(message);
+      if (stickyWallHintTimerRef.current !== null) window.clearTimeout(stickyWallHintTimerRef.current);
+      stickyWallHintTimerRef.current = window.setTimeout(() => setStickyWallHint(null), 1800);
+    };
+
+    const enterStickyWallWritingStage = (position: { xFraction: number; yFraction: number }): void => {
+      pendingStickyNotePositionRef.current = position;
+      setPendingStickyNotePosition(position);
+      const frame = getStickyWallCameraFrame(playerEntityRef.current);
+      setStickyNoteWriterAnchor(frame ? boardFractionToScreenRatio(position.xFraction, position.yFraction, frame) : null);
+      stickyWallStageRef.current = "writing";
+      setStickyWallStage("writing");
+    };
+
     /**
      * Unlike offices, no fetch is needed here — the client already holds the
      * full live snapshot (see onStickyNoteSnapshot/onStickyNoteUpsert). Enters
-     * an in-world camera shot of the whole board, mirroring the whiteboard.
+     * an in-world camera shot of the whole board, mirroring the whiteboard —
+     * always just a look at the board, never auto-opening the writer. Editing
+     * or deleting your own note, or adding a first one, all happen by
+     * clicking the board itself (see handleStickyWallCanvasClick below).
      */
     function openStickyNoteEditor(): void {
       const client = clientRef.current;
@@ -426,7 +505,54 @@ function App() {
       setStickyNoteEditorOpen(true);
       setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
       enterStickyWallCamera(playerEntityRef.current, savedCameraViewRef);
+
+      pendingStickyNotePositionRef.current = null;
+      setPendingStickyNotePosition(null);
+      setStickyNoteWriterAnchor(null);
+      stickyWallStageRef.current = "viewing";
+      setStickyWallStage("viewing");
     }
+
+    const handleStickyWallCanvasClick = (event: MouseEvent): void => {
+      if (!stickyNoteEditorOpenRef.current || stickyWallStageRef.current !== "viewing") return;
+      const player = playerEntityRef.current;
+      const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+      const camera = cameraEntity?.camera;
+      if (!camera) return;
+      const canvas = camera.system.app.graphicsDevice.canvas as HTMLCanvasElement;
+      if (event.target !== canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const clickXRatio = (event.clientX - rect.left) / rect.width;
+      const clickYRatio = (event.clientY - rect.top) / rect.height;
+      const aspect = Math.max(0.5, rect.width / Math.max(1, rect.height));
+      const frame = computeStickyWallCameraFrame(camera.fov, aspect);
+      const spot = screenRatioToBoardFraction(clickXRatio, clickYRatio, frame);
+      if (!spot) return;
+
+      const mySessionId = client.getSessionId();
+      const myExistingNote = mySessionId
+        ? stickyNotesRef.current.find((note) => note.authorSessionId === mySessionId)
+        : undefined;
+      const clickedNote = findOverlappingStickyNote(stickyNotesRef.current, spot.xFraction, spot.yFraction);
+
+      if (clickedNote) {
+        // Clicking someone else's note is a no-op — only your own opens the writer.
+        if (clickedNote.authorSessionId === mySessionId) {
+          enterStickyWallWritingStage({ xFraction: clickedNote.xFraction, yFraction: clickedNote.yFraction });
+        }
+        return;
+      }
+
+      if (myExistingNote) {
+        flashStickyWallHint("You already have a note — click it to edit or delete.");
+        return;
+      }
+
+      if (!isStickyWallPositionValid(spot.xFraction, spot.yFraction)) return;
+      enterStickyWallWritingStage(spot);
+    };
+    window.addEventListener("click", handleStickyWallCanvasClick);
 
     const applySeatResult = (result: SeatResultMessage): void => {
       if (!result.success) {
@@ -555,6 +681,12 @@ function App() {
           stickyNotesRef.current = next;
           return next;
         });
+        setJustPlacedStickyNoteAuthorSessionId(note.authorSessionId);
+        if (justPlacedStickyNoteTimerRef.current !== null) window.clearTimeout(justPlacedStickyNoteTimerRef.current);
+        justPlacedStickyNoteTimerRef.current = window.setTimeout(
+          () => setJustPlacedStickyNoteAuthorSessionId(null),
+          500,
+        );
       },
       onStickyNoteDelete: (authorSessionId) => {
         setStickyNotes((prev) => {
@@ -622,6 +754,10 @@ function App() {
             : true,
         );
       }
+      if (event.code === "KeyG" && !event.repeat && !typing) {
+        event.preventDefault();
+        waveEmoteRef.current();
+      }
       if (
         event.code === "KeyE" &&
         !event.repeat &&
@@ -674,6 +810,14 @@ function App() {
       const horizontalSpeed = Math.hypot(velocity.x, velocity.z);
 
       if (horizontalSpeed > 0) setHasMoved(true);
+      if (horizontalSpeed >= EMOTE_MOVEMENT_CANCEL_SPEED && waveUntilRef.current > 0) {
+        waveUntilRef.current = 0;
+        setWaveActive(false);
+        if (waveTimeoutRef.current !== null) {
+          window.clearTimeout(waveTimeoutRef.current);
+          waveTimeoutRef.current = null;
+        }
+      }
 
       // Movement relative to the camera's own facing (not world axes), so
       // strafing left/right can pick the character's dedicated strafe clips
@@ -688,12 +832,18 @@ function App() {
         rightAmount = velocity.x * right.x + velocity.z * right.z;
       }
 
+      const movementAnimation = selectAnimationState(
+        horizontalSpeed,
+        isRunningRef.current,
+        forwardAmount,
+        rightAmount,
+      );
       client.sendMovement({
         x: position.x,
         y: position.y,
         z: position.z,
         rotationY,
-        animation: selectAnimationState(horizontalSpeed, isRunningRef.current, forwardAmount, rightAmount),
+        animation: Date.now() < waveUntilRef.current ? "wave" : movementAnimation,
       });
 
       if (!seatedDeskIdRef.current) {
@@ -753,10 +903,14 @@ function App() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", stopTalking);
+      window.removeEventListener("click", handleStickyWallCanvasClick);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.cancelAnimationFrame(spatialAnimationFrame);
       if (seatErrorTimer !== null) window.clearTimeout(seatErrorTimer);
       if (officeErrorTimer !== null) window.clearTimeout(officeErrorTimer);
+      if (waveTimeoutRef.current !== null) window.clearTimeout(waveTimeoutRef.current);
+      if (stickyWallHintTimerRef.current !== null) window.clearTimeout(stickyWallHintTimerRef.current);
+      if (justPlacedStickyNoteTimerRef.current !== null) window.clearTimeout(justPlacedStickyNoteTimerRef.current);
       client.disconnect();
       clientRef.current = null;
       primaryInteractionRef.current = () => {};
@@ -885,7 +1039,13 @@ function App() {
 
   useEffect(() => {
     if (!stickyNoteEditorOpen) return;
-    const reframe = (): void => frameStickyWallOverview(playerEntityRef.current);
+    const reframe = (): void => {
+      frameStickyWallOverview(playerEntityRef.current);
+      const position = pendingStickyNotePositionRef.current;
+      if (!position) return;
+      const frame = getStickyWallCameraFrame(playerEntityRef.current);
+      setStickyNoteWriterAnchor(frame ? boardFractionToScreenRatio(position.xFraction, position.yFraction, frame) : null);
+    };
     const animationFrame = window.requestAnimationFrame(reframe);
     window.addEventListener("resize", reframe);
     window.addEventListener("orientationchange", reframe);
@@ -948,16 +1108,54 @@ function App() {
   const handleStickyNoteEditorClose = useCallback((): void => {
     stickyNoteEditorOpenRef.current = false;
     setStickyNoteEditorOpen(false);
+    stickyWallStageRef.current = "viewing";
+    setStickyWallStage("viewing");
+    pendingStickyNotePositionRef.current = null;
+    setPendingStickyNotePosition(null);
+    setStickyNoteWriterAnchor(null);
+    setStickyWallHint(null);
     restoreFirstPersonCamera(playerEntityRef.current, savedCameraViewRef);
     setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef);
   }, []);
 
-  const handleStickyNoteSubmit = useCallback(async (text: string) => {
+  const handleStickyNoteDelete = useCallback(async () => {
     const client = clientRef.current;
     if (!client) return { success: false, message: "Not connected." };
-    const result = await client.upsertStickyNote(text);
+    const result = await client.deleteStickyNote();
+    if (result.success) {
+      stickyWallStageRef.current = "viewing";
+      setStickyWallStage("viewing");
+      pendingStickyNotePositionRef.current = null;
+      setPendingStickyNotePosition(null);
+      setStickyNoteWriterAnchor(null);
+    }
+    return { success: result.success, message: result.message };
+  }, []);
+
+  // No writer is rendered while "viewing" (see JSX below), so it can't rely
+  // on StickyNoteEditor's own Escape handler — this covers that stage.
+  useEffect(() => {
+    if (stickyWallStage === "writing") return;
+    const handleEscape = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") handleStickyNoteEditorClose();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [stickyWallStage, handleStickyNoteEditorClose]);
+
+  const handleStickyNoteSubmit = useCallback(async (text: string) => {
+    const client = clientRef.current;
+    const position = pendingStickyNotePositionRef.current;
+    if (!client || !position) return { success: false, message: "Not connected." };
+    const result = await client.upsertStickyNote(text, position.xFraction, position.yFraction);
     // No local state update here — the server broadcasts `sticky_note_upsert`
     // (including back to the author), so onStickyNoteUpsert applies it.
+    if (result.success) {
+      // Hide the writer and just show the board — the placement pop in
+      // StickyWallDisplay (driven by onStickyNoteUpsert) is the feedback now.
+      stickyWallStageRef.current = "viewing";
+      setStickyWallStage("viewing");
+    }
     return { success: result.success, message: result.message };
   }, []);
 
@@ -1023,6 +1221,7 @@ function App() {
             whiteboardSnapshot={whiteboardSnapshot}
             officeSlotContentById={officeSlotContentById}
             stickyNotes={stickyNotes}
+            justPlacedStickyNoteAuthorSessionId={justPlacedStickyNoteAuthorSessionId}
           />
         </Application>
       </ApplicationErrorBoundary>
@@ -1063,6 +1262,16 @@ function App() {
         disabled={Boolean(seatedDeskId) || whiteboardOpen}
       />
       {entered && !seatedDeskId && !whiteboardOpen && <div className="crosshair" />}
+      {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
+        <button
+          type="button"
+          className={`wave-emote-button${waveActive ? " wave-emote-button--active" : ""}`}
+          onClick={triggerWaveEmote}
+          disabled={waveActive}
+        >
+          <kbd>G</kbd> {waveActive ? "Waving…" : "Wave"}
+        </button>
+      )}
       {entered && !hasMoved && !seatedDeskId && !whiteboardOpen && <div className="wasd-hint">WASD to move</div>}
       {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
         <MobileGameControls
@@ -1072,7 +1281,9 @@ function App() {
           talking={voiceTalking}
           microphoneLevel={voiceMicrophoneLevel}
           talkMode={voiceTalkMode}
+          waveActive={waveActive}
           onAction={() => primaryInteractionRef.current()}
+          onWave={triggerWaveEmote}
           onTalkStart={handleVoiceTalkStart}
           onTalkEnd={handleVoiceTalkEnd}
           onTalkToggle={handleVoiceTalkToggle}
@@ -1111,11 +1322,19 @@ function App() {
           onSignVisitorBook={handleSignVisitorBook}
         />
       )}
-      {stickyNoteEditorOpen && (
+      {stickyNoteEditorOpen && stickyWallStage === "viewing" && (
+        <div className="sticky-wall-placing-hint">
+          <p>{myStickyNote ? "Click your note to edit or delete it" : "Click an empty spot on the board to add your note"}</p>
+          {stickyWallHint && <p className="sticky-wall-placing-hint__flash">{stickyWallHint}</p>}
+        </div>
+      )}
+      {stickyNoteEditorOpen && stickyWallStage === "writing" && pendingStickyNotePosition && (
         <StickyNoteEditor
           initialText={myStickyNote?.text ?? ""}
+          anchor={stickyNoteWriterAnchor}
           onClose={handleStickyNoteEditorClose}
           onSubmit={handleStickyNoteSubmit}
+          onDelete={handleStickyNoteDelete}
         />
       )}
       {whiteboardOpen && (

@@ -564,6 +564,41 @@
   font: inherit;
 }
 
+.wave-emote-button {
+  position: absolute;
+  left: calc(12px + env(safe-area-inset-left));
+  bottom: calc(205px + env(safe-area-inset-bottom));
+  z-index: 7;
+  min-height: 38px;
+  padding: 7px 11px;
+  color: #efe8d5;
+  background: rgba(10, 12, 11, 0.84);
+  border: 1px solid rgba(205, 188, 145, 0.42);
+  border-radius: 4px;
+  font: 600 12px/1.2 "Courier New", monospace;
+  cursor: pointer;
+}
+
+.wave-emote-button kbd {
+  margin-right: 5px;
+  padding: 2px 5px;
+  color: #181a18;
+  background: #d8c99e;
+  border: 1px solid #f1e7c7;
+  font: inherit;
+}
+
+.wave-emote-button:active,
+.wave-emote-button--active {
+  transform: scale(0.96);
+  border-color: rgba(101, 216, 139, 0.62);
+}
+
+.wave-emote-button:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
 .seat-error {
   position: absolute;
   top: 52px;
@@ -797,9 +832,9 @@
 */
 .sticky-note-writer {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-1.5deg);
+  top: var(--sticky-note-writer-y, 50%);
+  left: var(--sticky-note-writer-x, 50%);
+  transform: translate(-50%, -50%);
   z-index: 15;
   display: flex;
   flex-direction: column;
@@ -816,6 +851,45 @@
   flex-direction: column;
   background: #fef08a;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  transform: rotate(-1.5deg);
+  animation: sticky-note-writer-appear 220ms ease-out;
+}
+
+@keyframes sticky-note-writer-appear {
+  from {
+    opacity: 0;
+    transform: rotate(-1.5deg) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-1.5deg) scale(1);
+  }
+}
+
+/* Shown while placing a first note — before the writer itself appears. */
+.sticky-wall-placing-hint {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  color: #f1ede2;
+  background: rgba(10, 13, 10, 0.72);
+  font: 13px "Courier New", Courier, monospace;
+  text-align: center;
+}
+
+.sticky-wall-placing-hint p {
+  margin: 0;
+}
+
+.sticky-wall-placing-hint__flash {
+  color: #ffd9a0;
 }
 
 .sticky-note-writer__textarea {
@@ -842,6 +916,16 @@
   color: #171912;
   background: #d2c181;
   border: 1px solid #a89049;
+  cursor: pointer;
+  font: 12px "Courier New", Courier, monospace;
+}
+
+.sticky-note-writer__delete {
+  min-height: 30px;
+  padding: 0 12px;
+  color: #7a2b20;
+  background: transparent;
+  border: 1px solid rgba(122, 43, 32, 0.5);
   cursor: pointer;
   font: 12px "Courier New", Courier, monospace;
 }
@@ -1243,7 +1327,8 @@
   }
 
   .wasd-hint,
-  .desk-interaction {
+  .desk-interaction,
+  .wave-emote-button {
     display: none;
   }
 
@@ -1307,6 +1392,10 @@
     border: 1px solid #f1e7c7;
     border-radius: 50%;
     font-size: 12px;
+  }
+
+  .mobile-game-button--wave {
+    min-width: 78px;
   }
 
   .mobile-game-button--voice {

@@ -65,10 +65,11 @@ describe("isWithinWorldBounds", () => {
 });
 
 describe("isValidAnimation", () => {
-  it("accepts idle, walk, and run", () => {
+  it("accepts movement and social animations", () => {
     expect(isValidAnimation("idle")).toBe(true);
     expect(isValidAnimation("walk")).toBe(true);
     expect(isValidAnimation("run")).toBe(true);
+    expect(isValidAnimation("wave")).toBe(true);
   });
 
   it("rejects an unknown animation name", () => {

@@ -18,7 +18,9 @@ interface MobileGameControlsProps {
   talking: boolean;
   microphoneLevel: number;
   talkMode: VoiceTalkMode;
+  waveActive: boolean;
   onAction: () => void;
+  onWave: () => void;
   onTalkStart: () => void;
   onTalkEnd: () => void;
   onTalkToggle: () => void;
@@ -31,7 +33,9 @@ export function MobileGameControls({
   talking,
   microphoneLevel,
   talkMode,
+  waveActive,
   onAction,
+  onWave,
   onTalkStart,
   onTalkEnd,
   onTalkToggle,
@@ -171,6 +175,18 @@ export function MobileGameControls({
             </span>
           </button>
         )}
+        <button
+          type="button"
+          className={`mobile-game-button mobile-game-button--wave${waveActive ? " mobile-game-button--active" : ""}`}
+          disabled={waveActive}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onWave();
+          }}
+        >
+          {waveActive ? "Waving…" : "Wave"}
+        </button>
         {actionLabel && (
           <button
             type="button"

@@ -45,7 +45,7 @@ const MODEL_YAW_OFFSET_DEGREES = 180;
  * below, since @playcanvas/react's <Anim> only supports a single clip
  * declaratively — see the imperative wiring below.
  */
-const CLIP_CONFIG_BY_STATE: Record<AnimationState, { clip: string; speed: number }> = {
+const CLIP_CONFIG_BY_STATE: Record<AnimationState, { clip: string; speed: number; loop?: boolean }> = {
   // "CharacterArmature|Idle" (the more obviously-named clip) only animates 21 of
   // the 34 bones Walk/Run drive — critically, it never touches Foot.L/Foot.R, so
   // switching from Walk to it left the legs frozen mid-stride (PlayCanvas's anim
@@ -65,6 +65,7 @@ const CLIP_CONFIG_BY_STATE: Record<AnimationState, { clip: string; speed: number
   run_right: { clip: "CharacterArmature|Run_Right", speed: 1 },
   walk_back: { clip: "CharacterArmature|Run_Back", speed: 0.65 },
   run_back: { clip: "CharacterArmature|Run_Back", speed: 1 },
+  wave: { clip: "CharacterArmature|Wave", speed: 1, loop: false },
 };
 
 interface RemotePlayerProps {
@@ -110,10 +111,10 @@ export function RemotePlayer({ sessionId, recordsRef }: RemotePlayerProps) {
       // `.resource.name`.
       const animationAssets = (asset.resource as { animations?: Asset[] }).animations ?? [];
       let registeredAny = false;
-      for (const [state, { clip: clipName, speed }] of Object.entries(CLIP_CONFIG_BY_STATE)) {
+      for (const [state, { clip: clipName, speed, loop = true }] of Object.entries(CLIP_CONFIG_BY_STATE)) {
         const clipAsset = animationAssets.find((a) => (a.resource as AnimTrack | undefined)?.name === clipName);
         if (clipAsset?.resource) {
-          anim.assignAnimation(state, clipAsset.resource as AnimTrack, undefined, speed, true);
+          anim.assignAnimation(state, clipAsset.resource as AnimTrack, undefined, speed, loop);
           registeredAny = true;
         }
       }

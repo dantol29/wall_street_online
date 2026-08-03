@@ -1,27 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { getStickyNoteLayout } from "./stickyNoteLayout";
+import { getStickyNoteRotation } from "./stickyNoteLayout";
 
-describe("getStickyNoteLayout", () => {
+describe("getStickyNoteRotation", () => {
   it("is deterministic for a given session id", () => {
-    const first = getStickyNoteLayout("session-abc");
-    const second = getStickyNoteLayout("session-abc");
+    const first = getStickyNoteRotation("session-abc");
+    const second = getStickyNoteRotation("session-abc");
     expect(first).toEqual(second);
   });
 
-  it("keeps fractions within the board margins", () => {
+  it("keeps rotation within the expected tilt range", () => {
     for (const sessionId of ["a", "b", "session-123", "xyz-789", ""]) {
-      const layout = getStickyNoteLayout(sessionId);
-      expect(layout.xFraction).toBeGreaterThanOrEqual(0.1);
-      expect(layout.xFraction).toBeLessThanOrEqual(0.9);
-      expect(layout.yFraction).toBeGreaterThanOrEqual(0.1);
-      expect(layout.yFraction).toBeLessThanOrEqual(0.9);
-      expect(Math.abs(layout.rotationDeg)).toBeLessThanOrEqual(8);
+      expect(Math.abs(getStickyNoteRotation(sessionId))).toBeLessThanOrEqual(8);
     }
   });
 
-  it("gives different sessions different positions (not all collapsing to one spot)", () => {
-    const layouts = ["session-1", "session-2", "session-3"].map(getStickyNoteLayout);
-    const unique = new Set(layouts.map((layout) => `${layout.xFraction}:${layout.yFraction}`));
-    expect(unique.size).toBe(3);
+  it("gives different sessions different tilts (not all collapsing to one angle)", () => {
+    const rotations = ["session-1", "session-2", "session-3"].map(getStickyNoteRotation);
+    expect(new Set(rotations).size).toBe(3);
   });
 });

@@ -12,7 +12,8 @@ export type AnimationState =
   | "run_left"
   | "run_right"
   | "walk_back"
-  | "run_back";
+  | "run_back"
+  | "wave";
 
 export const ANIMATION_STATES: readonly AnimationState[] = [
   "idle",
@@ -24,6 +25,7 @@ export const ANIMATION_STATES: readonly AnimationState[] = [
   "run_right",
   "walk_back",
   "run_back",
+  "wave",
 ];
 
 export interface PlayerInputMessage {

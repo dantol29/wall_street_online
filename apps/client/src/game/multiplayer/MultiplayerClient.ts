@@ -9,6 +9,7 @@ import {
   type SeatResultMessage,
   type StickyNote,
   type StickyNoteDeleteMessage,
+  type StickyNoteDeleteResultMessage,
   type StickyNoteSnapshot,
   type StickyNoteUpsertResultMessage,
   type ThesisPublishResultMessage,
@@ -61,6 +62,7 @@ export class MultiplayerClient {
   private readonly pendingWatchlistUpdate = new Map<number, (message: WatchlistUpdateResultMessage) => void>();
   private readonly pendingVisitorBookSign = new Map<number, (message: VisitorBookSignResultMessage) => void>();
   private readonly pendingStickyNoteUpsert = new Map<number, (message: StickyNoteUpsertResultMessage) => void>();
+  private readonly pendingStickyNoteDelete = new Map<number, (message: StickyNoteDeleteResultMessage) => void>();
 
   constructor(serverUrl: string, callbacks: MultiplayerClientCallbacks) {
     this.client = new Client(serverUrl);
@@ -202,13 +204,24 @@ export class MultiplayerClient {
   }
 
   /** Always an upsert of the caller's own note — see `sticky_note_upsert_request`'s doc comment for why there's no "target" concept here. */
-  upsertStickyNote(text: string): Promise<StickyNoteUpsertResultMessage> {
+  upsertStickyNote(text: string, xFraction: number, yFraction: number): Promise<StickyNoteUpsertResultMessage> {
     if (!this.room) return Promise.reject(new Error("Not connected."));
     const requestId = this.nextRequestId();
     const result = new Promise<StickyNoteUpsertResultMessage>((resolve) => {
       this.pendingStickyNoteUpsert.set(requestId, resolve);
     });
-    this.room.send("sticky_note_upsert_request", { requestId, text });
+    this.room.send("sticky_note_upsert_request", { requestId, text, xFraction, yFraction });
+    return result;
+  }
+
+  /** Always deletes the caller's own note. */
+  deleteStickyNote(): Promise<StickyNoteDeleteResultMessage> {
+    if (!this.room) return Promise.reject(new Error("Not connected."));
+    const requestId = this.nextRequestId();
+    const result = new Promise<StickyNoteDeleteResultMessage>((resolve) => {
+      this.pendingStickyNoteDelete.set(requestId, resolve);
+    });
+    this.room.send("sticky_note_delete_request", { requestId });
     return result;
   }
 
@@ -363,6 +376,13 @@ export class MultiplayerClient {
       const resolve = this.pendingStickyNoteUpsert.get(message.requestId);
       if (!resolve) return;
       this.pendingStickyNoteUpsert.delete(message.requestId);
+      resolve(message);
+    });
+
+    room.onMessage<StickyNoteDeleteResultMessage>("sticky_note_delete_result", (message) => {
+      const resolve = this.pendingStickyNoteDelete.get(message.requestId);
+      if (!resolve) return;
+      this.pendingStickyNoteDelete.delete(message.requestId);
       resolve(message);
     });
 

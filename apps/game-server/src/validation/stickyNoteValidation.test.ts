@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateStickyNoteText } from "./stickyNoteValidation";
+import { validateStickyNoteText, validateStickyNotePosition } from "./stickyNoteValidation";
 
 describe("validateStickyNoteText", () => {
   it("accepts a normal note and HTML-escapes it", () => {
@@ -23,5 +23,25 @@ describe("validateStickyNoteText", () => {
 
   it("accepts a note exactly at the limit", () => {
     expect(validateStickyNoteText("a".repeat(80)).valid).toBe(true);
+  });
+});
+
+describe("validateStickyNotePosition", () => {
+  it("accepts a position within the board margins", () => {
+    expect(validateStickyNotePosition(0.5, 0.5)).toEqual({ valid: true, xFraction: 0.5, yFraction: 0.5 });
+  });
+
+  it("accepts numeric strings by coercing them", () => {
+    expect(validateStickyNotePosition("0.2", "0.8")).toEqual({ valid: true, xFraction: 0.2, yFraction: 0.8 });
+  });
+
+  it("rejects a position outside the margin", () => {
+    expect(validateStickyNotePosition(0.01, 0.5)).toEqual({ valid: false, reason: "invalid position" });
+  });
+
+  it("rejects non-finite input", () => {
+    expect(validateStickyNotePosition(NaN, 0.5).valid).toBe(false);
+    expect(validateStickyNotePosition("not a number", 0.5).valid).toBe(false);
+    expect(validateStickyNotePosition(undefined, 0.5).valid).toBe(false);
   });
 });
