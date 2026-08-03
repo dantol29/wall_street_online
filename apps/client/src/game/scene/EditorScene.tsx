@@ -85,12 +85,12 @@ export function EditorScene({ configUrl, sceneUrl }: EditorSceneProps) {
           for (const asset of preloadAssets) {
             asset.once("load", () => {
               remaining--;
-              if (!cancelled && remaining <= 0) resolve();
+              if (remaining <= 0) resolve();
             });
             asset.once("error", (err: string) => {
               console.warn(`[EditorScene] asset load error: ${asset.name}`, err);
               remaining--;
-              if (!cancelled && remaining <= 0) resolve();
+              if (remaining <= 0) resolve();
             });
             app.assets.load(asset);
           }
