@@ -477,8 +477,9 @@ function App() {
   const pendingStickyNotePositionRef = useRef<{ xFraction: number; yFraction: number } | null>(null);
   const stickyWallHintTimerRef = useRef<number | null>(null);
   const justPlacedStickyNoteTimerRef = useRef<number | null>(null);
-  // Menu hidden for now — starts "entered" so MainMenuOverlay (gated on !entered) never renders. Flip back to false to re-enable it.
-  const [entered, setEntered] = useState(true);
+  const [entered, setEntered] = useState(false);
+  const [selectedSceneId, setSelectedSceneId] = useState("trading-floor");
+  const selectedSceneIdRef = useRef("trading-floor");
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
   const [connectErrorMessage, setConnectErrorMessage] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -595,6 +596,7 @@ function App() {
     }, WAVE_EMOTE_DURATION_MS);
   }, []);
   waveEmoteRef.current = triggerWaveEmote;
+  selectedSceneIdRef.current = selectedSceneId;
 
   useEffect(() => {
     let seatErrorTimer: number | null = null;
@@ -1123,7 +1125,7 @@ function App() {
         animation: finalAnimation,
       });
 
-      if (!seatedDeskIdRef.current) {
+      if (!seatedDeskIdRef.current && selectedSceneIdRef.current === "trading-floor") {
         const whiteboardDistance = Math.hypot(
           position.x - WHITEBOARD_INTERACTION_POSITION.x,
           position.z - WHITEBOARD_INTERACTION_POSITION.z,
@@ -1196,6 +1198,19 @@ function App() {
       void voice.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    if (selectedSceneId !== "trading-floor") {
+      setNearbyDeskId(null);
+      nearbyDeskIdRef.current = null;
+      setNearWhiteboard(false);
+      nearWhiteboardRef.current = false;
+      setNearOfficeSlotId(null);
+      nearOfficeSlotIdRef.current = null;
+      setNearStickyWall(false);
+      nearStickyWallRef.current = false;
+    }
+  }, [selectedSceneId]);
 
   const handleEnter = (): void => {
     // Just dismiss the overlay. The ready-made controller requests pointer lock
@@ -1491,6 +1506,7 @@ function App() {
       <ApplicationErrorBoundary>
         <Application className="playcanvas-app" usePhysics fillMode={FILLMODE_FILL_WINDOW}>
           <Scene
+            sceneId={selectedSceneId}
             playerEntityRef={playerEntityRef}
             localAnimationRef={localAnimationRef}
             localSeated={Boolean(seatedDeskId)}
@@ -1676,6 +1692,8 @@ function App() {
       <MainMenuOverlay
         visible={!entered && !showErrorOverlay}
         connecting={connectionState !== "connected"}
+        selectedSceneId={selectedSceneId}
+        onSceneSelect={setSelectedSceneId}
         onEnter={handleEnter}
       />
       <ErrorOverlay message={showErrorOverlay} onRetry={handleRetry} />
