@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import { Application } from "@playcanvas/react";
-import { FILLMODE_FILL_WINDOW, Vec3, type Entity as PcEntity } from "playcanvas";
+import { FILLMODE_FILL_WINDOW, Quat, Vec3, type Entity as PcEntity } from "playcanvas";
 import {
   DESK_INTERACTION_DISTANCE_METERS,
   DESK_STATIONS,
@@ -34,6 +34,7 @@ import {
   screenRatioToBoardFraction,
   type StickyWallCameraFrame,
 } from "./game/scene/stickyWallBoardProjection";
+import { getDeskMonitorScreenWorldCorners } from "./game/scene/deskMonitor";
 import { MultiplayerClient } from "./game/multiplayer/MultiplayerClient";
 import { getOrCreateGuestDisplayName } from "./game/multiplayer/guestName";
 import type { ConnectionState } from "./game/multiplayer/messages";
@@ -81,6 +82,8 @@ const WALLET_LINK_TIMEOUT_MS = 10_000;
 const VOICE_TALK_MODE_STORAGE_KEY = "voiceTalkMode";
 const WAVE_EMOTE_DURATION_MS = 1_800;
 const EMOTE_MOVEMENT_CANCEL_SPEED = 0.15;
+const TERMINAL_CAMERA_ANIMATION_MS = 480;
+const TERMINAL_SCREEN_VERTICAL_FRACTION = 0.76;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -285,6 +288,139 @@ function restoreFirstPersonCamera(
   savedViewRef.current = null;
 }
 
+function easeInOutCubic(value: number): number {
+  return value < 0.5
+    ? 4 * value * value * value
+    : 1 - Math.pow(-2 * value + 2, 3) / 2;
+}
+
+function animateCameraTo(
+  cameraEntity: PcEntity,
+  targetPosition: Vec3,
+  targetRotation: Quat,
+  animationFrameRef: MutableRefObject<number | null>,
+  onComplete?: () => void,
+): void {
+  if (animationFrameRef.current !== null) {
+    window.cancelAnimationFrame(animationFrameRef.current);
+  }
+  const startPosition = cameraEntity.getPosition().clone();
+  const startRotation = cameraEntity.getRotation().clone();
+  const interpolatedPosition = new Vec3();
+  const interpolatedRotation = new Quat();
+  const startedAt = performance.now();
+
+  const update = (now: number): void => {
+    const progress = Math.min(1, (now - startedAt) / TERMINAL_CAMERA_ANIMATION_MS);
+    const eased = easeInOutCubic(progress);
+    interpolatedPosition.lerp(startPosition, targetPosition, eased);
+    interpolatedRotation.slerp(startRotation, targetRotation, eased);
+    cameraEntity.setPosition(interpolatedPosition);
+    cameraEntity.setRotation(interpolatedRotation);
+
+    if (progress < 1) {
+      animationFrameRef.current = window.requestAnimationFrame(update);
+      return;
+    }
+    animationFrameRef.current = null;
+    onComplete?.();
+  };
+
+  animationFrameRef.current = window.requestAnimationFrame(update);
+}
+
+function zoomCameraToDeskMonitor(
+  player: PcEntity,
+  deskId: string,
+  savedViewRef: MutableRefObject<SavedCameraView | null>,
+  animationFrameRef: MutableRefObject<number | null>,
+): boolean {
+  const cameraEntity = player.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+  const camera = cameraEntity?.camera;
+  const corners = getDeskMonitorScreenWorldCorners(deskId);
+  if (!cameraEntity || !camera || !corners) return false;
+  const controller = player.script?.get(
+    FIRST_PERSON_CONTROLLER_SCRIPT_NAME,
+  ) as FirstPersonControllerRuntime | undefined;
+
+  savedViewRef.current = {
+    localPosition: cameraEntity.getLocalPosition().clone(),
+    localEulerAngles: cameraEntity.getLocalEulerAngles().clone(),
+    controllerAngles: controller?._angles?.clone() ?? null,
+  };
+
+  const center = corners.reduce(
+    (result, corner) => result.add(corner),
+    new Vec3(),
+  ).mulScalar(1 / corners.length);
+  const screenRight = new Vec3().sub2(corners[1], corners[0]);
+  const screenDown = new Vec3().sub2(corners[3], corners[0]);
+  const outward = new Vec3().cross(screenDown, screenRight).normalize();
+  const screenHeight = corners[0].distance(corners[3]);
+  const halfVerticalFov = (camera.fov * Math.PI) / 360;
+  const distance =
+    (screenHeight / 2) /
+    (Math.tan(halfVerticalFov) * TERMINAL_SCREEN_VERTICAL_FRACTION);
+  const targetPosition = center.clone().add(outward.mulScalar(distance));
+
+  const originalPosition = cameraEntity.getPosition().clone();
+  const originalRotation = cameraEntity.getRotation().clone();
+  cameraEntity.setPosition(targetPosition);
+  cameraEntity.lookAt(center);
+  const targetRotation = cameraEntity.getRotation().clone();
+  cameraEntity.setPosition(originalPosition);
+  cameraEntity.setRotation(originalRotation);
+
+  animateCameraTo(
+    cameraEntity,
+    targetPosition,
+    targetRotation,
+    animationFrameRef,
+  );
+  return true;
+}
+
+function restoreTerminalCamera(
+  player: PcEntity | null,
+  savedViewRef: MutableRefObject<SavedCameraView | null>,
+  animationFrameRef: MutableRefObject<number | null>,
+  onComplete: () => void,
+): void {
+  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+  const savedView = savedViewRef.current;
+  if (!player || !cameraEntity || !savedView) {
+    savedViewRef.current = null;
+    onComplete();
+    return;
+  }
+
+  const currentPosition = cameraEntity.getPosition().clone();
+  const currentRotation = cameraEntity.getRotation().clone();
+  cameraEntity.setLocalPosition(savedView.localPosition);
+  cameraEntity.setLocalEulerAngles(savedView.localEulerAngles);
+  const targetPosition = cameraEntity.getPosition().clone();
+  const targetRotation = cameraEntity.getRotation().clone();
+  cameraEntity.setPosition(currentPosition);
+  cameraEntity.setRotation(currentRotation);
+
+  animateCameraTo(
+    cameraEntity,
+    targetPosition,
+    targetRotation,
+    animationFrameRef,
+    () => {
+      const controller = player.script?.get(
+        FIRST_PERSON_CONTROLLER_SCRIPT_NAME,
+      ) as FirstPersonControllerRuntime | undefined;
+      if (savedView.controllerAngles) {
+        controller?._angles?.copy(savedView.controllerAngles);
+      }
+      savedViewRef.current = null;
+      onComplete();
+    },
+  );
+}
+
 const EMPTY_WHITEBOARD_SNAPSHOT: WhiteboardSnapshot = {
   shapes: [],
   presenterSessionId: null,
@@ -316,6 +452,8 @@ function App() {
   const whiteboardOpenRef = useRef(false);
   const terminalOpenRef = useRef(false);
   const savedCameraViewRef = useRef<SavedCameraView | null>(null);
+  const terminalSavedCameraViewRef = useRef<SavedCameraView | null>(null);
+  const terminalCameraAnimationFrameRef = useRef<number | null>(null);
   const gameplayInputDetachedRef = useRef(false);
   const nameLabelsContainerRef = useRef<HTMLDivElement | null>(null);
   /** This session's own office slot id (from wallet_link_result), if any — empty until a wallet links and a slot happens to be free. */
@@ -395,9 +533,16 @@ function App() {
 
   const openHyperliquidTerminal = useCallback((): void => {
     const player = playerEntityRef.current;
-    if (!seatedDeskIdRef.current || !player || terminalOpenRef.current) return;
+    const deskId = seatedDeskIdRef.current;
+    if (!deskId || !player || terminalOpenRef.current) return;
     terminalOpenRef.current = true;
     setPlayerControllerPaused(player, true, gameplayInputDetachedRef);
+    zoomCameraToDeskMonitor(
+      player,
+      deskId,
+      terminalSavedCameraViewRef,
+      terminalCameraAnimationFrameRef,
+    );
     setTerminalOpen(true);
   }, []);
 
@@ -405,9 +550,29 @@ function App() {
     if (!terminalOpenRef.current) return;
     terminalOpenRef.current = false;
     setTerminalOpen(false);
-    setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef);
-    setPointerLockLost(true);
+    restoreTerminalCamera(
+      playerEntityRef.current,
+      terminalSavedCameraViewRef,
+      terminalCameraAnimationFrameRef,
+      () => {
+        setPlayerControllerPaused(
+          playerEntityRef.current,
+          false,
+          gameplayInputDetachedRef,
+        );
+        setPointerLockLost(true);
+      },
+    );
   }, []);
+
+  useEffect(
+    () => () => {
+      if (terminalCameraAnimationFrameRef.current !== null) {
+        window.cancelAnimationFrame(terminalCameraAnimationFrameRef.current);
+      }
+    },
+    [],
+  );
 
   const triggerWaveEmote = useCallback((): void => {
     if (
@@ -809,11 +974,14 @@ function App() {
         event.code === "KeyF" &&
         !event.repeat &&
         !typing &&
-        seatedDeskIdRef.current &&
-        !terminalOpenRef.current
+        seatedDeskIdRef.current
       ) {
         event.preventDefault();
-        openHyperliquidTerminal();
+        if (terminalOpenRef.current) {
+          closeHyperliquidTerminal();
+        } else {
+          openHyperliquidTerminal();
+        }
       }
       if (event.code === "KeyE" && !event.repeat && !typing) {
         if (seatedDeskIdRef.current && !terminalOpenRef.current) {
@@ -1419,7 +1587,7 @@ function App() {
       {entered && seatedDeskId && !whiteboardOpen && !terminalOpen && (
         <>
           <div className="desk-interaction">
-            <kbd>F</kbd> Use HyperLiquid terminal &nbsp;·&nbsp; <kbd>E</kbd> Stand up
+            <kbd>F</kbd> Enable HyperLiquid cursor &nbsp;·&nbsp; <kbd>E</kbd> Stand up
           </div>
           <button
             type="button"
@@ -1430,7 +1598,7 @@ function App() {
               openHyperliquidTerminal();
             }}
           >
-            Use terminal
+            Trade
           </button>
           <button
             type="button"
@@ -1459,7 +1627,14 @@ function App() {
       {seatError && <div className="seat-error">{seatError}</div>}
       {officeError && <div className="seat-error">{officeError}</div>}
       {entered && pointerLockLost && <div className="pointer-lock-hint">Click to keep looking around</div>}
-      {terminalOpen && <HyperliquidTerminal onClose={closeHyperliquidTerminal} />}
+      {seatedDeskId && (
+        <HyperliquidTerminal
+          player={playerEntityRef.current}
+          deskId={seatedDeskId}
+          interactive={terminalOpen}
+          onClose={closeHyperliquidTerminal}
+        />
+      )}
       {officeEditorData && (
         <OfficeEditor
           mode={officeEditorData.mode}

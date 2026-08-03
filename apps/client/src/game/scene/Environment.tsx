@@ -24,6 +24,7 @@ import {
   TICKER_SIZE,
 } from "./tradingFloorLayout";
 import { useDayNight } from "./DayNightContext";
+import { deskMonitorRotationJitterDegrees } from "./deskMonitor";
 
 /** Office Pack trading desk, authored at 1.82m × 0.92m × 0.85m. */
 const DESK_MODEL_SCALE = 0.95;
@@ -212,7 +213,7 @@ function DeskBank({ centerX, centerZ, facesPositiveX, bankIndex, deskMaterial, t
         // jittered offset below — same seed always produces the same
         // jitter, so this doesn't shift between renders.
         const seed = bankIndex * 4 + index;
-        const monitorRotationJitter = signedJitter(seed * 7 + 1) * 10; // ±10°, per the brief
+        const monitorRotationJitter = deskMonitorRotationJitterDegrees(seed);
         const keyboardJitterX = signedJitter(seed * 7 + 2) * 0.025;
         const keyboardJitterZ = signedJitter(seed * 7 + 3) * 0.025;
         const chairAngleJitter = signedJitter(seed * 7 + 7) * 10;
