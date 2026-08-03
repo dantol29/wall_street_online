@@ -189,8 +189,8 @@
                 "e9520d72-82e0-11ee-9eae-baf4d5e490e2",
                 "6c2ae314-262a-4785-b921-c52b6b8947a1",
                 "c6db9d44-b348-4ad6-a31c-9a38ccd0b76d",
-                "2e644d85-0409-401c-9929-362d50f6aedd",
-                "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
+                "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+                "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
                 "56dd57a7-8866-486e-8b4c-f8230912f7aa",
                 "d1563964-d55f-455a-b7e1-1b3d87f195cb",
                 "765a208e-67ad-4600-b500-a9d861124d36",
@@ -390,7 +390,53 @@
             ],
             "resource_id": "c6db9d44-b348-4ad6-a31c-9a38ccd0b76d",
             "name": "Adjustable Desk",
-            "components": {},
+            "components": {
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.704,
+                        0.468,
+                        1.005
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0.675,
+                        0.495,
+                        -0.36
+                    ],
+                    "angularOffset": [
+                        0.2,
+                        10.35,
+                        1.35
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
+                }
+            },
             "parent": "e951e842-82e0-11ee-9eae-baf4d5e490e2",
             "template_ent_ids": {
                 "c6db9d44-b348-4ad6-a31c-9a38ccd0b76d": "67d10da1-d9e8-44a2-93a8-ea487a4b87f2",
@@ -2427,6 +2473,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        4,
+                        0.145,
+                        2.792
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             }
         },
@@ -2471,6 +2562,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        4,
+                        0.145,
+                        2.792
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             }
         },
@@ -2515,6 +2651,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        4,
+                        0.145,
+                        2.792
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             }
         },
@@ -2613,1093 +2794,6 @@
                 "6408a16c-7c52-45ff-8822-27520cdbd784": "b78e0282-8f99-47c8-ae1a-4e1b444af981"
             }
         },
-        "2e644d85-0409-401c-9929-362d50f6aedd": {
-            "name": "Adjustable Desk",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "parent": "e951e842-82e0-11ee-9eae-baf4d5e490e2",
-            "children": [
-                "6bd36d16-5556-45dc-a5e6-4f479de5c613",
-                "48e0e2c5-ee38-4443-af50-c2058615f1eb",
-                "66fbea1c-203b-474c-9d72-bb8bfebdd27b",
-                "ab98d171-b272-4e22-a91b-ed348f4e2a1c",
-                "267306ec-1893-4c2e-a17e-6cda4908b2ee",
-                "d55cafb9-d9b9-4924-9113-bf6cd7c6eeba",
-                "600e7cc5-f607-49e0-a815-878b91c3f630",
-                "0d0b6eae-d67d-4a48-a3b3-3d845ecc63be",
-                "f0c278fb-2bda-4b1a-b6d9-20758f315eec",
-                "b13507c0-1d43-4e37-bbb7-9e18c4ed5771",
-                "45d1f4df-280f-4d54-b41e-6f34d7d9a54c",
-                "37ffaba2-9521-422e-b3a7-e1e60e33ed12",
-                "882090de-4012-4f53-88fc-026602875350",
-                "64e65072-8ca1-4587-85c4-ce206ae06165",
-                "e0bae10e-4e31-457a-98dd-89740add8ab6",
-                "759dea68-d209-46c4-bf3c-91e17ff4db56",
-                "92985659-e6a5-4124-a67f-d00143aa0198",
-                "83f2231d-ea8c-43b2-8219-9d5fa238d0a1",
-                "31971162-938e-44f2-bf75-1718617f4bdb",
-                "99be5d43-6407-42e7-8046-d7106a131799",
-                "f16f9c53-da39-441d-b229-674d383f0db2",
-                "6160ee8e-10fb-4221-b7d2-34273abd3179",
-                "0252ed39-a2ce-4125-a098-bb2f8a609609"
-            ],
-            "position": [
-                -1.499513795836403,
-                -2.7755575615628914e-17,
-                1.9632935986141233
-            ],
-            "rotation": [
-                180,
-                0.8395276856179787,
-                180
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {},
-            "template_id": 300839947,
-            "template_ent_ids": {
-                "2e644d85-0409-401c-9929-362d50f6aedd": "67d10da1-d9e8-44a2-93a8-ea487a4b87f2",
-                "6bd36d16-5556-45dc-a5e6-4f479de5c613": "da885b74-4855-46df-bbc9-a2e065e20aab",
-                "48e0e2c5-ee38-4443-af50-c2058615f1eb": "89eceac2-dc7b-46f0-94b7-df5deaf59c7b",
-                "66fbea1c-203b-474c-9d72-bb8bfebdd27b": "ebe4dc2c-f1fb-44f2-8cc6-98329a962439",
-                "ab98d171-b272-4e22-a91b-ed348f4e2a1c": "5e054b40-45b2-420e-a22d-436c4cfbabae",
-                "267306ec-1893-4c2e-a17e-6cda4908b2ee": "93376a97-3c30-45fc-be09-72ecbe0b11af",
-                "d55cafb9-d9b9-4924-9113-bf6cd7c6eeba": "b802eff7-6b14-49b1-a537-498caa4e326d",
-                "600e7cc5-f607-49e0-a815-878b91c3f630": "7bccb63b-7daa-46b4-9dff-d6b5b127d6ea",
-                "0d0b6eae-d67d-4a48-a3b3-3d845ecc63be": "35fdb7ed-2148-4837-88bb-de0d1121daf8",
-                "f0c278fb-2bda-4b1a-b6d9-20758f315eec": "9f789fb7-1da9-4665-a10b-c5ebc1cd8248",
-                "b13507c0-1d43-4e37-bbb7-9e18c4ed5771": "e2e3acb5-b678-4f25-9427-2d1fb6830633",
-                "45d1f4df-280f-4d54-b41e-6f34d7d9a54c": "f682f19d-65db-4d04-8b79-369b2e02fcd3",
-                "37ffaba2-9521-422e-b3a7-e1e60e33ed12": "68608fc6-e309-474c-8fa2-32d3c5387b4f",
-                "882090de-4012-4f53-88fc-026602875350": "9c227896-7197-4f50-ba9d-8606053914d2",
-                "64e65072-8ca1-4587-85c4-ce206ae06165": "04eac2ef-3e5c-4524-9c99-ac611c6e469e",
-                "e0bae10e-4e31-457a-98dd-89740add8ab6": "c3ff662c-8ccf-4e14-98ed-d80e610d6538",
-                "759dea68-d209-46c4-bf3c-91e17ff4db56": "3803ee09-d208-400a-9861-996374a1a201",
-                "92985659-e6a5-4124-a67f-d00143aa0198": "8b148d33-f391-487d-ba18-356e5b6319a2",
-                "83f2231d-ea8c-43b2-8219-9d5fa238d0a1": "be43b1ca-7439-45b5-b87b-6992d97bcc57",
-                "31971162-938e-44f2-bf75-1718617f4bdb": "eb14758f-06e2-4563-af5d-70eb54460f65",
-                "99be5d43-6407-42e7-8046-d7106a131799": "1bb41254-7c00-4bbb-af74-c1b5bd7bc99f",
-                "f16f9c53-da39-441d-b229-674d383f0db2": "f500bc3a-3ace-461a-ab52-b2c403861086",
-                "6160ee8e-10fb-4221-b7d2-34273abd3179": "7cceac41-3b09-4756-9e70-0c624ef86170",
-                "0252ed39-a2ce-4125-a098-bb2f8a609609": "ea9bb0c3-a52f-4c82-ad24-6d8a3e843c3d"
-            }
-        },
-        "6bd36d16-5556-45dc-a5e6-4f479de5c613": {
-            "name": "Cube.007_Cube.008",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "6bd36d16-5556-45dc-a5e6-4f479de5c613",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839924,
-                    "materialAssets": [
-                        300839919
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "48e0e2c5-ee38-4443-af50-c2058615f1eb": {
-            "name": "Cube.006_Cube.007",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "48e0e2c5-ee38-4443-af50-c2058615f1eb",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839926,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "66fbea1c-203b-474c-9d72-bb8bfebdd27b": {
-            "name": "Cylinder.013",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "66fbea1c-203b-474c-9d72-bb8bfebdd27b",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839925,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "ab98d171-b272-4e22-a91b-ed348f4e2a1c": {
-            "name": "Cylinder.012",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "ab98d171-b272-4e22-a91b-ed348f4e2a1c",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839927,
-                    "materialAssets": [
-                        300839920
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "267306ec-1893-4c2e-a17e-6cda4908b2ee": {
-            "name": "Cylinder.011",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "267306ec-1893-4c2e-a17e-6cda4908b2ee",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839928,
-                    "materialAssets": [
-                        300839921
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "d55cafb9-d9b9-4924-9113-bf6cd7c6eeba": {
-            "name": "Cylinder.010",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "d55cafb9-d9b9-4924-9113-bf6cd7c6eeba",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839929,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "600e7cc5-f607-49e0-a815-878b91c3f630": {
-            "name": "Cylinder.009",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "600e7cc5-f607-49e0-a815-878b91c3f630",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839930,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "0d0b6eae-d67d-4a48-a3b3-3d845ecc63be": {
-            "name": "Cube.005_Cube.006",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "0d0b6eae-d67d-4a48-a3b3-3d845ecc63be",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839931,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "f0c278fb-2bda-4b1a-b6d9-20758f315eec": {
-            "name": "Cylinder.008",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "f0c278fb-2bda-4b1a-b6d9-20758f315eec",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839932,
-                    "materialAssets": [
-                        300839921
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "b13507c0-1d43-4e37-bbb7-9e18c4ed5771": {
-            "name": "Cylinder.007",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "b13507c0-1d43-4e37-bbb7-9e18c4ed5771",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839933,
-                    "materialAssets": [
-                        300839920
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "45d1f4df-280f-4d54-b41e-6f34d7d9a54c": {
-            "name": "Cube.004_Cube.005",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "45d1f4df-280f-4d54-b41e-6f34d7d9a54c",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839934,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "37ffaba2-9521-422e-b3a7-e1e60e33ed12": {
-            "name": "Cylinder.006",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "37ffaba2-9521-422e-b3a7-e1e60e33ed12",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839935,
-                    "materialAssets": [
-                        300839920
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "882090de-4012-4f53-88fc-026602875350": {
-            "name": "Cylinder.005",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "882090de-4012-4f53-88fc-026602875350",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839936,
-                    "materialAssets": [
-                        300839921
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "64e65072-8ca1-4587-85c4-ce206ae06165": {
-            "name": "Cube.003_Cube.004",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "64e65072-8ca1-4587-85c4-ce206ae06165",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839937,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "e0bae10e-4e31-457a-98dd-89740add8ab6": {
-            "name": "Cube.002_Cube.003",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "e0bae10e-4e31-457a-98dd-89740add8ab6",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839938,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "759dea68-d209-46c4-bf3c-91e17ff4db56": {
-            "name": "Cube.001_Cube.002",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "759dea68-d209-46c4-bf3c-91e17ff4db56",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839939,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "92985659-e6a5-4124-a67f-d00143aa0198": {
-            "name": "Plane.001_Plane.002",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "92985659-e6a5-4124-a67f-d00143aa0198",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839940,
-                    "materialAssets": [
-                        300839922
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "83f2231d-ea8c-43b2-8219-9d5fa238d0a1": {
-            "name": "Cylinder.004",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "83f2231d-ea8c-43b2-8219-9d5fa238d0a1",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839941,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "31971162-938e-44f2-bf75-1718617f4bdb": {
-            "name": "Cylinder.003",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "31971162-938e-44f2-bf75-1718617f4bdb",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839942,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "99be5d43-6407-42e7-8046-d7106a131799": {
-            "name": "Cylinder.002",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "99be5d43-6407-42e7-8046-d7106a131799",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839943,
-                    "materialAssets": [
-                        300839921
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "f16f9c53-da39-441d-b229-674d383f0db2": {
-            "name": "Cylinder.001",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "f16f9c53-da39-441d-b229-674d383f0db2",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839944,
-                    "materialAssets": [
-                        300839920
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "6160ee8e-10fb-4221-b7d2-34273abd3179": {
-            "name": "Cylinder",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "6160ee8e-10fb-4221-b7d2-34273abd3179",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839945,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "0252ed39-a2ce-4125-a098-bb2f8a609609": {
-            "name": "Cube_Cube.001",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "0252ed39-a2ce-4125-a098-bb2f8a609609",
-            "parent": "2e644d85-0409-401c-9929-362d50f6aedd",
-            "children": [],
-            "position": [
-                -1.244137186606764e-7,
-                8.432547381806505e-24,
-                -5.586597318085751e-8
-            ],
-            "rotation": [
-                -5.81990565422694e-23,
-                -1.8049488789571384e-10,
-                1.3302813995839727e-22
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839946,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
         "69b41b44-ca33-47e0-9988-0afa6cc3d3c2": {
             "name": "Chair",
             "tags": [],
@@ -3749,1093 +2843,6 @@
             "template_id": 300840038,
             "template_ent_ids": {
                 "69b41b44-ca33-47e0-9988-0afa6cc3d3c2": "b78e0282-8f99-47c8-ae1a-4e1b444af981"
-            }
-        },
-        "fc5ed99f-86ec-4d15-b3fa-937cb6f51497": {
-            "name": "Adjustable Desk",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "parent": "e951e842-82e0-11ee-9eae-baf4d5e490e2",
-            "children": [
-                "f2a8812e-fb0f-4b9d-a95b-c3d5a1dafdbf",
-                "c75cceb4-7587-439f-b151-7bb2b0b7ca74",
-                "96c76bd3-e059-4e5d-9232-b341a6c09ce3",
-                "fa410e0f-2adb-4615-b39f-1dd4c5c96506",
-                "d38a655a-6c14-412d-82e5-321b16885812",
-                "0deecf6b-f5ab-414b-90e5-6ad7392d5f94",
-                "a5180d77-a34f-415c-893c-213f3dc2dae2",
-                "77b5a966-beca-420f-b184-6c5b1287ce7e",
-                "b40ca583-acbf-4ae1-bf7c-f34b71018040",
-                "091abe83-b97a-4b48-abcd-ceb616396097",
-                "af44772a-dc6a-4e34-beab-8ea2b080cc41",
-                "bfa97df8-2d09-4af7-b086-4b07cedcc29b",
-                "b5ef9c5c-326e-40f2-a7ec-b0c10e442a44",
-                "7d0e4f10-c312-4301-a194-7562d1cdd438",
-                "a7e030ad-3e9d-4072-ad98-a96b794bc3cb",
-                "ca4c1bc5-a747-41e5-9f06-d6967f4d0955",
-                "50edbf89-ba33-4176-b635-4a1006fd19fc",
-                "a11a80ac-505e-44d8-8863-199b3b9c32dc",
-                "57ed8a62-1918-4053-886e-28c610d26b60",
-                "73a95571-de14-488f-80a5-b7dbc19c7671",
-                "417344e5-2dea-44d1-9b8a-9e2c1cf07bf7",
-                "296d9ae2-4e80-4d3e-aed6-ce0de8ca8a75",
-                "90e51e6f-c73b-49d5-8f9b-fc61a557b2e5"
-            ],
-            "position": [
-                2.0939093928748003,
-                1.3322676295501878e-15,
-                1.6136764842427422
-            ],
-            "rotation": [
-                0,
-                -25.646203030437427,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {},
-            "template_id": 300839947,
-            "template_ent_ids": {
-                "fc5ed99f-86ec-4d15-b3fa-937cb6f51497": "67d10da1-d9e8-44a2-93a8-ea487a4b87f2",
-                "f2a8812e-fb0f-4b9d-a95b-c3d5a1dafdbf": "da885b74-4855-46df-bbc9-a2e065e20aab",
-                "c75cceb4-7587-439f-b151-7bb2b0b7ca74": "89eceac2-dc7b-46f0-94b7-df5deaf59c7b",
-                "96c76bd3-e059-4e5d-9232-b341a6c09ce3": "ebe4dc2c-f1fb-44f2-8cc6-98329a962439",
-                "fa410e0f-2adb-4615-b39f-1dd4c5c96506": "5e054b40-45b2-420e-a22d-436c4cfbabae",
-                "d38a655a-6c14-412d-82e5-321b16885812": "93376a97-3c30-45fc-be09-72ecbe0b11af",
-                "0deecf6b-f5ab-414b-90e5-6ad7392d5f94": "b802eff7-6b14-49b1-a537-498caa4e326d",
-                "a5180d77-a34f-415c-893c-213f3dc2dae2": "7bccb63b-7daa-46b4-9dff-d6b5b127d6ea",
-                "77b5a966-beca-420f-b184-6c5b1287ce7e": "35fdb7ed-2148-4837-88bb-de0d1121daf8",
-                "b40ca583-acbf-4ae1-bf7c-f34b71018040": "9f789fb7-1da9-4665-a10b-c5ebc1cd8248",
-                "091abe83-b97a-4b48-abcd-ceb616396097": "e2e3acb5-b678-4f25-9427-2d1fb6830633",
-                "af44772a-dc6a-4e34-beab-8ea2b080cc41": "f682f19d-65db-4d04-8b79-369b2e02fcd3",
-                "bfa97df8-2d09-4af7-b086-4b07cedcc29b": "68608fc6-e309-474c-8fa2-32d3c5387b4f",
-                "b5ef9c5c-326e-40f2-a7ec-b0c10e442a44": "9c227896-7197-4f50-ba9d-8606053914d2",
-                "7d0e4f10-c312-4301-a194-7562d1cdd438": "04eac2ef-3e5c-4524-9c99-ac611c6e469e",
-                "a7e030ad-3e9d-4072-ad98-a96b794bc3cb": "c3ff662c-8ccf-4e14-98ed-d80e610d6538",
-                "ca4c1bc5-a747-41e5-9f06-d6967f4d0955": "3803ee09-d208-400a-9861-996374a1a201",
-                "50edbf89-ba33-4176-b635-4a1006fd19fc": "8b148d33-f391-487d-ba18-356e5b6319a2",
-                "a11a80ac-505e-44d8-8863-199b3b9c32dc": "be43b1ca-7439-45b5-b87b-6992d97bcc57",
-                "57ed8a62-1918-4053-886e-28c610d26b60": "eb14758f-06e2-4563-af5d-70eb54460f65",
-                "73a95571-de14-488f-80a5-b7dbc19c7671": "1bb41254-7c00-4bbb-af74-c1b5bd7bc99f",
-                "417344e5-2dea-44d1-9b8a-9e2c1cf07bf7": "f500bc3a-3ace-461a-ab52-b2c403861086",
-                "296d9ae2-4e80-4d3e-aed6-ce0de8ca8a75": "7cceac41-3b09-4756-9e70-0c624ef86170",
-                "90e51e6f-c73b-49d5-8f9b-fc61a557b2e5": "ea9bb0c3-a52f-4c82-ad24-6d8a3e843c3d"
-            }
-        },
-        "f2a8812e-fb0f-4b9d-a95b-c3d5a1dafdbf": {
-            "name": "Cube.007_Cube.008",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "f2a8812e-fb0f-4b9d-a95b-c3d5a1dafdbf",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839924,
-                    "materialAssets": [
-                        300839919
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "c75cceb4-7587-439f-b151-7bb2b0b7ca74": {
-            "name": "Cube.006_Cube.007",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "c75cceb4-7587-439f-b151-7bb2b0b7ca74",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839926,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "96c76bd3-e059-4e5d-9232-b341a6c09ce3": {
-            "name": "Cylinder.013",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "96c76bd3-e059-4e5d-9232-b341a6c09ce3",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839925,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "fa410e0f-2adb-4615-b39f-1dd4c5c96506": {
-            "name": "Cylinder.012",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "fa410e0f-2adb-4615-b39f-1dd4c5c96506",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839927,
-                    "materialAssets": [
-                        300839920
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "d38a655a-6c14-412d-82e5-321b16885812": {
-            "name": "Cylinder.011",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "d38a655a-6c14-412d-82e5-321b16885812",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839928,
-                    "materialAssets": [
-                        300839921
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "0deecf6b-f5ab-414b-90e5-6ad7392d5f94": {
-            "name": "Cylinder.010",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "0deecf6b-f5ab-414b-90e5-6ad7392d5f94",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839929,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "a5180d77-a34f-415c-893c-213f3dc2dae2": {
-            "name": "Cylinder.009",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "a5180d77-a34f-415c-893c-213f3dc2dae2",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839930,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "77b5a966-beca-420f-b184-6c5b1287ce7e": {
-            "name": "Cube.005_Cube.006",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "77b5a966-beca-420f-b184-6c5b1287ce7e",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839931,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "b40ca583-acbf-4ae1-bf7c-f34b71018040": {
-            "name": "Cylinder.008",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "b40ca583-acbf-4ae1-bf7c-f34b71018040",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839932,
-                    "materialAssets": [
-                        300839921
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "091abe83-b97a-4b48-abcd-ceb616396097": {
-            "name": "Cylinder.007",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "091abe83-b97a-4b48-abcd-ceb616396097",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839933,
-                    "materialAssets": [
-                        300839920
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "af44772a-dc6a-4e34-beab-8ea2b080cc41": {
-            "name": "Cube.004_Cube.005",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "af44772a-dc6a-4e34-beab-8ea2b080cc41",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839934,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "bfa97df8-2d09-4af7-b086-4b07cedcc29b": {
-            "name": "Cylinder.006",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "bfa97df8-2d09-4af7-b086-4b07cedcc29b",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839935,
-                    "materialAssets": [
-                        300839920
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "b5ef9c5c-326e-40f2-a7ec-b0c10e442a44": {
-            "name": "Cylinder.005",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "b5ef9c5c-326e-40f2-a7ec-b0c10e442a44",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839936,
-                    "materialAssets": [
-                        300839921
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "7d0e4f10-c312-4301-a194-7562d1cdd438": {
-            "name": "Cube.003_Cube.004",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "7d0e4f10-c312-4301-a194-7562d1cdd438",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839937,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "a7e030ad-3e9d-4072-ad98-a96b794bc3cb": {
-            "name": "Cube.002_Cube.003",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "a7e030ad-3e9d-4072-ad98-a96b794bc3cb",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839938,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "ca4c1bc5-a747-41e5-9f06-d6967f4d0955": {
-            "name": "Cube.001_Cube.002",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "ca4c1bc5-a747-41e5-9f06-d6967f4d0955",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839939,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "50edbf89-ba33-4176-b635-4a1006fd19fc": {
-            "name": "Plane.001_Plane.002",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "50edbf89-ba33-4176-b635-4a1006fd19fc",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839940,
-                    "materialAssets": [
-                        300839922
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "a11a80ac-505e-44d8-8863-199b3b9c32dc": {
-            "name": "Cylinder.004",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "a11a80ac-505e-44d8-8863-199b3b9c32dc",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839941,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "57ed8a62-1918-4053-886e-28c610d26b60": {
-            "name": "Cylinder.003",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "57ed8a62-1918-4053-886e-28c610d26b60",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839942,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "73a95571-de14-488f-80a5-b7dbc19c7671": {
-            "name": "Cylinder.002",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "73a95571-de14-488f-80a5-b7dbc19c7671",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839943,
-                    "materialAssets": [
-                        300839921
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "417344e5-2dea-44d1-9b8a-9e2c1cf07bf7": {
-            "name": "Cylinder.001",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "417344e5-2dea-44d1-9b8a-9e2c1cf07bf7",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839944,
-                    "materialAssets": [
-                        300839920
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "296d9ae2-4e80-4d3e-aed6-ce0de8ca8a75": {
-            "name": "Cylinder",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "296d9ae2-4e80-4d3e-aed6-ce0de8ca8a75",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839945,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
-            }
-        },
-        "90e51e6f-c73b-49d5-8f9b-fc61a557b2e5": {
-            "name": "Cube_Cube.001",
-            "tags": [],
-            "enabled": true,
-            "resource_id": "90e51e6f-c73b-49d5-8f9b-fc61a557b2e5",
-            "parent": "fc5ed99f-86ec-4d15-b3fa-937cb6f51497",
-            "children": [],
-            "position": [
-                2.061473125536395e-8,
-                0,
-                4.806159470405191e-8
-            ],
-            "rotation": [
-                0,
-                5.861230043916866e-7,
-                0
-            ],
-            "scale": [
-                1,
-                1,
-                1
-            ],
-            "components": {
-                "render": {
-                    "enabled": true,
-                    "type": "asset",
-                    "asset": 300839946,
-                    "materialAssets": [
-                        300839918
-                    ],
-                    "layers": [
-                        0
-                    ],
-                    "batchGroupId": null,
-                    "castShadows": true,
-                    "castShadowsLightmap": true,
-                    "receiveShadows": true,
-                    "lightmapped": false,
-                    "lightmapSizeMultiplier": 1,
-                    "isStatic": false,
-                    "rootBone": null
-                }
             }
         },
         "0a210a0a-8e75-477c-81d2-84e2ec4d9312": {
@@ -6584,7 +4591,53 @@
             ],
             "resource_id": "59504c76-d363-473c-9797-191a2fb890a4",
             "name": "Vending Machine",
-            "components": {},
+            "components": {
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.665,
+                        1.352,
+                        0.629
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        1.925,
+                        0.985,
+                        0.2
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
+                }
+            },
             "parent": "e951e842-82e0-11ee-9eae-baf4d5e490e2",
             "template_ent_ids": {
                 "59504c76-d363-473c-9797-191a2fb890a4": "aa5448fc-95b7-457e-a0ce-489c52bf6efa",
@@ -6843,6 +4896,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.361,
+                        1.192,
+                        0.382
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0.14,
+                        1.19,
+                        -0.02
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             },
             "parent": "e951e842-82e0-11ee-9eae-baf4d5e490e2",
@@ -8366,6 +6464,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.084,
+                        1.328,
+                        1.001
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0.195,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             },
             "template_id": 301055269,
@@ -8415,6 +6558,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.084,
+                        1.328,
+                        1.001
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0.195,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             },
             "template_id": 301055269,
@@ -8464,6 +6652,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.084,
+                        1.328,
+                        1.001
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0.195,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             },
             "template_id": 301055269,
@@ -8513,6 +6746,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.084,
+                        1.328,
+                        1.001
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0.195,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             },
             "template_id": 301055269,
@@ -8562,6 +6840,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.084,
+                        1.328,
+                        1.001
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0.195,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             },
             "template_id": 301055269,
@@ -8611,6 +6934,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.084,
+                        1.328,
+                        1.001
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0.195,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             },
             "template_id": 301055269,
@@ -8660,6 +7028,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.084,
+                        1.328,
+                        1.001
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0.195,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             },
             "template_id": 301055269,
@@ -8709,6 +7122,51 @@
                     "lightmapSizeMultiplier": 1,
                     "isStatic": false,
                     "rootBone": null
+                },
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.084,
+                        1.328,
+                        1.001
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0,
+                        0.195,
+                        0
+                    ],
+                    "angularOffset": [
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
                 }
             },
             "template_id": 301055269,
@@ -8960,6 +7418,2272 @@
                     "layers": [
                         0
                     ]
+                }
+            }
+        },
+        "b0b971b2-a183-44de-acd6-d447cdfaceeb": {
+            "name": "Adjustable Desk",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "parent": "e951e842-82e0-11ee-9eae-baf4d5e490e2",
+            "children": [
+                "7aee5aff-ce48-4659-93f7-5544ce416e79",
+                "2d531d14-e485-450b-8414-3825e8263444",
+                "45f5406f-8e88-4d4c-9c5f-d27522317689",
+                "80b74fc8-5ccb-4fc3-a618-cfbd5a673a06",
+                "4bc16ff0-69ae-49eb-9f32-d714d12e6872",
+                "69c3d287-8812-4879-b94d-bcad5487819f",
+                "ce90f989-1ea1-48ca-9b21-67e929996afe",
+                "8df17b24-9e5a-421c-9949-840fb089c7d9",
+                "4c7eef59-2905-4df3-a5a0-0dbb767c7afb",
+                "65a7ba28-2c8a-46b6-a38b-7477ca60d436",
+                "09abcb70-2904-4a2e-8be5-7e80538efcf3",
+                "65b0d243-6c1d-4cc7-ba44-3a90fbc2d35f",
+                "03816876-7e81-40f6-ba05-28d5541c2039",
+                "a8aee384-5a9a-4be9-951b-b425a6898bef",
+                "f46f6285-bec2-47c2-8691-05f17e290430",
+                "d5d3c640-b1e1-4bb5-98aa-c98fe738879d",
+                "08c993c2-c3f5-4da7-af7d-c1ab09e778b9",
+                "cf0970c0-328d-46d1-b11f-bb8c17518c3b",
+                "fb270611-826f-4ac4-99f4-762dc1604b58",
+                "26945856-81b3-4246-9577-2f3e69f39006",
+                "d1ebf496-3292-4bed-a915-3bf5ba884c5b",
+                "4cbef2db-d892-4ce0-b2f4-4fe3117132d6",
+                "f6fe2d77-1295-4d83-b38c-4235b597ffe1"
+            ],
+            "position": [
+                -0.9971446613457076,
+                -6.938893903907228e-17,
+                1.741369952273438
+            ],
+            "rotation": [
+                180,
+                11.588175938478857,
+                180
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.704,
+                        0.468,
+                        1.005
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0.675,
+                        0.495,
+                        -0.36
+                    ],
+                    "angularOffset": [
+                        0.2,
+                        10.35,
+                        1.35
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
+                }
+            },
+            "template_id": 300839947,
+            "template_ent_ids": {
+                "b0b971b2-a183-44de-acd6-d447cdfaceeb": "67d10da1-d9e8-44a2-93a8-ea487a4b87f2",
+                "7aee5aff-ce48-4659-93f7-5544ce416e79": "da885b74-4855-46df-bbc9-a2e065e20aab",
+                "2d531d14-e485-450b-8414-3825e8263444": "89eceac2-dc7b-46f0-94b7-df5deaf59c7b",
+                "45f5406f-8e88-4d4c-9c5f-d27522317689": "ebe4dc2c-f1fb-44f2-8cc6-98329a962439",
+                "80b74fc8-5ccb-4fc3-a618-cfbd5a673a06": "5e054b40-45b2-420e-a22d-436c4cfbabae",
+                "4bc16ff0-69ae-49eb-9f32-d714d12e6872": "93376a97-3c30-45fc-be09-72ecbe0b11af",
+                "69c3d287-8812-4879-b94d-bcad5487819f": "b802eff7-6b14-49b1-a537-498caa4e326d",
+                "ce90f989-1ea1-48ca-9b21-67e929996afe": "7bccb63b-7daa-46b4-9dff-d6b5b127d6ea",
+                "8df17b24-9e5a-421c-9949-840fb089c7d9": "35fdb7ed-2148-4837-88bb-de0d1121daf8",
+                "4c7eef59-2905-4df3-a5a0-0dbb767c7afb": "9f789fb7-1da9-4665-a10b-c5ebc1cd8248",
+                "65a7ba28-2c8a-46b6-a38b-7477ca60d436": "e2e3acb5-b678-4f25-9427-2d1fb6830633",
+                "09abcb70-2904-4a2e-8be5-7e80538efcf3": "f682f19d-65db-4d04-8b79-369b2e02fcd3",
+                "65b0d243-6c1d-4cc7-ba44-3a90fbc2d35f": "68608fc6-e309-474c-8fa2-32d3c5387b4f",
+                "03816876-7e81-40f6-ba05-28d5541c2039": "9c227896-7197-4f50-ba9d-8606053914d2",
+                "a8aee384-5a9a-4be9-951b-b425a6898bef": "04eac2ef-3e5c-4524-9c99-ac611c6e469e",
+                "f46f6285-bec2-47c2-8691-05f17e290430": "c3ff662c-8ccf-4e14-98ed-d80e610d6538",
+                "d5d3c640-b1e1-4bb5-98aa-c98fe738879d": "3803ee09-d208-400a-9861-996374a1a201",
+                "08c993c2-c3f5-4da7-af7d-c1ab09e778b9": "8b148d33-f391-487d-ba18-356e5b6319a2",
+                "cf0970c0-328d-46d1-b11f-bb8c17518c3b": "be43b1ca-7439-45b5-b87b-6992d97bcc57",
+                "fb270611-826f-4ac4-99f4-762dc1604b58": "eb14758f-06e2-4563-af5d-70eb54460f65",
+                "26945856-81b3-4246-9577-2f3e69f39006": "1bb41254-7c00-4bbb-af74-c1b5bd7bc99f",
+                "d1ebf496-3292-4bed-a915-3bf5ba884c5b": "f500bc3a-3ace-461a-ab52-b2c403861086",
+                "4cbef2db-d892-4ce0-b2f4-4fe3117132d6": "7cceac41-3b09-4756-9e70-0c624ef86170",
+                "f6fe2d77-1295-4d83-b38c-4235b597ffe1": "ea9bb0c3-a52f-4c82-ad24-6d8a3e843c3d"
+            }
+        },
+        "7aee5aff-ce48-4659-93f7-5544ce416e79": {
+            "name": "Cube.007_Cube.008",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "7aee5aff-ce48-4659-93f7-5544ce416e79",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839924,
+                    "materialAssets": [
+                        300839919
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "2d531d14-e485-450b-8414-3825e8263444": {
+            "name": "Cube.006_Cube.007",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "2d531d14-e485-450b-8414-3825e8263444",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839926,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "45f5406f-8e88-4d4c-9c5f-d27522317689": {
+            "name": "Cylinder.013",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "45f5406f-8e88-4d4c-9c5f-d27522317689",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839925,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "80b74fc8-5ccb-4fc3-a618-cfbd5a673a06": {
+            "name": "Cylinder.012",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "80b74fc8-5ccb-4fc3-a618-cfbd5a673a06",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839927,
+                    "materialAssets": [
+                        300839920
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "4bc16ff0-69ae-49eb-9f32-d714d12e6872": {
+            "name": "Cylinder.011",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "4bc16ff0-69ae-49eb-9f32-d714d12e6872",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839928,
+                    "materialAssets": [
+                        300839921
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "69c3d287-8812-4879-b94d-bcad5487819f": {
+            "name": "Cylinder.010",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "69c3d287-8812-4879-b94d-bcad5487819f",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839929,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "ce90f989-1ea1-48ca-9b21-67e929996afe": {
+            "name": "Cylinder.009",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "ce90f989-1ea1-48ca-9b21-67e929996afe",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839930,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "8df17b24-9e5a-421c-9949-840fb089c7d9": {
+            "name": "Cube.005_Cube.006",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "8df17b24-9e5a-421c-9949-840fb089c7d9",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839931,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "4c7eef59-2905-4df3-a5a0-0dbb767c7afb": {
+            "name": "Cylinder.008",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "4c7eef59-2905-4df3-a5a0-0dbb767c7afb",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839932,
+                    "materialAssets": [
+                        300839921
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "65a7ba28-2c8a-46b6-a38b-7477ca60d436": {
+            "name": "Cylinder.007",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "65a7ba28-2c8a-46b6-a38b-7477ca60d436",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839933,
+                    "materialAssets": [
+                        300839920
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "09abcb70-2904-4a2e-8be5-7e80538efcf3": {
+            "name": "Cube.004_Cube.005",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "09abcb70-2904-4a2e-8be5-7e80538efcf3",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839934,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "65b0d243-6c1d-4cc7-ba44-3a90fbc2d35f": {
+            "name": "Cylinder.006",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "65b0d243-6c1d-4cc7-ba44-3a90fbc2d35f",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839935,
+                    "materialAssets": [
+                        300839920
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "03816876-7e81-40f6-ba05-28d5541c2039": {
+            "name": "Cylinder.005",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "03816876-7e81-40f6-ba05-28d5541c2039",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839936,
+                    "materialAssets": [
+                        300839921
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "a8aee384-5a9a-4be9-951b-b425a6898bef": {
+            "name": "Cube.003_Cube.004",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "a8aee384-5a9a-4be9-951b-b425a6898bef",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839937,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "f46f6285-bec2-47c2-8691-05f17e290430": {
+            "name": "Cube.002_Cube.003",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "f46f6285-bec2-47c2-8691-05f17e290430",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839938,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "d5d3c640-b1e1-4bb5-98aa-c98fe738879d": {
+            "name": "Cube.001_Cube.002",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "d5d3c640-b1e1-4bb5-98aa-c98fe738879d",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839939,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "08c993c2-c3f5-4da7-af7d-c1ab09e778b9": {
+            "name": "Plane.001_Plane.002",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "08c993c2-c3f5-4da7-af7d-c1ab09e778b9",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839940,
+                    "materialAssets": [
+                        300839922
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "cf0970c0-328d-46d1-b11f-bb8c17518c3b": {
+            "name": "Cylinder.004",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "cf0970c0-328d-46d1-b11f-bb8c17518c3b",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839941,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "fb270611-826f-4ac4-99f4-762dc1604b58": {
+            "name": "Cylinder.003",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "fb270611-826f-4ac4-99f4-762dc1604b58",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839942,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "26945856-81b3-4246-9577-2f3e69f39006": {
+            "name": "Cylinder.002",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "26945856-81b3-4246-9577-2f3e69f39006",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839943,
+                    "materialAssets": [
+                        300839921
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "d1ebf496-3292-4bed-a915-3bf5ba884c5b": {
+            "name": "Cylinder.001",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "d1ebf496-3292-4bed-a915-3bf5ba884c5b",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839944,
+                    "materialAssets": [
+                        300839920
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "4cbef2db-d892-4ce0-b2f4-4fe3117132d6": {
+            "name": "Cylinder",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "4cbef2db-d892-4ce0-b2f4-4fe3117132d6",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839945,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "f6fe2d77-1295-4d83-b38c-4235b597ffe1": {
+            "name": "Cube_Cube.001",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "f6fe2d77-1295-4d83-b38c-4235b597ffe1",
+            "parent": "b0b971b2-a183-44de-acd6-d447cdfaceeb",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839946,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "a22d5e64-2eef-4c21-99f9-4633ce4561c3": {
+            "name": "Adjustable Desk",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "parent": "e951e842-82e0-11ee-9eae-baf4d5e490e2",
+            "children": [
+                "6c6e840e-81e7-4870-84cb-539d870c6f04",
+                "9eb43120-4978-4cdb-ad4e-aadc54d1f7af",
+                "1209e6d9-3899-4d58-af16-7148f56c261b",
+                "42273876-a239-46f2-a716-770133841ee9",
+                "ac104b45-e24b-419b-8ce1-3074cb8edaf2",
+                "7703ad16-32d7-41b4-813c-a1db13590d41",
+                "62e6e80d-5839-4204-908a-d7b866036c6f",
+                "ddde9203-ca54-49dd-8038-6bd7ea2055ac",
+                "4e691f51-3ca4-4e26-832f-a0c550d0dd73",
+                "fd1eed0e-bfca-401a-a283-2f34511bce58",
+                "52db62e0-e117-4db7-9813-210a826bd4d4",
+                "1b2477ab-afd1-4435-aca9-7fc8d1833da0",
+                "ee976641-64d0-4dbd-b03b-29d5623e9c9c",
+                "41e3017b-40af-42a0-867b-e5f8e5487e07",
+                "507a73c1-5eb6-47b9-9a28-218c68dc8f33",
+                "35604a1e-d3f5-4f80-bd2d-ecae900c5a2f",
+                "14db2b23-36a6-4971-931c-d37e3bf452bb",
+                "13953847-0658-4946-9082-5d3a3c03cd58",
+                "f4e0f39d-5c8c-4f9d-bad0-5a1658bc3872",
+                "a82a87b3-4d95-4641-a50a-c350bb1e8a51",
+                "59ef371b-879d-4cdb-b41d-54a8d5c7bc2e",
+                "54be6e35-0fdb-4ac2-8239-392fb7d3d0ec",
+                "d6f52ba2-6116-476d-aaa0-175a45fedbb2"
+            ],
+            "position": [
+                1.5403400659561157,
+                -6.938893903907228e-17,
+                1.616937279701233
+            ],
+            "rotation": [
+                -3.5772889539157545e-15,
+                -36.68909383202657,
+                6.747417250656144e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "collision": {
+                    "enabled": true,
+                    "type": "box",
+                    "halfExtents": [
+                        0.704,
+                        0.468,
+                        1.005
+                    ],
+                    "radius": 0.5,
+                    "axis": 1,
+                    "height": 2,
+                    "convexHull": false,
+                    "asset": null,
+                    "renderAsset": null,
+                    "linearOffset": [
+                        0.675,
+                        0.495,
+                        -0.36
+                    ],
+                    "angularOffset": [
+                        0.2,
+                        10.35,
+                        1.35
+                    ]
+                },
+                "rigidbody": {
+                    "enabled": true,
+                    "type": "static",
+                    "mass": 1,
+                    "linearDamping": 0,
+                    "angularDamping": 0,
+                    "linearFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "angularFactor": [
+                        1,
+                        1,
+                        1
+                    ],
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "rollingFriction": 0
+                }
+            },
+            "template_id": 300839947,
+            "template_ent_ids": {
+                "a22d5e64-2eef-4c21-99f9-4633ce4561c3": "67d10da1-d9e8-44a2-93a8-ea487a4b87f2",
+                "6c6e840e-81e7-4870-84cb-539d870c6f04": "da885b74-4855-46df-bbc9-a2e065e20aab",
+                "9eb43120-4978-4cdb-ad4e-aadc54d1f7af": "89eceac2-dc7b-46f0-94b7-df5deaf59c7b",
+                "1209e6d9-3899-4d58-af16-7148f56c261b": "ebe4dc2c-f1fb-44f2-8cc6-98329a962439",
+                "42273876-a239-46f2-a716-770133841ee9": "5e054b40-45b2-420e-a22d-436c4cfbabae",
+                "ac104b45-e24b-419b-8ce1-3074cb8edaf2": "93376a97-3c30-45fc-be09-72ecbe0b11af",
+                "7703ad16-32d7-41b4-813c-a1db13590d41": "b802eff7-6b14-49b1-a537-498caa4e326d",
+                "62e6e80d-5839-4204-908a-d7b866036c6f": "7bccb63b-7daa-46b4-9dff-d6b5b127d6ea",
+                "ddde9203-ca54-49dd-8038-6bd7ea2055ac": "35fdb7ed-2148-4837-88bb-de0d1121daf8",
+                "4e691f51-3ca4-4e26-832f-a0c550d0dd73": "9f789fb7-1da9-4665-a10b-c5ebc1cd8248",
+                "fd1eed0e-bfca-401a-a283-2f34511bce58": "e2e3acb5-b678-4f25-9427-2d1fb6830633",
+                "52db62e0-e117-4db7-9813-210a826bd4d4": "f682f19d-65db-4d04-8b79-369b2e02fcd3",
+                "1b2477ab-afd1-4435-aca9-7fc8d1833da0": "68608fc6-e309-474c-8fa2-32d3c5387b4f",
+                "ee976641-64d0-4dbd-b03b-29d5623e9c9c": "9c227896-7197-4f50-ba9d-8606053914d2",
+                "41e3017b-40af-42a0-867b-e5f8e5487e07": "04eac2ef-3e5c-4524-9c99-ac611c6e469e",
+                "507a73c1-5eb6-47b9-9a28-218c68dc8f33": "c3ff662c-8ccf-4e14-98ed-d80e610d6538",
+                "35604a1e-d3f5-4f80-bd2d-ecae900c5a2f": "3803ee09-d208-400a-9861-996374a1a201",
+                "14db2b23-36a6-4971-931c-d37e3bf452bb": "8b148d33-f391-487d-ba18-356e5b6319a2",
+                "13953847-0658-4946-9082-5d3a3c03cd58": "be43b1ca-7439-45b5-b87b-6992d97bcc57",
+                "f4e0f39d-5c8c-4f9d-bad0-5a1658bc3872": "eb14758f-06e2-4563-af5d-70eb54460f65",
+                "a82a87b3-4d95-4641-a50a-c350bb1e8a51": "1bb41254-7c00-4bbb-af74-c1b5bd7bc99f",
+                "59ef371b-879d-4cdb-b41d-54a8d5c7bc2e": "f500bc3a-3ace-461a-ab52-b2c403861086",
+                "54be6e35-0fdb-4ac2-8239-392fb7d3d0ec": "7cceac41-3b09-4756-9e70-0c624ef86170",
+                "d6f52ba2-6116-476d-aaa0-175a45fedbb2": "ea9bb0c3-a52f-4c82-ad24-6d8a3e843c3d"
+            }
+        },
+        "6c6e840e-81e7-4870-84cb-539d870c6f04": {
+            "name": "Cube.007_Cube.008",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "6c6e840e-81e7-4870-84cb-539d870c6f04",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839924,
+                    "materialAssets": [
+                        300839919
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "9eb43120-4978-4cdb-ad4e-aadc54d1f7af": {
+            "name": "Cube.006_Cube.007",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "9eb43120-4978-4cdb-ad4e-aadc54d1f7af",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839926,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "1209e6d9-3899-4d58-af16-7148f56c261b": {
+            "name": "Cylinder.013",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "1209e6d9-3899-4d58-af16-7148f56c261b",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839925,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "42273876-a239-46f2-a716-770133841ee9": {
+            "name": "Cylinder.012",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "42273876-a239-46f2-a716-770133841ee9",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839927,
+                    "materialAssets": [
+                        300839920
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "ac104b45-e24b-419b-8ce1-3074cb8edaf2": {
+            "name": "Cylinder.011",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "ac104b45-e24b-419b-8ce1-3074cb8edaf2",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839928,
+                    "materialAssets": [
+                        300839921
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "7703ad16-32d7-41b4-813c-a1db13590d41": {
+            "name": "Cylinder.010",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "7703ad16-32d7-41b4-813c-a1db13590d41",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839929,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "62e6e80d-5839-4204-908a-d7b866036c6f": {
+            "name": "Cylinder.009",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "62e6e80d-5839-4204-908a-d7b866036c6f",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839930,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "ddde9203-ca54-49dd-8038-6bd7ea2055ac": {
+            "name": "Cube.005_Cube.006",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "ddde9203-ca54-49dd-8038-6bd7ea2055ac",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839931,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "4e691f51-3ca4-4e26-832f-a0c550d0dd73": {
+            "name": "Cylinder.008",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "4e691f51-3ca4-4e26-832f-a0c550d0dd73",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839932,
+                    "materialAssets": [
+                        300839921
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "fd1eed0e-bfca-401a-a283-2f34511bce58": {
+            "name": "Cylinder.007",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "fd1eed0e-bfca-401a-a283-2f34511bce58",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839933,
+                    "materialAssets": [
+                        300839920
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "52db62e0-e117-4db7-9813-210a826bd4d4": {
+            "name": "Cube.004_Cube.005",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "52db62e0-e117-4db7-9813-210a826bd4d4",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839934,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "1b2477ab-afd1-4435-aca9-7fc8d1833da0": {
+            "name": "Cylinder.006",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "1b2477ab-afd1-4435-aca9-7fc8d1833da0",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839935,
+                    "materialAssets": [
+                        300839920
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "ee976641-64d0-4dbd-b03b-29d5623e9c9c": {
+            "name": "Cylinder.005",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "ee976641-64d0-4dbd-b03b-29d5623e9c9c",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839936,
+                    "materialAssets": [
+                        300839921
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "41e3017b-40af-42a0-867b-e5f8e5487e07": {
+            "name": "Cube.003_Cube.004",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "41e3017b-40af-42a0-867b-e5f8e5487e07",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839937,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "507a73c1-5eb6-47b9-9a28-218c68dc8f33": {
+            "name": "Cube.002_Cube.003",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "507a73c1-5eb6-47b9-9a28-218c68dc8f33",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839938,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "35604a1e-d3f5-4f80-bd2d-ecae900c5a2f": {
+            "name": "Cube.001_Cube.002",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "35604a1e-d3f5-4f80-bd2d-ecae900c5a2f",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839939,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "14db2b23-36a6-4971-931c-d37e3bf452bb": {
+            "name": "Plane.001_Plane.002",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "14db2b23-36a6-4971-931c-d37e3bf452bb",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839940,
+                    "materialAssets": [
+                        300839922
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "13953847-0658-4946-9082-5d3a3c03cd58": {
+            "name": "Cylinder.004",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "13953847-0658-4946-9082-5d3a3c03cd58",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839941,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "f4e0f39d-5c8c-4f9d-bad0-5a1658bc3872": {
+            "name": "Cylinder.003",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "f4e0f39d-5c8c-4f9d-bad0-5a1658bc3872",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839942,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "a82a87b3-4d95-4641-a50a-c350bb1e8a51": {
+            "name": "Cylinder.002",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "a82a87b3-4d95-4641-a50a-c350bb1e8a51",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839943,
+                    "materialAssets": [
+                        300839921
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "59ef371b-879d-4cdb-b41d-54a8d5c7bc2e": {
+            "name": "Cylinder.001",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "59ef371b-879d-4cdb-b41d-54a8d5c7bc2e",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839944,
+                    "materialAssets": [
+                        300839920
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "54be6e35-0fdb-4ac2-8239-392fb7d3d0ec": {
+            "name": "Cylinder",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "54be6e35-0fdb-4ac2-8239-392fb7d3d0ec",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839945,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "d6f52ba2-6116-476d-aaa0-175a45fedbb2": {
+            "name": "Cube_Cube.001",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "d6f52ba2-6116-476d-aaa0-175a45fedbb2",
+            "parent": "a22d5e64-2eef-4c21-99f9-4633ce4561c3",
+            "children": [],
+            "position": [
+                0.4747964449068294,
+                -2.8897046823433026e-17,
+                -0.3264511477668526
+            ],
+            "rotation": [
+                5.600501878743034e-16,
+                10.719638455624011,
+                1.2168178340704015e-15
+            ],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "asset",
+                    "asset": 300839946,
+                    "materialAssets": [
+                        300839918
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
                 }
             }
         }

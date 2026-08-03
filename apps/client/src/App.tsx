@@ -67,6 +67,7 @@ import {
 } from "./game/voice/VoiceClient";
 import "./App.css";
 import Scene, { type SceneHandle } from "./Scene";
+import { getSceneConfig } from "./scenes/registry";
 
 const SERVER_URL =
   import.meta.env.VITE_GAME_SERVER_URL ||
@@ -856,7 +857,11 @@ function App() {
       onPlayerRemove: (sessionId) => sceneRef.current?.removeRemotePlayer(sessionId),
       onChatHistory: (history) => setMessages(history.slice(-MAX_STORED_MESSAGES)),
       onChatMessage: (message) => setMessages((prev) => [...prev, message].slice(-MAX_STORED_MESSAGES)),
-      onLocalSpawn: (spawn) => playerEntityRef.current?.rigidbody?.teleport(spawn.x, spawn.y, spawn.z),
+      onLocalSpawn: (spawn) => {
+        const sceneConfig = getSceneConfig(selectedSceneIdRef.current);
+        const target = sceneConfig.type === "editor" ? sceneConfig.spawnPoints[0] : spawn;
+        playerEntityRef.current?.rigidbody?.teleport(target.x, target.y, target.z);
+      },
       onSeatResult: applySeatResult,
       onVoiceTokenResult: handleVoiceTokenResult,
       onWhiteboardSnapshot: setWhiteboardSnapshot,

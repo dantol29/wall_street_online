@@ -34,6 +34,13 @@ export function EditorScene({ configUrl, sceneUrl }: EditorSceneProps) {
     let floorCollider: Entity | null = null;
     let savedRenderSettings: Record<string, unknown> | null = null;
 
+    const floorEntity = new PcEntity("editor-scene-floor", app);
+    floorEntity.addComponent("collision", { type: "box", halfExtents: [50, 0.25, 50] });
+    floorEntity.addComponent("rigidbody", { type: "static" });
+    floorEntity.setLocalPosition(0, -0.25, 0);
+    app.root.addChild(floorEntity);
+    floorCollider = floorEntity;
+
     const load = async () => {
       try {
         setLoadState({ phase: "loading", message: "Fetching asset registry…" });
@@ -122,15 +129,6 @@ export function EditorScene({ configUrl, sceneUrl }: EditorSceneProps) {
         if (sceneData.settings?.render) {
           applyRenderSettings(app, sceneData.settings.render);
         }
-
-        // Editor scenes have no collision geometry — add a static floor
-        // so the player's physics capsule has something to stand on.
-        const floorEntity = new PcEntity("editor-scene-floor", app);
-        floorEntity.addComponent("collision", { type: "box", halfExtents: [50, 0.25, 50] });
-        floorEntity.addComponent("rigidbody", { type: "static" });
-        floorEntity.setLocalPosition(0, -0.25, 0);
-        app.root.addChild(floorEntity);
-        floorCollider = floorEntity;
 
         setLoadState({ phase: "ready" });
       } catch (error) {

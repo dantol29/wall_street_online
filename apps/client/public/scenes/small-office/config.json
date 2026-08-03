@@ -131331,6 +131331,64 @@
             "tags": [],
             "i18n": {},
             "id": "301062049"
+        },
+        "301087690": {
+            "name": "ammo.js",
+            "type": "script",
+            "file": {
+                "filename": "ammo.js",
+                "size": 1895438,
+                "hash": "34480c72ed787337db20c105cb9ba69d",
+                "url": "assets/ammo.js/ammo.js"
+            },
+            "data": {
+                "order": 100,
+                "scripts": {},
+                "loadingType": 0
+            },
+            "preload": false,
+            "tags": [],
+            "i18n": {},
+            "id": "301087690"
+        },
+        "301087691": {
+            "name": "ammo.wasm.js",
+            "type": "script",
+            "file": {
+                "filename": "ammo.wasm.js",
+                "size": 391789,
+                "hash": "6b7ab3989e4f9f17c86e44380f9181c6",
+                "url": "assets/ammo.js/ammo.wasm.js"
+            },
+            "data": {
+                "order": 100,
+                "scripts": {},
+                "loadingType": 0
+            },
+            "preload": false,
+            "tags": [],
+            "i18n": {},
+            "id": "301087691"
+        },
+        "301087692": {
+            "name": "ammo.wasm.wasm",
+            "type": "wasm",
+            "file": {
+                "filename": "ammo.wasm.wasm",
+                "size": 659433,
+                "hash": "a6819ea71a53e67f1dfe3e42957c2971",
+                "url": "assets/ammo.js/ammo.wasm.wasm"
+            },
+            "data": {
+                "moduleName": "Ammo",
+                "glueScriptId": 301087691,
+                "fallbackScriptId": 301087690,
+                "loadingType": 0
+            },
+            "preload": false,
+            "tags": [],
+            "i18n": {},
+            "id": "301087692"
         }
     }
 }
