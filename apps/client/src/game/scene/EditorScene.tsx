@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@playcanvas/react/hooks";
-import { Asset, type Application, type Entity, type Quat, type Texture } from "playcanvas";
+import { Asset, Entity as PcEntity, type Application, type Entity, type Quat, type Texture } from "playcanvas";
 
 interface EditorSceneProps {
   configUrl: string;
@@ -31,6 +31,7 @@ export function EditorScene({ configUrl, sceneUrl }: EditorSceneProps) {
     let cancelled = false;
     const addedAssets: Asset[] = [];
     let loadedRoot: Entity | null = null;
+    let floorCollider: Entity | null = null;
     let savedRenderSettings: Record<string, unknown> | null = null;
 
     const load = async () => {
@@ -122,6 +123,15 @@ export function EditorScene({ configUrl, sceneUrl }: EditorSceneProps) {
           applyRenderSettings(app, sceneData.settings.render);
         }
 
+        // Editor scenes have no collision geometry — add a static floor
+        // so the player's physics capsule has something to stand on.
+        const floorEntity = new PcEntity("editor-scene-floor", app);
+        floorEntity.addComponent("collision", { type: "box", halfExtents: [50, 0.25, 50] });
+        floorEntity.addComponent("rigidbody", { type: "static" });
+        floorEntity.setLocalPosition(0, -0.25, 0);
+        app.root.addChild(floorEntity);
+        floorCollider = floorEntity;
+
         setLoadState({ phase: "ready" });
       } catch (error) {
         if (!cancelled) {
@@ -138,6 +148,11 @@ export function EditorScene({ configUrl, sceneUrl }: EditorSceneProps) {
 
     return () => {
       cancelled = true;
+
+      if (floorCollider) {
+        floorCollider.destroy();
+        floorCollider = null;
+      }
 
       if (loadedRoot) {
         loadedRoot.destroy();
