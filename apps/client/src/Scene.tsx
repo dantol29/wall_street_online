@@ -173,6 +173,10 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
           spawn={spawn}
           seated={localSeated}
           animationRef={localAnimationRef}
+          chatMessages={messages}
+          chatFocused={chatFocused}
+          chatDraft={chatDraft}
+          chatDisabled={chatDisabled}
           ref={playerEntityRef}
         />
       )}

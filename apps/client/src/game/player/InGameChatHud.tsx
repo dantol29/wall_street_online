@@ -112,6 +112,7 @@ function drawChatHud(
   let rowY = Math.max(34, messageAreaBottom - totalMessageHeight);
 
   ctx.textBaseline = "middle";
+  ctx.textAlign = "right";
   messageBlocks.forEach(({ message, lines }, index) => {
     const nameY = rowY + 18;
 
@@ -119,15 +120,17 @@ function drawChatHud(
     ctx.fillStyle = colorForSender(message.senderId);
     ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
     ctx.shadowBlur = 7;
-    ctx.fillText(truncateText(ctx, message.displayName.toUpperCase(), 360), 340, nameY);
+    ctx.fillText(truncateText(ctx, message.displayName.toUpperCase(), 360), CANVAS_WIDTH - 34, nameY);
 
     ctx.font = "400 26px Arial, sans-serif";
     ctx.fillStyle = "#eeede6";
     lines.forEach((line, lineIndex) => {
-      ctx.fillText(line, 340, rowY + 53 + lineIndex * 38);
+      ctx.fillText(line, CANVAS_WIDTH - 34, rowY + 53 + lineIndex * 38);
     });
     rowY += blockHeights[index];
   });
+
+  ctx.textAlign = "left";
 
   if (focused) {
     const composerTop = CANVAS_HEIGHT - composerHeight - 10;
@@ -228,7 +231,7 @@ export function InGameChatHud({ messages, focused, draft, disabled }: InGameChat
     const halfHeight = camera?.horizontalFov ? fovExtent / aspect : fovExtent;
     // Size as a fraction of the current camera frustum. This remains stable
     // when sitting/terminal interactions animate the camera FOV.
-    const width = halfWidth * (aspect < 1 ? 1.45 : 0.62);
+    const width = halfWidth * (aspect < 1 ? 1.55 : 0.70);
     const height = width * (CANVAS_HEIGHT / CANVAS_WIDTH);
     const centerX = aspect < 1 ? 0 : halfWidth - width / 2 - 0.004;
     const centerY = -halfHeight + height / 2 + 0.045;
