@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState, type MutableRefObject, type Ref } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject, type Ref } from "react";
 import type { Entity as PcEntity } from "playcanvas";
 import {
   type AnimationState,
@@ -80,6 +80,9 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
 ) {
   const recordsRef = useRef<Map<string, RemotePlayerRecord>>(new Map());
   const [remoteIds, setRemoteIds] = useState<string[]>([]);
+  const [editorSceneReady, setEditorSceneReady] = useState(false);
+  const onEditorSceneReady = useCallback(() => setEditorSceneReady(true), []);
+  useEffect(() => setEditorSceneReady(false), [sceneId]);
 
   useImperativeHandle(
     ref,
@@ -140,7 +143,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
 
   const sceneEnvironment =
     sceneConfig.type === "editor" && sceneConfig.configUrl && sceneConfig.sceneUrl ? (
-      <EditorScene configUrl={sceneConfig.configUrl} sceneUrl={sceneConfig.sceneUrl} />
+      <EditorScene configUrl={sceneConfig.configUrl} sceneUrl={sceneConfig.sceneUrl} onReady={onEditorSceneReady} />
     ) : (
       <DayNightProvider worldTime={worldTime} overridePhase={worldTimeOverridePhase}>
         <RoomEnvironment officeSlotContentById={officeSlotContentById} />
@@ -150,15 +153,19 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
       </DayNightProvider>
     );
 
+  const playerReady = sceneConfig.type !== "editor" || editorSceneReady;
+
   return (
     <>
       {sceneEnvironment}
-      <LocalPlayer
-        spawn={spawn}
-        seated={localSeated}
-        animationRef={localAnimationRef}
-        ref={playerEntityRef}
-      />
+      {playerReady && (
+        <LocalPlayer
+          spawn={spawn}
+          seated={localSeated}
+          animationRef={localAnimationRef}
+          ref={playerEntityRef}
+        />
+      )}
 
       {remoteIds.map((sessionId) => (
         <RemotePlayer key={sessionId} sessionId={sessionId} recordsRef={recordsRef} />

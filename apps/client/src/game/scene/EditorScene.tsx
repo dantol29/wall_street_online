@@ -5,6 +5,7 @@ import { Asset, Entity as PcEntity, type Application, type Entity, type Quat, ty
 interface EditorSceneProps {
   configUrl: string;
   sceneUrl: string;
+  onReady?: () => void;
 }
 
 interface LoadState {
@@ -21,7 +22,7 @@ function prefixUrl(url: string): string {
 
 const PRELOADABLE_TYPES = new Set(["container", "texture", "cubemap"]);
 
-export function EditorScene({ configUrl, sceneUrl }: EditorSceneProps) {
+export function EditorScene({ configUrl, sceneUrl, onReady }: EditorSceneProps) {
   const app = useApp();
   const [loadState, setLoadState] = useState<LoadState>({ phase: "loading", message: "Loading scene…" });
 
@@ -131,6 +132,7 @@ export function EditorScene({ configUrl, sceneUrl }: EditorSceneProps) {
         }
 
         setLoadState({ phase: "ready" });
+        onReady?.();
       } catch (error) {
         if (!cancelled) {
           console.error("[EditorScene] load error:", error);
