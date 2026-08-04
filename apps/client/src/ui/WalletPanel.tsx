@@ -55,21 +55,21 @@ export function WalletPanel({ connected, onLinkWallet }: WalletPanelProps) {
   if (!ready) return null;
 
   if (linkedAddress) {
+    const handleLogout = (): void => {
+      setLinkedAddress(null);
+      linkedForUserIdRef.current = null;
+      void logout();
+    };
+
     return (
       <section className="wallet-panel" aria-label="Wallet">
-        <button
-          type="button"
-          className="wallet-panel__linked"
-          onClick={() => {
-            setLinkedAddress(null);
-            linkedForUserIdRef.current = null;
-            void logout();
-          }}
-          title="Disconnect wallet"
-        >
+        <div className="wallet-panel__linked">
           <span className="wallet-panel__dot" aria-hidden="true" />
-          {linkedAddress}
-        </button>
+          <span className="wallet-panel__address">{linkedAddress}</span>
+          <button type="button" className="wallet-panel__logout" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
       </section>
     );
   }

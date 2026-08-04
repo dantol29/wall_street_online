@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@playcanvas/react/hooks";
 import { Asset, Entity as PcEntity, type Application, type Entity, type Quat, type Texture } from "playcanvas";
+import { collectReferencedEditorAssetIds } from "./editorSceneAssets";
 
 interface EditorSceneProps {
   configUrl: string;
@@ -48,6 +49,9 @@ export function EditorScene({ configUrl, sceneUrl, onReady }: EditorSceneProps) 
         const configResponse = await fetch(configUrl);
         if (!configResponse.ok) throw new Error(`Failed to fetch config: ${configResponse.status}`);
         const config = await configResponse.json();
+        const sceneResponse = await fetch(sceneUrl);
+        if (!sceneResponse.ok) throw new Error(`Failed to fetch scene: ${sceneResponse.status}`);
+        const sceneData = await sceneResponse.json();
 
         if (cancelled) return;
 
@@ -61,9 +65,11 @@ export function EditorScene({ configUrl, sceneUrl, onReady }: EditorSceneProps) 
           preload?: boolean;
           i18n?: unknown;
         }>;
+        const referencedAssetIds = collectReferencedEditorAssetIds(sceneData, assetMap);
 
         for (const [idStr, entry] of Object.entries(assetMap)) {
           const id = Number(idStr);
+          if (!referencedAssetIds.has(id)) continue;
           const asset = new Asset(
             entry.name || `asset-${id}`,
             entry.type as Asset["type"],
@@ -108,10 +114,6 @@ export function EditorScene({ configUrl, sceneUrl, onReady }: EditorSceneProps) 
         if (cancelled) return;
 
         setLoadState({ phase: "loading", message: "Loading scene hierarchy…" });
-        const sceneResponse = await fetch(sceneUrl);
-        if (!sceneResponse.ok) throw new Error(`Failed to fetch scene: ${sceneResponse.status}`);
-        const sceneData = await sceneResponse.json();
-
         savedRenderSettings = captureRenderSettings(app);
 
         await new Promise<void>((resolve, reject) => {

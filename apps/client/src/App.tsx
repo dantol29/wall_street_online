@@ -20,6 +20,7 @@ import {
   type AnimationState,
   type ChatMessage,
   type OfficeProfileLookup,
+  type PnlUpdateMessage,
   type SeatResultMessage,
   type StickyNote,
   type VoiceTokenResultMessage,
@@ -47,6 +48,7 @@ import { ErrorOverlay } from "./ui/ErrorOverlay";
 import { ApplicationErrorBoundary } from "./ui/ApplicationErrorBoundary";
 import { InWorldWhiteboardControls } from "./ui/InWorldWhiteboardControls";
 import { OfficeEditor, type OfficeVisitorBookEntryView, type OfficeWatchlistItemInput } from "./ui/OfficeEditor";
+import { SetDisplayNameModal } from "./ui/SetDisplayNameModal";
 import { StickyNoteEditor } from "./ui/StickyNoteEditor";
 import { VoiceControls, type VoiceTalkMode } from "./ui/VoiceControls";
 import { WalletPanel } from "./ui/WalletPanel";
@@ -456,11 +458,12 @@ function App() {
   const terminalSavedCameraViewRef = useRef<SavedCameraView | null>(null);
   const terminalCameraAnimationFrameRef = useRef<number | null>(null);
   const gameplayInputDetachedRef = useRef(false);
-  const nameLabelsContainerRef = useRef<HTMLDivElement | null>(null);
   /** This session's own office slot id (from wallet_link_result), if any — empty until a wallet links and a slot happens to be free. */
   const myOfficeSlotIdRef = useRef<string | null>(null);
   const nearOfficeSlotIdRef = useRef<string | null>(null);
   const officeEditorOpenRef = useRef(false);
+  /** True once a wallet links for the first time ever (see `WalletLinkResultMessage.needsDisplayName`) until the mandatory naming modal is confirmed — blocks every other interaction while open. */
+  const needsDisplayNameRef = useRef(false);
   /** The lookup used to open the currently-open office editor — reused for signing the visitor book without a second round of slot-to-session resolution. */
   const officeEditorLookupRef = useRef<OfficeProfileLookup | null>(null);
   /** Slot ids whose content has already been fetched once this session — avoids re-fetching on every schema onChange tick for the same occupant. */
@@ -484,6 +487,7 @@ function App() {
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
   const [connectErrorMessage, setConnectErrorMessage] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatHudState, setChatHudState] = useState({ focused: false, draft: "" });
   const [hasMoved, setHasMoved] = useState(false);
   const [waveActive, setWaveActive] = useState(false);
   const [nearbyDeskId, setNearbyDeskId] = useState<string | null>(null);
@@ -508,6 +512,7 @@ function App() {
   const [nearOfficeSlotId, setNearOfficeSlotId] = useState<string | null>(null);
   const [officeSlotContentById, setOfficeSlotContentById] = useState<Record<string, OfficeSlotContent>>({});
   const [officeError, setOfficeError] = useState<string | null>(null);
+  const [needsDisplayName, setNeedsDisplayName] = useState(false);
   const [officeEditorData, setOfficeEditorData] = useState<{
     mode: "own" | "visit";
     ownerDisplayName: string | null;
@@ -583,6 +588,7 @@ function App() {
       whiteboardOpenRef.current ||
       officeEditorOpenRef.current ||
       stickyNoteEditorOpenRef.current ||
+      needsDisplayNameRef.current ||
       Date.now() < waveUntilRef.current
     ) {
       return;
@@ -914,6 +920,11 @@ function App() {
       onWorldTimeSync: (message: WorldTimeSyncMessage) => {
         setWorldTime(anchorWorldTime(message));
       },
+      onPnlUpdate: (message: PnlUpdateMessage) => {
+        for (const entry of message.entries) {
+          sceneRef.current?.updateRemotePnl(entry.sessionId, entry.pnlUsd);
+        }
+      },
     });
     clientRef.current = client;
 
@@ -922,7 +933,8 @@ function App() {
         seatedDeskIdRef.current ||
         whiteboardOpenRef.current ||
         officeEditorOpenRef.current ||
-        stickyNoteEditorOpenRef.current
+        stickyNoteEditorOpenRef.current ||
+        needsDisplayNameRef.current
       )
         return;
       if (nearWhiteboardRef.current) {
@@ -965,7 +977,7 @@ function App() {
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         target instanceof HTMLSelectElement;
-      if (event.code === "KeyV" && !event.repeat && !typing) {
+      if (event.code === "KeyV" && !event.repeat && !typing && !needsDisplayNameRef.current) {
         event.preventDefault();
         requestTalking(
           voiceTalkModeRef.current === "toggle"
@@ -973,7 +985,7 @@ function App() {
             : true,
         );
       }
-      if (event.code === "KeyG" && !event.repeat && !typing) {
+      if (event.code === "KeyG" && !event.repeat && !typing && !needsDisplayNameRef.current) {
         event.preventDefault();
         waveEmoteRef.current();
       }
@@ -981,6 +993,7 @@ function App() {
         event.code === "KeyF" &&
         !event.repeat &&
         !typing &&
+        !needsDisplayNameRef.current &&
         seatedDeskIdRef.current
       ) {
         event.preventDefault();
@@ -990,7 +1003,7 @@ function App() {
           openHyperliquidTerminal();
         }
       }
-      if (event.code === "KeyE" && !event.repeat && !typing) {
+      if (event.code === "KeyE" && !event.repeat && !typing && !needsDisplayNameRef.current) {
         if (seatedDeskIdRef.current && !terminalOpenRef.current) {
           event.preventDefault();
           client.requestSeat(null);
@@ -1041,7 +1054,8 @@ function App() {
         !terminalOpenRef.current &&
         !whiteboardOpenRef.current &&
         !officeEditorOpenRef.current &&
-        !stickyNoteEditorOpenRef.current;
+        !stickyNoteEditorOpenRef.current &&
+        !needsDisplayNameRef.current;
       if (!inFreeLookGameplay) return;
       setPointerLockLost(true);
       const cameraEntity = playerEntityRef.current?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
@@ -1234,6 +1248,12 @@ function App() {
       playerEntityRef.current,
       focused,
       gameplayInputDetachedRef,
+    );
+  }, []);
+
+  const handleChatHudChange = useCallback((focused: boolean, draft: string): void => {
+    setChatHudState((current) =>
+      current.focused === focused && current.draft === draft ? current : { focused, draft },
     );
   }, []);
 
@@ -1460,6 +1480,11 @@ function App() {
     const client = clientRef.current;
     if (!client) return { success: false, message: "Not connected." };
     const result = await withTimeout(client.linkWallet(authToken), WALLET_LINK_TIMEOUT_MS);
+    if (result.success && result.needsDisplayName) {
+      needsDisplayNameRef.current = true;
+      setNeedsDisplayName(true);
+      setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
+    }
     if (result.success && result.officeSlotId) {
       myOfficeSlotIdRef.current = result.officeSlotId;
       const mySessionId = client.getSessionId();
@@ -1480,6 +1505,18 @@ function App() {
       }
     }
     return result;
+  }, []);
+
+  const handleSetDisplayName = useCallback(async (displayName: string) => {
+    const client = clientRef.current;
+    if (!client) return { success: false, message: "Not connected." };
+    const result = await withTimeout(client.setDisplayName(displayName), WALLET_LINK_TIMEOUT_MS);
+    if (result.success) {
+      needsDisplayNameRef.current = false;
+      setNeedsDisplayName(false);
+      setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef);
+    }
+    return { success: result.success, message: result.message };
   }, []);
 
   const showErrorOverlay =
@@ -1516,9 +1553,11 @@ function App() {
             localAnimationRef={localAnimationRef}
             localSeated={Boolean(seatedDeskId)}
             ref={sceneRef}
-            nameLabelsContainerRef={nameLabelsContainerRef}
             speakingPlayerIds={speakingPlayerIds}
             messages={messages}
+            chatFocused={chatHudState.focused}
+            chatDraft={chatHudState.draft}
+            chatDisabled={whiteboardOpen || terminalOpen}
             whiteboardSnapshot={whiteboardSnapshot}
             officeSlotContentById={officeSlotContentById}
             stickyNotes={stickyNotes}
@@ -1531,7 +1570,7 @@ function App() {
       <div className="trading-floor-overlay" aria-hidden="true">
         <div className="trading-floor-overlay__glow" />
       </div>
-      <div className="name-labels-container" ref={nameLabelsContainerRef} />
+      {needsDisplayName && <SetDisplayNameModal onSubmit={handleSetDisplayName} />}
       <ConnectionStatus state={connectionState} />
       {entered && (
         <DayNightDebugControls
@@ -1566,9 +1605,9 @@ function App() {
         <Minimap playerEntityRef={playerEntityRef} sceneRef={sceneRef} />
       )}
       <Chat
-        messages={messages}
         onSend={handleChatSend}
         onFocusChange={handleChatFocusChange}
+        onHudChange={handleChatHudChange}
         disabled={whiteboardOpen || terminalOpen}
       />
       {entered && !seatedDeskId && !whiteboardOpen && <div className="crosshair" />}

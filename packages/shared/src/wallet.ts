@@ -28,4 +28,13 @@ export interface WalletLinkResultMessage {
    */
   officeSlotId?: string;
   message?: string;
+  /**
+   * True the first time a given Privy identity ever links a wallet — they've
+   * never chosen a real display name before (only ever had the random guest
+   * one), so the client must prompt for one via `set_display_name_request`
+   * before anything durable (the office, other players) shows a real name
+   * for them. False on every later reconnect, once a returning trader's
+   * previously-chosen name has already been restored server-side.
+   */
+  needsDisplayName?: boolean;
 }

@@ -15,8 +15,6 @@ import { StickyWallDisplay } from "./game/scene/StickyWallDisplay";
 import { Lighting } from "./game/scene/Lighting";
 import { LocalPlayer } from "./game/player/LocalPlayer";
 import { RemotePlayer } from "./game/player/RemotePlayer";
-import { NameLabelsOverlay } from "./game/player/NameLabelsOverlay";
-import { ChatBubblesOverlay } from "./game/player/ChatBubblesOverlay";
 import {
   createRemoteTransform,
   getVisualTransform,
@@ -33,10 +31,11 @@ interface SceneProps {
   /** Read every frame by LocalPlayer's own body model — see App.tsx's movement tick. */
   localAnimationRef: MutableRefObject<AnimationState>;
   localSeated: boolean;
-  nameLabelsContainerRef: React.RefObject<HTMLDivElement | null>;
   speakingPlayerIds: ReadonlySet<string>;
-  /** Drives ChatBubblesOverlay — a transient speech bubble over a remote sender's head, in addition to the side chat panel. */
   messages: ChatMessage[];
+  chatFocused: boolean;
+  chatDraft: string;
+  chatDisabled: boolean;
   whiteboardSnapshot: WhiteboardSnapshot;
   officeSlotContentById?: Record<string, OfficeSlotContent>;
   stickyNotes: StickyNote[];
@@ -58,6 +57,8 @@ export interface SceneHandle {
   }>;
   /** Which connected player (if any) is currently bound to this office slot — see OFFICE_SLOTS/PlayerState.officeSlotId. */
   getSessionIdForOfficeSlot: (slotId: string) => string | null;
+  /** Applies a pnl_update entry — a no-op if that session isn't (or is no longer) a tracked remote player. */
+  updateRemotePnl: (sessionId: string, pnlUsd: number) => void;
 }
 
 const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
@@ -66,9 +67,11 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     playerEntityRef,
     localAnimationRef,
     localSeated,
-    nameLabelsContainerRef,
     speakingPlayerIds,
     messages,
+    chatFocused,
+    chatDraft,
+    chatDisabled,
     whiteboardSnapshot,
     officeSlotContentById,
     stickyNotes,
@@ -95,6 +98,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
           animation: snapshot.animation,
           seatedDeskId: snapshot.seatedDeskId,
           officeSlotId: snapshot.officeSlotId,
+          pnlUsd: null,
         });
         setRemoteIds((prev) => [...prev, snapshot.sessionId]);
       },
@@ -102,6 +106,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
         const record = recordsRef.current.get(snapshot.sessionId);
         if (!record) return;
         updateRemoteTransformTarget(record.transform, snapshot, Date.now());
+        record.displayName = snapshot.displayName;
         record.animation = snapshot.animation;
         record.seatedDeskId = snapshot.seatedDeskId;
         record.officeSlotId = snapshot.officeSlotId;
@@ -133,6 +138,11 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
           if (record.officeSlotId === slotId) return sessionId;
         }
         return null;
+      },
+      updateRemotePnl(sessionId, pnlUsd) {
+        const record = recordsRef.current.get(sessionId);
+        if (!record) return;
+        record.pnlUsd = pnlUsd;
       },
     }),
     []
@@ -168,16 +178,14 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
       )}
 
       {remoteIds.map((sessionId) => (
-        <RemotePlayer key={sessionId} sessionId={sessionId} recordsRef={recordsRef} />
+        <RemotePlayer
+          key={sessionId}
+          sessionId={sessionId}
+          recordsRef={recordsRef}
+          speaking={speakingPlayerIds.has(sessionId)}
+        />
       ))}
 
-      <NameLabelsOverlay
-        remoteIds={remoteIds}
-        recordsRef={recordsRef}
-        containerRef={nameLabelsContainerRef}
-        speakingPlayerIds={speakingPlayerIds}
-      />
-      <ChatBubblesOverlay messages={messages} recordsRef={recordsRef} containerRef={nameLabelsContainerRef} />
     </>
   );
 });

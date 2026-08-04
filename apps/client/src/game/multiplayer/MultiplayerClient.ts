@@ -6,7 +6,9 @@ import {
   type OfficeProfileResultMessage,
   type OfficeWatchlistItem,
   type PlayerInputMessage,
+  type PnlUpdateMessage,
   type SeatResultMessage,
+  type SetDisplayNameResultMessage,
   type StickyNote,
   type StickyNoteDeleteMessage,
   type StickyNoteDeleteResultMessage,
@@ -43,6 +45,7 @@ export interface MultiplayerClientCallbacks {
   onStickyNoteUpsert: (note: StickyNote) => void;
   onStickyNoteDelete: (authorSessionId: string) => void;
   onWorldTimeSync: (message: WorldTimeSyncMessage) => void;
+  onPnlUpdate: (message: PnlUpdateMessage) => void;
 }
 
 /**
@@ -59,6 +62,7 @@ export class MultiplayerClient {
   /** Shared monotonic counter for every one-shot request/response message below (wallet + office) — each message type has its own pending-resolvers map, so a single counter is enough to keep requestIds unique per type. */
   private oneShotRequestSequence = 0;
   private readonly pendingWalletLink = new Map<number, (message: WalletLinkResultMessage) => void>();
+  private readonly pendingSetDisplayName = new Map<number, (message: SetDisplayNameResultMessage) => void>();
   private readonly pendingOfficeProfile = new Map<number, (message: OfficeProfileResultMessage) => void>();
   private readonly pendingThesisPublish = new Map<number, (message: ThesisPublishResultMessage) => void>();
   private readonly pendingWatchlistUpdate = new Map<number, (message: WatchlistUpdateResultMessage) => void>();
@@ -162,6 +166,17 @@ export class MultiplayerClient {
       this.pendingWalletLink.set(requestId, resolve);
     });
     this.room.send("wallet_link_request", { requestId, authToken });
+    return result;
+  }
+
+  /** Only meaningful once a wallet is linked (see `WalletLinkResultMessage.needsDisplayName`) — the server rejects this for a guest. */
+  setDisplayName(displayName: string): Promise<SetDisplayNameResultMessage> {
+    if (!this.room) return Promise.reject(new Error("Not connected."));
+    const requestId = this.nextRequestId();
+    const result = new Promise<SetDisplayNameResultMessage>((resolve) => {
+      this.pendingSetDisplayName.set(requestId, resolve);
+    });
+    this.room.send("set_display_name_request", { requestId, displayName });
     return result;
   }
 
@@ -332,6 +347,13 @@ export class MultiplayerClient {
       resolve(message);
     });
 
+    room.onMessage<SetDisplayNameResultMessage>("set_display_name_result", (message) => {
+      const resolve = this.pendingSetDisplayName.get(message.requestId);
+      if (!resolve) return;
+      this.pendingSetDisplayName.delete(message.requestId);
+      resolve(message);
+    });
+
     room.onMessage<OfficeProfileResultMessage>("office_profile_result", (message) => {
       const resolve = this.pendingOfficeProfile.get(message.requestId);
       if (!resolve) return;
@@ -400,6 +422,11 @@ export class MultiplayerClient {
         return;
       }
       this.callbacks.onWorldTimeSync(message);
+    });
+
+    room.onMessage<PnlUpdateMessage>("pnl_update", (message) => {
+      if (!message || !Array.isArray(message.entries)) return;
+      this.callbacks.onPnlUpdate(message);
     });
 
     room.onLeave((code: number) => {

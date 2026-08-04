@@ -5,7 +5,8 @@ import { useAppEvent, useModel, usePhysics } from "@playcanvas/react/hooks";
 import type { Entity as PcEntity } from "playcanvas";
 // @ts-expect-error - PlayCanvas ESM scripts don't have type declarations
 import { FirstPersonController } from "playcanvas/scripts/esm/first-person-controller.mjs";
-import type { AnimationState } from "@multiplayer/shared";
+import type { AnimationState, ChatMessage } from "@multiplayer/shared";
+import { InGameChatHud } from "./InGameChatHud";
 import {
   CHARACTER_ANIM_TRANSITION_BLEND_SECONDS,
   CHARACTER_HEAD_NODE_NAME,
@@ -30,6 +31,10 @@ interface FirstPersonControllerRuntime {
 interface LocalPlayerProps {
   spawn: { x: number; y: number; z: number };
   seated: boolean;
+  chatMessages: ChatMessage[];
+  chatFocused: boolean;
+  chatDraft: string;
+  chatDisabled: boolean;
   /** Updated every movement tick in App.tsx (the same value sent to the server) — read here each frame since there's no server round trip for your own state the way RemotePlayer gets one. */
   animationRef: MutableRefObject<AnimationState>;
 }
@@ -49,7 +54,7 @@ interface LocalPlayerProps {
  * here.
  */
 const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function LocalPlayer(
-  { spawn, seated, animationRef },
+  { spawn, seated, chatMessages, chatFocused, chatDraft, chatDisabled, animationRef },
   ref,
 ) {
   const [cameraEntity, setCameraEntity] = useState<PcEntity | null>(null);
@@ -124,6 +129,12 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
     <Entity name="local-player" position={initialPositionRef.current} ref={ref}>
       <Entity name="local-camera" position={cameraPositionRef.current} ref={setCameraEntity}>
         <Camera fov={75} nearClip={0.05} farClip={100} />
+        <InGameChatHud
+          messages={chatMessages}
+          focused={chatFocused}
+          draft={chatDraft}
+          disabled={chatDisabled}
+        />
       </Entity>
 
       {asset && (

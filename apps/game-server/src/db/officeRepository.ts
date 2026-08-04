@@ -63,6 +63,18 @@ export function resolveProfileIdByAddress(db: Database.Database, address: string
   return row?.playerId ?? null;
 }
 
+/**
+ * The display name this identity already chose in a previous session, if
+ * any — null if this Privy identity has never linked a wallet before (a
+ * brand new trader, who must choose one; see `WalletLinkResultMessage.needsDisplayName`).
+ */
+export function getProfileDisplayName(db: Database.Database, playerId: string): string | null {
+  const row = db.prepare(`SELECT display_name AS displayName FROM player_profiles WHERE id = ?`).get(playerId) as
+    | { displayName: string }
+    | undefined;
+  return row?.displayName ?? null;
+}
+
 export function getCurrentThesis(db: Database.Database, playerId: string): ThesisRecord | null {
   const row = db
     .prepare(`SELECT body, created_at AS createdAt FROM office_theses WHERE player_id = ? AND is_current = 1 LIMIT 1`)

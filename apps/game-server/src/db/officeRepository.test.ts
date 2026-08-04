@@ -5,6 +5,7 @@ import {
   addVisitorBookEntry,
   getCurrentThesis,
   getOfficeProfileBundle,
+  getProfileDisplayName,
   getWatchlist,
   listVisitorBookEntries,
   publishThesis,
@@ -49,6 +50,20 @@ describe("upsertProfileAndWallet / resolveProfileIdByAddress", () => {
 
   it("returns null resolving an address that was never linked", () => {
     expect(resolveProfileIdByAddress(db, "0xnope", "ethereum")).toBeNull();
+  });
+});
+
+describe("getProfileDisplayName", () => {
+  it("returns null for an identity that has never linked a wallet", () => {
+    expect(getProfileDisplayName(db, "did:privy:unknown")).toBeNull();
+  });
+
+  it("returns whatever name was most recently persisted for that identity", () => {
+    upsertProfileAndWallet(db, { playerId: "did:privy:1", displayName: "Alice", address: "0xabc", chain: "ethereum" });
+    expect(getProfileDisplayName(db, "did:privy:1")).toBe("Alice");
+
+    upsertProfileAndWallet(db, { playerId: "did:privy:1", displayName: "Alice2", address: "0xabc", chain: "ethereum" });
+    expect(getProfileDisplayName(db, "did:privy:1")).toBe("Alice2");
   });
 });
 
