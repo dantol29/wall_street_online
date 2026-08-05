@@ -2,6 +2,8 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import type { Entity as PcEntity } from "playcanvas";
 import {
   type AnimationState,
+  type BellCycleHistoryEntry,
+  type BellCycleStateSnapshot,
   type ChatMessage,
   type StickyNote,
   type WhiteboardSnapshot,
@@ -9,6 +11,8 @@ import {
 import { getSceneConfig } from "./scenes/registry";
 import { EditorScene } from "./game/scene/EditorScene";
 import { RoomEnvironment } from "./game/scene/Environment";
+import { GraduationFloor } from "./game/scene/GraduationFloor";
+import type { BellPitGaugeFlash } from "./game/scene/BellPitGaugeDisplay";
 import type { OfficeSlotContent } from "./game/scene/OfficeContentDisplay";
 import { CollaborativeWhiteboardDisplay } from "./game/scene/CollaborativeWhiteboardDisplay";
 import { StickyWallDisplay } from "./game/scene/StickyWallDisplay";
@@ -42,6 +46,14 @@ interface SceneProps {
   justPlacedStickyNoteAuthorSessionId?: string | null;
   worldTime: WorldTimeAnchor;
   worldTimeOverridePhase: number | null;
+  bellCycleSnapshot: BellCycleStateSnapshot;
+  bellCycleFrozen?: boolean;
+  bellCycleFlashBySlotIndex?: Record<number, BellPitGaugeFlash>;
+  bellRinging?: boolean;
+  bellCycleHistory?: BellCycleHistoryEntry[];
+  pitchActive?: boolean;
+  pitchPresenterName?: string;
+  pitchTokenTicker?: string;
 }
 
 export interface SceneHandle {
@@ -78,6 +90,14 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     justPlacedStickyNoteAuthorSessionId,
     worldTime,
     worldTimeOverridePhase,
+    bellCycleSnapshot,
+    bellCycleFrozen,
+    bellCycleFlashBySlotIndex,
+    bellRinging,
+    bellCycleHistory,
+    pitchActive,
+    pitchPresenterName,
+    pitchTokenTicker,
   },
   ref,
 ) {
@@ -150,15 +170,32 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
 
   const sceneConfig = getSceneConfig(sceneId);
   const spawn = sceneConfig.spawnPoints[0];
+  const isGraduationFloor = sceneId === "graduation-floor";
 
   const sceneEnvironment =
     sceneConfig.type === "editor" && sceneConfig.configUrl && sceneConfig.sceneUrl ? (
       <EditorScene configUrl={sceneConfig.configUrl} sceneUrl={sceneConfig.sceneUrl} onReady={onEditorSceneReady} />
     ) : (
       <DayNightProvider worldTime={worldTime} overridePhase={worldTimeOverridePhase}>
-        <RoomEnvironment officeSlotContentById={officeSlotContentById} />
-        <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
-        <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />
+        {isGraduationFloor ? (
+          <GraduationFloor
+            bellCycleSlots={bellCycleSnapshot.slots}
+            bellCycleEndsAtMs={bellCycleSnapshot.cycleEndsAtMs}
+            bellCycleFrozen={bellCycleFrozen}
+            bellCycleFlashBySlotIndex={bellCycleFlashBySlotIndex}
+            bellRinging={bellRinging}
+            bellCycleHistory={bellCycleHistory}
+          />
+        ) : (
+          <RoomEnvironment
+            officeSlotContentById={officeSlotContentById}
+            pitchActive={pitchActive}
+            pitchPresenterName={pitchPresenterName}
+            pitchTokenTicker={pitchTokenTicker}
+          />
+        )}
+        {!isGraduationFloor && <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />}
+        {!isGraduationFloor && <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />}
         <Lighting />
       </DayNightProvider>
     );

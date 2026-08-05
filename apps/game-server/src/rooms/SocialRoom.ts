@@ -1,9 +1,13 @@
 import { Client, Room } from "colyseus";
 import {
+  CYCLE_DURATION_MS,
   HYPERLIQUID_PNL_POLL_INTERVAL_MS,
+  LAUNCH_TOKEN_COOLDOWN_MS,
   MAX_PLAYERS,
   RECONNECTION_TIMEOUT_SECONDS,
   STICKY_NOTE_UPDATE_COOLDOWN_MS,
+  TOKEN_SLOT_COUNT,
+  computeMarketCapUsd,
   isStickyWallSpotFree,
   THESIS_PUBLISH_COOLDOWN_MS,
   VISITOR_BOOK_SIGN_PER_OFFICE_COOLDOWN_MS,
@@ -15,7 +19,15 @@ import {
   WORLD_DAY_DURATION_MS,
   WORLD_START_HOUR,
   WORLD_TIME_SYNC_INTERVAL_MS,
+  type BellCeremonyMessage,
+  type BellCycleHistoryEntry,
+  type BellCycleHistoryRequestMessage,
+  type BellCycleHistoryResultMessage,
+  type BellCycleSlot,
+  type BellCycleStateSnapshot,
   type ChatMessage,
+  type LaunchTokenRequestMessage,
+  type LaunchTokenResultMessage,
   type OfficeProfileLookup,
   type OfficeProfileRequestMessage,
   type OfficeProfileResultMessage,
@@ -75,6 +87,16 @@ import {
   upsertProfileAndWallet,
 } from "../db/officeRepository";
 import { validateDisplayName } from "../validation/displayNameValidation";
+import { validateTokenLaunch } from "../validation/bellCycleValidation";
+import {
+  clearBellCycleSlots,
+  insertBellCycleHistory,
+  launchBellCycleSlot,
+  listBellCycleHistory,
+  listBellCycleSlots,
+  loadBellCycleEndsAt,
+  saveBellCycleEndsAt,
+} from "../db/bellCycleRepository";
 
 const MAX_CHAT_HISTORY_MESSAGES = 20;
 /** Shared by every room/shard in this server process, so all traders see the same time. */
@@ -112,11 +134,16 @@ export class SocialRoom extends Room<SocialRoomState> {
   private readonly stickyNoteUpdateRateLimiter = new SlidingWindowRateLimiter(1, STICKY_NOTE_UPDATE_COOLDOWN_MS);
   /** Purely a defensive debounce against accidental double-submits — this isn't meant to be a frequent action. */
   private readonly setDisplayNameRateLimiter = new SlidingWindowRateLimiter(1, 5000);
+  /** The Bell Podium's current cycle — persisted (see bellCycleRepository), unlike the whiteboard/sticky wall, so a restart never erases a launched token or resets the countdown. */
+  private cycleEndsAtMs = 0;
+  private bellCycleSlots: BellCycleSlot[] = [];
+  private readonly launchTokenRateLimiter = new SlidingWindowRateLimiter(1, LAUNCH_TOKEN_COOLDOWN_MS);
 
   override onCreate(): void {
     this.setState(new SocialRoomState());
     this.clock.setInterval(() => this.broadcast("world_time_sync", this.worldTimeSync()), WORLD_TIME_SYNC_INTERVAL_MS);
     this.clock.setInterval(() => void this.pollAndBroadcastPnl(), HYPERLIQUID_PNL_POLL_INTERVAL_MS);
+    this.initBellCycle();
 
     this.onMessage("world_time_request", (client) => {
       client.send("world_time_sync", this.worldTimeSync());
@@ -217,6 +244,18 @@ export class SocialRoom extends Room<SocialRoomState> {
     this.onMessage("sticky_note_delete_request", (client, message: StickyNoteDeleteRequestMessage) => {
       this.handleStickyNoteDeleteRequest(client, message);
     });
+
+    this.onMessage("bell_cycle_snapshot_request", (client) => {
+      client.send("bell_cycle_snapshot", this.bellCycleSnapshot());
+    });
+
+    this.onMessage("launch_token_request", (client, message: LaunchTokenRequestMessage) => {
+      this.handleLaunchTokenRequest(client, message);
+    });
+
+    this.onMessage("bell_cycle_history_request", (client, message: BellCycleHistoryRequestMessage) => {
+      this.handleBellCycleHistoryRequest(client, message);
+    });
   }
 
   override onJoin(client: Client, options: JoinOptions): void {
@@ -298,6 +337,7 @@ export class SocialRoom extends Room<SocialRoomState> {
       this.watchlistUpdateRateLimiter.clear(client.sessionId);
       this.visitorBookGlobalRateLimiter.clear(client.sessionId);
       this.stickyNoteUpdateRateLimiter.clear(client.sessionId);
+      this.launchTokenRateLimiter.clear(client.sessionId);
       if (this.stickyNotesBySessionId.delete(client.sessionId)) {
         this.broadcast("sticky_note_delete", { authorSessionId: client.sessionId } satisfies StickyNoteDeleteMessage);
       }
@@ -942,6 +982,280 @@ export class SocialRoom extends Room<SocialRoomState> {
     });
 
     client.send("visitor_book_sign_result", { ...baseResult, success: true, entry } satisfies VisitorBookSignResultMessage);
+  }
+
+  private buildEmptyBellCycleSlots(): BellCycleSlot[] {
+    return Array.from({ length: TOKEN_SLOT_COUNT }, (_, slotIndex) => ({
+      slotIndex,
+      ownerPlayerId: null,
+      ownerDisplayName: null,
+      tokenName: null,
+      ticker: null,
+      seed: null,
+      launchedAtMs: null,
+    }));
+  }
+
+  private loadBellCycleSlotsFromDb(): BellCycleSlot[] {
+    const slots = this.buildEmptyBellCycleSlots();
+    for (const record of listBellCycleSlots(this.db)) {
+      if (record.slotIndex < 0 || record.slotIndex >= TOKEN_SLOT_COUNT) continue;
+      slots[record.slotIndex] = {
+        slotIndex: record.slotIndex,
+        ownerPlayerId: record.playerId,
+        ownerDisplayName: record.displayNameSnapshot,
+        tokenName: record.tokenName,
+        ticker: record.ticker,
+        seed: record.seed,
+        launchedAtMs: record.launchedAtMs,
+      };
+    }
+    return slots;
+  }
+
+  /**
+   * Boots the Bell Podium cycle. Cycle state is persisted (see
+   * bellCycleRepository), unlike the whiteboard/sticky wall, so a restart
+   * never silently erases a launched token or resets the countdown.
+   */
+  private initBellCycle(): void {
+    const now = Date.now();
+    const storedEndsAt = loadBellCycleEndsAt(this.db);
+
+    if (storedEndsAt === null) {
+      this.startNewBellCycle(now + CYCLE_DURATION_MS);
+      return;
+    }
+
+    this.cycleEndsAtMs = storedEndsAt;
+    this.bellCycleSlots = this.loadBellCycleSlotsFromDb();
+
+    if (storedEndsAt <= now) {
+      // The server was down through the scheduled instant — settle that
+      // cycle silently against its own original end time (so the
+      // deterministic market-cap math is unaffected by downtime) and start
+      // fresh. No ceremony plays for a cycle nobody was present to see.
+      this.resolveBellCycle(false);
+      return;
+    }
+
+    this.scheduleBellCycleResolution();
+  }
+
+  private scheduleBellCycleResolution(): void {
+    const delay = Math.max(0, this.cycleEndsAtMs - Date.now());
+    this.clock.setTimeout(() => this.resolveBellCycle(true), delay);
+  }
+
+  private startNewBellCycle(cycleEndsAtMs: number): void {
+    this.cycleEndsAtMs = cycleEndsAtMs;
+    this.bellCycleSlots = this.buildEmptyBellCycleSlots();
+    clearBellCycleSlots(this.db);
+    saveBellCycleEndsAt(this.db, cycleEndsAtMs);
+    this.scheduleBellCycleResolution();
+    this.broadcast("bell_cycle_snapshot", this.bellCycleSnapshot());
+  }
+
+  private bellCycleSnapshot(): BellCycleStateSnapshot {
+    return { cycleEndsAtMs: this.cycleEndsAtMs, slots: this.bellCycleSlots };
+  }
+
+  /**
+   * Settles the current cycle: highest simulated market cap at the exact
+   * end instant wins (ties broken by earliest launch, i.e. lowest slot
+   * index found first). Persists one row to history (the Wall of Fame),
+   * then immediately starts the next cycle. `announce` is false only when
+   * recovering a cycle that ended while the server was offline.
+   */
+  private resolveBellCycle(announce: boolean): void {
+    // A plain loop (not .map() + closure mutation) so `winner`'s narrowing
+    // stays valid afterward — TypeScript doesn't track assignments made
+    // inside a separate callback function as affecting the outer scope's
+    // control flow.
+    let winner: BellCycleSlot | null = null;
+    let winnerMarketCapUsd = -Infinity;
+    const finalSlots: BellCeremonyMessage["finalSlots"] = [];
+
+    for (const slot of this.bellCycleSlots) {
+      if (slot.seed === null || slot.launchedAtMs === null) {
+        finalSlots.push({
+          slotIndex: slot.slotIndex,
+          ownerDisplayName: null,
+          tokenName: null,
+          ticker: null,
+          marketCapUsd: null,
+          isWinner: false,
+        });
+        continue;
+      }
+
+      const marketCapUsd = computeMarketCapUsd(slot.seed, this.cycleEndsAtMs - slot.launchedAtMs);
+      if (marketCapUsd > winnerMarketCapUsd) {
+        winnerMarketCapUsd = marketCapUsd;
+        winner = slot;
+      }
+      finalSlots.push({
+        slotIndex: slot.slotIndex,
+        ownerDisplayName: slot.ownerDisplayName,
+        tokenName: slot.tokenName,
+        ticker: slot.ticker,
+        marketCapUsd,
+        isWinner: false,
+      });
+    }
+
+    if (winner !== null) {
+      const winningSlotIndex = winner.slotIndex;
+      const winningFinalSlot = finalSlots.find((slot) => slot.slotIndex === winningSlotIndex);
+      if (winningFinalSlot) winningFinalSlot.isWinner = true;
+    }
+
+    insertBellCycleHistory(this.db, {
+      cycleEndsAtMs: this.cycleEndsAtMs,
+      winnerPlayerId: winner?.ownerPlayerId ?? null,
+      winnerDisplayName: winner?.ownerDisplayName ?? null,
+      tokenName: winner?.tokenName ?? null,
+      ticker: winner?.ticker ?? null,
+      marketCapUsd: winner ? winnerMarketCapUsd : null,
+    });
+
+    // Keeps the appointment-viewing beat perfectly regular (same time every
+    // day) rather than drifting off whenever the timer actually fires.
+    const nextCycleEndsAtMs = this.cycleEndsAtMs + CYCLE_DURATION_MS;
+
+    if (announce) {
+      this.broadcast("bell_ceremony", {
+        cycleEndsAtMs: this.cycleEndsAtMs,
+        winner:
+          winner !== null
+            ? {
+                displayName: winner.ownerDisplayName as string,
+                tokenName: winner.tokenName as string,
+                ticker: winner.ticker as string,
+                marketCapUsd: winnerMarketCapUsd,
+              }
+            : null,
+        finalSlots,
+        nextCycleEndsAtMs,
+      } satisfies BellCeremonyMessage);
+    }
+
+    this.startNewBellCycle(nextCycleEndsAtMs);
+  }
+
+  /**
+   * Ownership is keyed by the caller's durable `playerId`, not their session
+   * — so a disconnect/reconnect can't be used to launch a second token, and
+   * a launched token survives its launcher going offline mid-cycle (same
+   * "content outlives the session" precedent as sticky notes/office theses).
+   */
+  private handleLaunchTokenRequest(client: Client, message: LaunchTokenRequestMessage): void {
+    if (!message || !Number.isSafeInteger(message.requestId)) return;
+    const baseResult: Pick<LaunchTokenResultMessage, "requestId"> = { requestId: message.requestId };
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    if (!player.playerId) {
+      client.send("launch_token_result", {
+        ...baseResult,
+        success: false,
+        message: "Link a wallet to launch a token.",
+      } satisfies LaunchTokenResultMessage);
+      return;
+    }
+
+    if (this.bellCycleSlots.some((slot) => slot.ownerPlayerId === player.playerId)) {
+      client.send("launch_token_result", {
+        ...baseResult,
+        success: false,
+        message: "You've already launched a token this cycle.",
+      } satisfies LaunchTokenResultMessage);
+      return;
+    }
+
+    const slotIndex = message.slotIndex;
+    if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= TOKEN_SLOT_COUNT) {
+      client.send("launch_token_result", {
+        ...baseResult,
+        success: false,
+        message: "Invalid slot.",
+      } satisfies LaunchTokenResultMessage);
+      return;
+    }
+
+    const existingSlot = this.bellCycleSlots[slotIndex];
+    if (!existingSlot || existingSlot.ownerPlayerId !== null) {
+      client.send("launch_token_result", {
+        ...baseResult,
+        success: false,
+        message: "That slot is already taken.",
+      } satisfies LaunchTokenResultMessage);
+      return;
+    }
+
+    if (!this.launchTokenRateLimiter.isAllowed(client.sessionId, Date.now())) {
+      client.send("launch_token_result", {
+        ...baseResult,
+        success: false,
+        message: "Please wait before trying again.",
+      } satisfies LaunchTokenResultMessage);
+      return;
+    }
+
+    const validation = validateTokenLaunch(
+      typeof message.tokenName === "string" ? message.tokenName : "",
+      typeof message.ticker === "string" ? message.ticker : "",
+    );
+    if (!validation.valid) {
+      client.send("launch_token_result", {
+        ...baseResult,
+        success: false,
+        message: validation.reason,
+      } satisfies LaunchTokenResultMessage);
+      return;
+    }
+
+    const slot: BellCycleSlot = {
+      slotIndex,
+      ownerPlayerId: player.playerId,
+      ownerDisplayName: player.displayName,
+      tokenName: validation.tokenName,
+      ticker: validation.ticker,
+      seed: Math.floor(Math.random() * 0xffffffff),
+      launchedAtMs: Date.now(),
+    };
+    this.bellCycleSlots[slotIndex] = slot;
+
+    launchBellCycleSlot(this.db, {
+      slotIndex,
+      playerId: player.playerId,
+      displayNameSnapshot: slot.ownerDisplayName as string,
+      tokenName: slot.tokenName as string,
+      ticker: slot.ticker as string,
+      seed: slot.seed as number,
+      launchedAtMs: slot.launchedAtMs as number,
+    });
+
+    client.send("launch_token_result", { ...baseResult, success: true, slot } satisfies LaunchTokenResultMessage);
+    this.broadcast("bell_cycle_snapshot", this.bellCycleSnapshot());
+  }
+
+  private handleBellCycleHistoryRequest(client: Client, message: BellCycleHistoryRequestMessage): void {
+    if (!message || !Number.isSafeInteger(message.requestId)) return;
+
+    const entries: BellCycleHistoryEntry[] = listBellCycleHistory(this.db).map((record) => ({
+      cycleEndsAtMs: record.cycleEndsAtMs,
+      winnerDisplayName: record.winnerDisplayName,
+      tokenName: record.tokenName,
+      ticker: record.ticker,
+      marketCapUsd: record.marketCapUsd,
+    }));
+
+    client.send("bell_cycle_history_result", {
+      requestId: message.requestId,
+      entries,
+    } satisfies BellCycleHistoryResultMessage);
   }
 
   private sanitizeDisplayName(rawName: string | undefined): string | null {

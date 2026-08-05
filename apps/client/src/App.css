@@ -215,6 +215,254 @@
   font: 12px/1.3 "Courier New", monospace;
 }
 
+/* Dismissible (unlike .set-name-modal) — launching a token is optional and repeatable. See LaunchTokenModal.tsx. */
+.launch-token-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(101, 216, 139, 0.06), transparent 60%),
+    rgba(6, 7, 6, 0.88);
+}
+
+.launch-token-modal__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 28px 32px;
+  color: #efe8d5;
+  background: rgba(10, 12, 11, 0.9);
+  border: 1px solid rgba(205, 188, 145, 0.42);
+}
+
+.launch-token-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.launch-token-modal__eyebrow {
+  margin: 0;
+  color: #65d88b;
+  font: 600 11px/1.2 "Courier New", monospace;
+  letter-spacing: 0.16em;
+}
+
+.launch-token-modal__close {
+  padding: 4px 10px;
+  color: #cbc2a4;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(205, 188, 145, 0.3);
+  font: 600 11px/1.2 "Courier New", monospace;
+  cursor: pointer;
+}
+
+.launch-token-modal__title {
+  margin: 0;
+  color: #f1e7c7;
+  font: 700 1.25rem/1.2 "Courier New", monospace;
+}
+
+.launch-token-modal__hint {
+  margin: 0;
+  color: #cbc2a4;
+  font: 12px/1.4 "Courier New", monospace;
+}
+
+.launch-token-modal__slots {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.launch-token-modal__slot {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  text-align: left;
+  color: #efe8d5;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(205, 188, 145, 0.28);
+  font: 13px/1.3 "Courier New", monospace;
+  cursor: pointer;
+}
+
+.launch-token-modal__slot:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.launch-token-modal__slot--selected {
+  border-color: rgba(101, 216, 139, 0.7);
+  background: rgba(101, 216, 139, 0.12);
+}
+
+.launch-token-modal__slot-open {
+  color: #a8b8ae;
+}
+
+.launch-token-modal__slot-taken {
+  color: #cbc2a4;
+}
+
+.launch-token-modal__form {
+  display: flex;
+  gap: 8px;
+}
+
+.launch-token-modal__input {
+  box-sizing: border-box;
+  flex: 1;
+  min-height: 40px;
+  padding: 8px 10px;
+  color: #f1e7c7;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(205, 188, 145, 0.42);
+  font: 15px/1.2 "Courier New", monospace;
+}
+
+.launch-token-modal__input--ticker {
+  flex: 0 0 90px;
+  text-transform: uppercase;
+}
+
+.launch-token-modal__input:focus {
+  outline: none;
+  border-color: rgba(101, 216, 139, 0.8);
+}
+
+.launch-token-modal__submit {
+  min-height: 40px;
+  padding: 0 18px;
+  color: #0d1a12;
+  background: #65d88b;
+  border: 1px solid #8be8a8;
+  font: 700 13px/1.2 "Courier New", monospace;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.launch-token-modal__submit:hover:not(:disabled) {
+  background: #7ee8a2;
+}
+
+.launch-token-modal__submit:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.launch-token-modal__error {
+  margin: 0;
+  padding: 6px 10px;
+  color: #ffb4a9;
+  background: rgba(34, 8, 7, 0.88);
+  border: 1px solid rgba(255, 108, 89, 0.35);
+  font: 12px/1.3 "Courier New", monospace;
+}
+
+/* Bell ceremony — see App.tsx's bellCeremony effect. Purely decorative overlays, never capture input. */
+.bell-ceremony-spotlight {
+  position: fixed;
+  top: 18%;
+  left: 50%;
+  z-index: 95;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 18px 32px;
+  color: #fff2c9;
+  text-align: center;
+  background: rgba(10, 12, 11, 0.88);
+  border: 1px solid rgba(255, 215, 106, 0.55);
+  pointer-events: none;
+  animation: bell-ceremony-spotlight-in 0.4s ease-out;
+}
+
+.bell-ceremony-spotlight__eyebrow {
+  margin: 0;
+  color: #ffd76a;
+  font: 700 12px/1.2 "Courier New", monospace;
+  letter-spacing: 0.18em;
+}
+
+.bell-ceremony-spotlight__name {
+  margin: 0;
+  font: 700 1.6rem/1.2 "Courier New", monospace;
+}
+
+.bell-ceremony-spotlight__detail {
+  margin: 0;
+  color: #dfffe7;
+  font: 600 14px/1.3 "Courier New", monospace;
+}
+
+@keyframes bell-ceremony-spotlight-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.bell-ceremony-nudge {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  z-index: 95;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  color: #f1e7c7;
+  background: rgba(10, 12, 11, 0.85);
+  border: 1px solid rgba(205, 188, 145, 0.4);
+  font: 600 13px/1.3 "Courier New", monospace;
+  pointer-events: none;
+}
+
+.confetti-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti-overlay__piece {
+  position: absolute;
+  top: -20px;
+  width: 8px;
+  height: 14px;
+  opacity: 0.9;
+  animation-name: confetti-fall;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+}
+
+@keyframes confetti-fall {
+  from {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateY(105vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
 .main-menu__scenes {
   display: flex;
   gap: 10px;

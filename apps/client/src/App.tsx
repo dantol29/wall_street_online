@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 import { Application } from "@playcanvas/react";
 import { FILLMODE_FILL_WINDOW, Quat, Vec3, type Entity as PcEntity } from "playcanvas";
 import {
+  BELL_CEREMONY_NUDGE_DISTANCE_METERS,
+  BELL_PIT_INTERACTION_DISTANCE_METERS,
+  BELL_PIT_POSITION,
+  BELL_PODIUM_POSITION,
   DESK_INTERACTION_DISTANCE_METERS,
   DESK_STATIONS,
   MOVEMENT_SEND_RATE_HZ,
@@ -10,6 +14,7 @@ import {
   STICKY_WALL_INTERACTION_DISTANCE_METERS,
   STICKY_WALL_INTERACTION_POSITION,
   STICKY_WALL_POSITION,
+  TOKEN_SLOT_COUNT,
   WHITEBOARD_INTERACTION_DISTANCE_METERS,
   WHITEBOARD_INTERACTION_POSITION,
   WHITEBOARD_POSITION,
@@ -18,6 +23,9 @@ import {
   findOverlappingStickyNote,
   isStickyWallPositionValid,
   type AnimationState,
+  type BellCeremonyMessage,
+  type BellCycleHistoryEntry,
+  type BellCycleStateSnapshot,
   type ChatMessage,
   type OfficeProfileLookup,
   type PnlUpdateMessage,
@@ -47,6 +55,9 @@ import { Chat } from "./ui/Chat";
 import { ErrorOverlay } from "./ui/ErrorOverlay";
 import { ApplicationErrorBoundary } from "./ui/ApplicationErrorBoundary";
 import { InWorldWhiteboardControls } from "./ui/InWorldWhiteboardControls";
+import { ConfettiOverlay } from "./ui/ConfettiOverlay";
+import { LaunchTokenModal } from "./ui/LaunchTokenModal";
+import type { BellPitGaugeFlash } from "./game/scene/BellPitGaugeDisplay";
 import { OfficeEditor, type OfficeVisitorBookEntryView, type OfficeWatchlistItemInput } from "./ui/OfficeEditor";
 import { SetDisplayNameModal } from "./ui/SetDisplayNameModal";
 import { StickyNoteEditor } from "./ui/StickyNoteEditor";
@@ -87,6 +98,9 @@ const WAVE_EMOTE_DURATION_MS = 1_800;
 const EMOTE_MOVEMENT_CANCEL_SPEED = 0.15;
 const TERMINAL_CAMERA_ANIMATION_MS = 480;
 const TERMINAL_SCREEN_VERTICAL_FRACTION = 0.76;
+const PITCH_MIC_POSITION = { x: -8.2, z: -4.8 };
+const PITCH_MIC_INTERACTION_DISTANCE_METERS = 2.2;
+const PITCH_DURATION_MS = 30_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -291,6 +305,24 @@ function restoreFirstPersonCamera(
   savedViewRef.current = null;
 }
 
+function focusPitchCamera(
+  player: PcEntity | null,
+  savedViewRef: MutableRefObject<SavedCameraView | null>,
+): void {
+  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+  const controller = player?.script?.get(FIRST_PERSON_CONTROLLER_SCRIPT_NAME) as FirstPersonControllerRuntime | undefined;
+  if (!cameraEntity) return;
+  if (!savedViewRef.current) {
+    savedViewRef.current = {
+      localPosition: cameraEntity.getLocalPosition().clone(),
+      localEulerAngles: cameraEntity.getLocalEulerAngles().clone(),
+      controllerAngles: controller?._angles?.clone() ?? null,
+    };
+  }
+  cameraEntity.lookAt(PITCH_MIC_POSITION.x, 1.15, PITCH_MIC_POSITION.z);
+  controller?._angles?.copy(cameraEntity.getLocalEulerAngles());
+}
+
 function easeInOutCubic(value: number): number {
   return value < 0.5
     ? 4 * value * value * value
@@ -430,6 +462,19 @@ const EMPTY_WHITEBOARD_SNAPSHOT: WhiteboardSnapshot = {
   presenterDisplayName: null,
 };
 
+const EMPTY_BELL_CYCLE_SNAPSHOT: BellCycleStateSnapshot = {
+  cycleEndsAtMs: 0,
+  slots: Array.from({ length: TOKEN_SLOT_COUNT }, (_, slotIndex) => ({
+    slotIndex,
+    ownerPlayerId: null,
+    ownerDisplayName: null,
+    tokenName: null,
+    ticker: null,
+    seed: null,
+    launchedAtMs: null,
+  })),
+};
+
 function App() {
   const playerEntityRef = useRef<PcEntity | null>(null);
   const sceneRef = useRef<SceneHandle | null>(null);
@@ -456,6 +501,7 @@ function App() {
   const terminalOpenRef = useRef(false);
   const savedCameraViewRef = useRef<SavedCameraView | null>(null);
   const terminalSavedCameraViewRef = useRef<SavedCameraView | null>(null);
+  const pitchSavedCameraViewRef = useRef<SavedCameraView | null>(null);
   const terminalCameraAnimationFrameRef = useRef<number | null>(null);
   const gameplayInputDetachedRef = useRef(false);
   /** This session's own office slot id (from wallet_link_result), if any — empty until a wallet links and a slot happens to be free. */
@@ -470,6 +516,11 @@ function App() {
   const fetchedOfficeSlotIdsRef = useRef<Set<string>>(new Set());
   const nearStickyWallRef = useRef(false);
   const stickyNoteEditorOpenRef = useRef(false);
+  const nearBellPitRef = useRef(false);
+  const bellPitLaunchModalOpenRef = useRef(false);
+  const nearPitchMicRef = useRef(false);
+  const pitchActiveRef = useRef(false);
+  const pitchTimerRef = useRef<number | null>(null);
   /** Mirrors the `stickyNotes` state for synchronous reads from `triggerPrimaryInteraction`'s closure (created once, so it can't see fresh state directly). */
   const stickyNotesRef = useRef<StickyNote[]>([]);
   /**
@@ -523,6 +574,11 @@ function App() {
   const [nearStickyWall, setNearStickyWall] = useState(false);
   const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
   const [stickyNoteEditorOpen, setStickyNoteEditorOpen] = useState(false);
+  const [nearBellPit, setNearBellPit] = useState(false);
+  const [bellPitLaunchModalOpen, setBellPitLaunchModalOpen] = useState(false);
+  const [nearPitchMic, setNearPitchMic] = useState(false);
+  const [pitchActive, setPitchActive] = useState(false);
+  const [pitchPresenterName, setPitchPresenterName] = useState("");
   const [stickyWallStage, setStickyWallStage] = useState<"viewing" | "writing">("viewing");
   const [pendingStickyNotePosition, setPendingStickyNotePosition] = useState<{
     xFraction: number;
@@ -537,6 +593,83 @@ function App() {
   );
   const [worldTime, setWorldTime] = useState<WorldTimeAnchor>(() => createInitialWorldTimeAnchor());
   const [worldTimeOverridePhase, setWorldTimeOverridePhase] = useState<number | null>(null);
+  const [bellCycleSnapshot, setBellCycleSnapshot] = useState<BellCycleStateSnapshot>(EMPTY_BELL_CYCLE_SNAPSHOT);
+  /** Mirrors `bellCycleSnapshot` for synchronous reads in refs/callbacks that shouldn't re-run on every React re-render (same pattern as `stickyNotesRef`). */
+  const bellCycleSnapshotRef = useRef<BellCycleStateSnapshot>(EMPTY_BELL_CYCLE_SNAPSHOT);
+  /** The full settled result of the most recent cycle-end, driving the ceremony sequence — cleared once the sequence finishes playing. */
+  const [bellCeremony, setBellCeremony] = useState<BellCeremonyMessage | null>(null);
+  /** True for the few seconds right at cycle-end — stops the pit gauges' live-updating numbers so every viewer sees the same final figures the ceremony is about. */
+  const [bellCycleFrozen, setBellCycleFrozen] = useState(false);
+  const [bellCycleFlashBySlotIndex, setBellCycleFlashBySlotIndex] = useState<Record<number, BellPitGaugeFlash>>({});
+  /** Drives the bell mesh's swing animation (see Environment.tsx) — only true when there was an actual winner to ring for. */
+  const [bellRinging, setBellRinging] = useState(false);
+  const [bellCeremonySpotlight, setBellCeremonySpotlight] = useState<BellCeremonyMessage["winner"]>(null);
+  /** A dismissible toast for players who are elsewhere on the floor when a ceremony starts — never forces their camera, just nudges. */
+  const [bellCeremonyNudge, setBellCeremonyNudge] = useState<string | null>(null);
+  /** The Wall of Fame's data — every settled cycle, most recent first. Refetched on connect and again once a ceremony finishes. */
+  const [bellCycleHistory, setBellCycleHistory] = useState<BellCycleHistoryEntry[]>([]);
+
+  const refreshBellCycleHistory = useCallback(async (): Promise<void> => {
+    const client = clientRef.current;
+    if (!client) return;
+    const result = await client.requestBellCycleHistory();
+    setBellCycleHistory(result.entries);
+  }, []);
+
+  useEffect(() => {
+    if (connectionState === "connected") void refreshBellCycleHistory();
+  }, [connectionState, refreshBellCycleHistory]);
+
+  /**
+   * The whole ceremony is one server broadcast (`bellCeremony`, carrying the
+   * full settled result) played back locally as a scripted timeline — no
+   * further round-trips needed. Gauges freeze immediately, then the winner
+   * (if any) gets a spotlight + gold flash + confetti while every other
+   * launched slot flashes red, then everything resets once the fresh cycle's
+   * snapshot has already arrived (see SocialRoom's startNewBellCycle, which
+   * broadcasts bell_cycle_snapshot right after bell_ceremony).
+   */
+  useEffect(() => {
+    if (!bellCeremony) return;
+
+    setBellCycleFrozen(true);
+
+    const flashBySlotIndex: Record<number, BellPitGaugeFlash> = {};
+    for (const slot of bellCeremony.finalSlots) {
+      if (slot.marketCapUsd === null) continue;
+      flashBySlotIndex[slot.slotIndex] = slot.isWinner ? "gold" : "red";
+    }
+    setBellCycleFlashBySlotIndex(flashBySlotIndex);
+
+    const playerPosition = playerEntityRef.current?.getPosition();
+    const distanceFromPodium = playerPosition
+      ? Math.hypot(playerPosition.x - BELL_PODIUM_POSITION.x, playerPosition.z - BELL_PODIUM_POSITION.z)
+      : Infinity;
+    if (distanceFromPodium > BELL_CEREMONY_NUDGE_DISTANCE_METERS) {
+      setBellCeremonyNudge("🔔 The bell is about to ring at the podium");
+    }
+
+    if (bellCeremony.winner) {
+      setBellRinging(true);
+      setBellCeremonySpotlight(bellCeremony.winner);
+    }
+
+    const timers = [
+      window.setTimeout(() => setBellCeremonyNudge(null), 6000),
+      window.setTimeout(() => setBellCeremonySpotlight(null), 5500),
+      window.setTimeout(() => {
+        setBellCycleFrozen(false);
+        setBellCycleFlashBySlotIndex({});
+        setBellRinging(false);
+        setBellCeremony(null);
+        void refreshBellCycleHistory();
+      }, 7000),
+    ];
+
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [bellCeremony, refreshBellCycleHistory]);
 
   const openHyperliquidTerminal = useCallback((): void => {
     const player = playerEntityRef.current;
@@ -589,6 +722,7 @@ function App() {
       officeEditorOpenRef.current ||
       stickyNoteEditorOpenRef.current ||
       needsDisplayNameRef.current ||
+      bellPitLaunchModalOpenRef.current ||
       Date.now() < waveUntilRef.current
     ) {
       return;
@@ -925,8 +1059,21 @@ function App() {
           sceneRef.current?.updateRemotePnl(entry.sessionId, entry.pnlUsd);
         }
       },
+      onBellCycleSnapshot: (snapshot) => {
+        bellCycleSnapshotRef.current = snapshot;
+        setBellCycleSnapshot(snapshot);
+      },
+      onBellCeremony: (message) => {
+        setBellCeremony(message);
+      },
     });
     clientRef.current = client;
+
+    function openBellPitLaunchModal(): void {
+      bellPitLaunchModalOpenRef.current = true;
+      setBellPitLaunchModalOpen(true);
+      setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
+    }
 
     const triggerPrimaryInteraction = (): void => {
       if (
@@ -934,9 +1081,29 @@ function App() {
         whiteboardOpenRef.current ||
         officeEditorOpenRef.current ||
         stickyNoteEditorOpenRef.current ||
-        needsDisplayNameRef.current
+        needsDisplayNameRef.current ||
+        bellPitLaunchModalOpenRef.current
       )
         return;
+      if (nearPitchMicRef.current) {
+        if (pitchActiveRef.current) return;
+        const presenter = getOrCreateGuestDisplayName(window.localStorage);
+        pitchActiveRef.current = true;
+        setPitchActive(true);
+        setPitchPresenterName(presenter);
+        setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
+        focusPitchCamera(playerEntityRef.current, pitchSavedCameraViewRef);
+        if (pitchTimerRef.current !== null) window.clearTimeout(pitchTimerRef.current);
+        pitchTimerRef.current = window.setTimeout(() => {
+          pitchActiveRef.current = false;
+          setPitchActive(false);
+          setPitchPresenterName("");
+          restoreFirstPersonCamera(playerEntityRef.current, pitchSavedCameraViewRef);
+          setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef);
+          pitchTimerRef.current = null;
+        }, PITCH_DURATION_MS);
+        return;
+      }
       if (nearWhiteboardRef.current) {
         whiteboardOpenRef.current = true;
         setWhiteboardOpen(true);
@@ -949,6 +1116,8 @@ function App() {
         void handleOfficeInteract(nearOfficeSlotIdRef.current);
       } else if (nearStickyWallRef.current) {
         openStickyNoteEditor();
+      } else if (nearBellPitRef.current) {
+        openBellPitLaunchModal();
       }
     };
     primaryInteractionRef.current = triggerPrimaryInteraction;
@@ -1011,7 +1180,9 @@ function App() {
           nearWhiteboardRef.current ||
           nearbyDeskIdRef.current ||
           nearOfficeSlotIdRef.current ||
-          nearStickyWallRef.current
+          nearStickyWallRef.current ||
+          nearBellPitRef.current ||
+          nearPitchMicRef.current
         ) {
           event.preventDefault();
           triggerPrimaryInteraction();
@@ -1055,7 +1226,8 @@ function App() {
         !whiteboardOpenRef.current &&
         !officeEditorOpenRef.current &&
         !stickyNoteEditorOpenRef.current &&
-        !needsDisplayNameRef.current;
+        !needsDisplayNameRef.current &&
+        !bellPitLaunchModalOpenRef.current;
       if (!inFreeLookGameplay) return;
       setPointerLockLost(true);
       const cameraEntity = playerEntityRef.current?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
@@ -1144,7 +1316,10 @@ function App() {
         animation: finalAnimation,
       });
 
-      if (!seatedDeskIdRef.current && selectedSceneIdRef.current === "trading-floor") {
+      if (
+        !seatedDeskIdRef.current &&
+        (selectedSceneIdRef.current === "trading-floor" || selectedSceneIdRef.current === "graduation-floor")
+      ) {
         const whiteboardDistance = Math.hypot(
           position.x - WHITEBOARD_INTERACTION_POSITION.x,
           position.z - WHITEBOARD_INTERACTION_POSITION.z,
@@ -1159,6 +1334,8 @@ function App() {
         let nearestId: string | null = null;
         let nearestDistance = DESK_INTERACTION_DISTANCE_METERS;
         for (const desk of DESK_STATIONS) {
+          // The north-west bank is now reserved for the Token Pitch corner.
+          if (desk.deskX < -6 && desk.deskZ < -4) continue;
           const distance = Math.hypot(position.x - desk.seatX, position.z - desk.seatZ);
           if (distance <= nearestDistance) {
             nearestDistance = distance;
@@ -1193,6 +1370,20 @@ function App() {
           nearStickyWallRef.current = isNearStickyWall;
           setNearStickyWall(isNearStickyWall);
         }
+
+        const bellPitDistance = Math.hypot(position.x - BELL_PIT_POSITION.x, position.z - BELL_PIT_POSITION.z);
+        const isNearBellPit = bellPitDistance <= BELL_PIT_INTERACTION_DISTANCE_METERS;
+        if (isNearBellPit !== nearBellPitRef.current) {
+          nearBellPitRef.current = isNearBellPit;
+          setNearBellPit(isNearBellPit);
+        }
+
+        const pitchMicDistance = Math.hypot(position.x - PITCH_MIC_POSITION.x, position.z - PITCH_MIC_POSITION.z);
+        const isNearPitchMic = pitchMicDistance <= PITCH_MIC_INTERACTION_DISTANCE_METERS;
+        if (isNearPitchMic !== nearPitchMicRef.current) {
+          nearPitchMicRef.current = isNearPitchMic;
+          setNearPitchMic(isNearPitchMic);
+        }
       }
     }, sendIntervalMs);
 
@@ -1208,6 +1399,8 @@ function App() {
       if (seatErrorTimer !== null) window.clearTimeout(seatErrorTimer);
       if (officeErrorTimer !== null) window.clearTimeout(officeErrorTimer);
       if (waveTimeoutRef.current !== null) window.clearTimeout(waveTimeoutRef.current);
+      if (pitchTimerRef.current !== null) window.clearTimeout(pitchTimerRef.current);
+      restoreFirstPersonCamera(playerEntityRef.current, pitchSavedCameraViewRef);
       if (stickyWallHintTimerRef.current !== null) window.clearTimeout(stickyWallHintTimerRef.current);
       if (justPlacedStickyNoteTimerRef.current !== null) window.clearTimeout(justPlacedStickyNoteTimerRef.current);
       client.disconnect();
@@ -1219,7 +1412,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (selectedSceneId !== "trading-floor") {
+    if (selectedSceneId !== "trading-floor" && selectedSceneId !== "graduation-floor") {
       setNearbyDeskId(null);
       nearbyDeskIdRef.current = null;
       setNearWhiteboard(false);
@@ -1228,6 +1421,13 @@ function App() {
       nearOfficeSlotIdRef.current = null;
       setNearStickyWall(false);
       nearStickyWallRef.current = false;
+      setNearBellPit(false);
+      nearBellPitRef.current = false;
+      nearPitchMicRef.current = false;
+      setNearPitchMic(false);
+      pitchActiveRef.current = false;
+      setPitchActive(false);
+      setPitchPresenterName("");
     }
   }, [selectedSceneId]);
 
@@ -1449,6 +1649,22 @@ function App() {
     return { success: result.success, message: result.message };
   }, []);
 
+  const handleBellPitLaunchModalClose = useCallback((): void => {
+    bellPitLaunchModalOpenRef.current = false;
+    setBellPitLaunchModalOpen(false);
+    setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef);
+  }, []);
+
+  const handleLaunchToken = useCallback(async (slotIndex: number, tokenName: string, ticker: string) => {
+    const client = clientRef.current;
+    if (!client) return { success: false, message: "Not connected." };
+    const result = await client.launchToken(slotIndex, tokenName, ticker);
+    if (result.success) {
+      handleBellPitLaunchModalClose();
+    }
+    return { success: result.success, message: result.message };
+  }, [handleBellPitLaunchModalClose]);
+
   // No writer is rendered while "viewing" (see JSX below), so it can't rely
   // on StickyNoteEditor's own Escape handler — this covers that stage.
   useEffect(() => {
@@ -1541,7 +1757,13 @@ function App() {
             ? myStickyNote
               ? "Update note"
               : "Post note"
-            : null;
+            : nearBellPit
+              ? "Launch token"
+              : nearPitchMic
+                ? pitchActive
+                  ? "Pitching…"
+                  : "Start pitch"
+                : null;
 
   return (
     <div className="full-bleed">
@@ -1564,6 +1786,14 @@ function App() {
             justPlacedStickyNoteAuthorSessionId={justPlacedStickyNoteAuthorSessionId}
             worldTime={worldTime}
             worldTimeOverridePhase={worldTimeOverridePhase}
+            bellCycleSnapshot={bellCycleSnapshot}
+            bellCycleFrozen={bellCycleFrozen}
+            bellCycleFlashBySlotIndex={bellCycleFlashBySlotIndex}
+            bellRinging={bellRinging}
+            bellCycleHistory={bellCycleHistory}
+            pitchActive={pitchActive}
+            pitchPresenterName={pitchPresenterName}
+            pitchTokenTicker="BULL"
           />
         </Application>
       </ApplicationErrorBoundary>
@@ -1571,6 +1801,19 @@ function App() {
         <div className="trading-floor-overlay__glow" />
       </div>
       {needsDisplayName && <SetDisplayNameModal onSubmit={handleSetDisplayName} />}
+      {bellCeremonyNudge && <div className="bell-ceremony-nudge">{bellCeremonyNudge}</div>}
+      {bellCeremonySpotlight && (
+        <>
+          <div className="bell-ceremony-spotlight">
+            <p className="bell-ceremony-spotlight__eyebrow">🔔 RINGS THE BELL</p>
+            <p className="bell-ceremony-spotlight__name">{bellCeremonySpotlight.displayName}</p>
+            <p className="bell-ceremony-spotlight__detail">
+              ${bellCeremonySpotlight.ticker} — {bellCeremonySpotlight.tokenName}
+            </p>
+          </div>
+          <ConfettiOverlay />
+        </>
+      )}
       <ConnectionStatus state={connectionState} />
       {entered && (
         <DayNightDebugControls
@@ -1601,7 +1844,7 @@ function App() {
           onParticipantMuteChange={handleParticipantMuteChange}
         />
       )}
-      {entered && !whiteboardOpen && !terminalOpen && !officeEditorData && !stickyNoteEditorOpen && (
+      {entered && !whiteboardOpen && !terminalOpen && !officeEditorData && !stickyNoteEditorOpen && !bellPitLaunchModalOpen && (
         <Minimap playerEntityRef={playerEntityRef} sceneRef={sceneRef} />
       )}
       <Chat
@@ -1611,7 +1854,7 @@ function App() {
         disabled={whiteboardOpen || terminalOpen}
       />
       {entered && !seatedDeskId && !whiteboardOpen && <div className="crosshair" />}
-      {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
+      {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && !bellPitLaunchModalOpen && (
         <button
           type="button"
           className={`wave-emote-button${waveActive ? " wave-emote-button--active" : ""}`}
@@ -1622,7 +1865,7 @@ function App() {
         </button>
       )}
       {entered && !hasMoved && !seatedDeskId && !whiteboardOpen && <div className="wasd-hint">WASD to move</div>}
-      {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
+      {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && !bellPitLaunchModalOpen && (
         <MobileGameControls
           actionLabel={mobileActionLabel}
           showMovementHint={!hasMoved}
@@ -1640,6 +1883,12 @@ function App() {
       )}
       {entered && nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
         <div className="desk-interaction"><kbd>E</kbd> Open live analysis board</div>
+      )}
+      {entered && nearPitchMic && !seatedDeskId && !whiteboardOpen && !pitchActive && (
+        <div className="desk-interaction"><kbd>E</kbd> Start token pitch</div>
+      )}
+      {entered && pitchActive && (
+        <div className="desk-interaction">LIVE PITCH · {pitchPresenterName} · 30 seconds</div>
       )}
       {entered && nearbyDeskId && !nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
         <div className="desk-interaction"><kbd>E</kbd> Sit down</div>
@@ -1721,6 +1970,13 @@ function App() {
           onClose={handleStickyNoteEditorClose}
           onSubmit={handleStickyNoteSubmit}
           onDelete={handleStickyNoteDelete}
+        />
+      )}
+      {bellPitLaunchModalOpen && (
+        <LaunchTokenModal
+          slots={bellCycleSnapshot.slots}
+          onClose={handleBellPitLaunchModalClose}
+          onSubmit={handleLaunchToken}
         />
       )}
       {whiteboardOpen && (

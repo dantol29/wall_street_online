@@ -25,6 +25,18 @@ export const SCENES: Record<string, SceneConfig> = {
     spawnPoints: [...SPAWN_POINTS],
     worldBounds: { ...WORLD_BOUNDS },
   },
+  "graduation-floor": {
+    id: "graduation-floor",
+    label: "Token Graduation Floor",
+    type: "react",
+    spawnPoints: [
+      { x: 0, y: 1, z: 9 },
+      { x: -2, y: 1, z: 9 },
+      { x: 2, y: 1, z: 9 },
+      { x: 0, y: 1, z: 7 },
+    ],
+    worldBounds: { minX: -9.5, maxX: 9.5, minY: -1, maxY: 15, minZ: -11.5, maxZ: 11.5 },
+  },
   "small-office": {
     id: "small-office",
     label: "Small Office",

@@ -1,7 +1,11 @@
 import { Client, getStateCallbacks, Room } from "colyseus.js";
 import {
   ROOM_NAME,
+  type BellCeremonyMessage,
+  type BellCycleHistoryResultMessage,
+  type BellCycleStateSnapshot,
   type ChatMessage,
+  type LaunchTokenResultMessage,
   type OfficeProfileLookup,
   type OfficeProfileResultMessage,
   type OfficeWatchlistItem,
@@ -46,6 +50,9 @@ export interface MultiplayerClientCallbacks {
   onStickyNoteDelete: (authorSessionId: string) => void;
   onWorldTimeSync: (message: WorldTimeSyncMessage) => void;
   onPnlUpdate: (message: PnlUpdateMessage) => void;
+  onBellCycleSnapshot: (snapshot: BellCycleStateSnapshot) => void;
+  /** Fires once, the instant a cycle resolves — carries the full settled result so the ceremony sequence can run locally with no further round-trip. */
+  onBellCeremony: (message: BellCeremonyMessage) => void;
 }
 
 /**
@@ -69,6 +76,8 @@ export class MultiplayerClient {
   private readonly pendingVisitorBookSign = new Map<number, (message: VisitorBookSignResultMessage) => void>();
   private readonly pendingStickyNoteUpsert = new Map<number, (message: StickyNoteUpsertResultMessage) => void>();
   private readonly pendingStickyNoteDelete = new Map<number, (message: StickyNoteDeleteResultMessage) => void>();
+  private readonly pendingLaunchToken = new Map<number, (message: LaunchTokenResultMessage) => void>();
+  private readonly pendingBellCycleHistory = new Map<number, (message: BellCycleHistoryResultMessage) => void>();
 
   constructor(serverUrl: string, callbacks: MultiplayerClientCallbacks) {
     this.client = new Client(serverUrl);
@@ -92,6 +101,7 @@ export class MultiplayerClient {
     this.room.send("whiteboard_snapshot_request");
     this.room.send("sticky_note_snapshot_request");
     this.room.send("world_time_request");
+    this.room.send("bell_cycle_snapshot_request");
   }
 
   /**
@@ -240,6 +250,28 @@ export class MultiplayerClient {
       this.pendingStickyNoteDelete.set(requestId, resolve);
     });
     this.room.send("sticky_note_delete_request", { requestId });
+    return result;
+  }
+
+  /** Launches a token into an open slot at the trading pit — see `LaunchTokenRequestMessage`; rejected server-side for guests, an already-claimed slot, or a player who already owns a slot this cycle. */
+  launchToken(slotIndex: number, tokenName: string, ticker: string): Promise<LaunchTokenResultMessage> {
+    if (!this.room) return Promise.reject(new Error("Not connected."));
+    const requestId = this.nextRequestId();
+    const result = new Promise<LaunchTokenResultMessage>((resolve) => {
+      this.pendingLaunchToken.set(requestId, resolve);
+    });
+    this.room.send("launch_token_request", { requestId, slotIndex, tokenName, ticker });
+    return result;
+  }
+
+  /** The Wall of Fame's data source — every settled cycle, most recent first. */
+  requestBellCycleHistory(): Promise<BellCycleHistoryResultMessage> {
+    if (!this.room) return Promise.reject(new Error("Not connected."));
+    const requestId = this.nextRequestId();
+    const result = new Promise<BellCycleHistoryResultMessage>((resolve) => {
+      this.pendingBellCycleHistory.set(requestId, resolve);
+    });
+    this.room.send("bell_cycle_history_request", { requestId });
     return result;
   }
 
@@ -429,6 +461,30 @@ export class MultiplayerClient {
       this.callbacks.onPnlUpdate(message);
     });
 
+    room.onMessage<BellCycleStateSnapshot>("bell_cycle_snapshot", (snapshot) => {
+      if (!snapshot || !Number.isFinite(snapshot.cycleEndsAtMs) || !Array.isArray(snapshot.slots)) return;
+      this.callbacks.onBellCycleSnapshot(snapshot);
+    });
+
+    room.onMessage<BellCeremonyMessage>("bell_ceremony", (message) => {
+      if (!message || !Number.isFinite(message.cycleEndsAtMs) || !Array.isArray(message.finalSlots)) return;
+      this.callbacks.onBellCeremony(message);
+    });
+
+    room.onMessage<LaunchTokenResultMessage>("launch_token_result", (message) => {
+      const resolve = this.pendingLaunchToken.get(message.requestId);
+      if (!resolve) return;
+      this.pendingLaunchToken.delete(message.requestId);
+      resolve(message);
+    });
+
+    room.onMessage<BellCycleHistoryResultMessage>("bell_cycle_history_result", (message) => {
+      const resolve = this.pendingBellCycleHistory.get(message.requestId);
+      if (!resolve) return;
+      this.pendingBellCycleHistory.delete(message.requestId);
+      resolve(message);
+    });
+
     room.onLeave((code: number) => {
       const abnormalClose = code !== 1000;
       if (!abnormalClose) {
@@ -456,6 +512,7 @@ export class MultiplayerClient {
       this.room.send("whiteboard_snapshot_request");
       this.room.send("sticky_note_snapshot_request");
       this.room.send("world_time_request");
+      this.room.send("bell_cycle_snapshot_request");
     } catch {
       sessionStorage.removeItem(RECONNECTION_TOKEN_STORAGE_KEY);
       this.callbacks.onConnectionStateChange("disconnected");

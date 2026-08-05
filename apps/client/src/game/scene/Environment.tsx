@@ -12,6 +12,7 @@ import {
   type Texture,
 } from "playcanvas";
 import { Prop } from "./Props";
+import { TokenPitchWallDisplay } from "./TokenPitchWallDisplay";
 import { TickerDisplay } from "./TickerDisplay";
 import { WorldClocksDisplay } from "./WorldClockDisplay";
 import { StaticBox, VisualBox, StaticCylinder, VisualCylinder, VisualSphere } from "./primitives";
@@ -68,7 +69,7 @@ function textureOf(asset: Asset | null): Texture | undefined {
   return (asset?.resource as Texture | undefined) ?? undefined;
 }
 
-interface DeskMonitorProps {
+export interface DeskMonitorProps {
   position: [number, number, number];
   rotationY: number;
   screenMaterial: ReturnType<typeof useMaterial>;
@@ -117,7 +118,7 @@ function MonitorScreenSurface({ material }: { material: ReturnType<typeof useMat
 }
 
 /** Large Poly Pizza monitor whose panel carries the ambient HyperLiquid view. */
-function DeskMonitor({
+export function DeskMonitor({
   position,
   rotationY,
   screenMaterial,
@@ -271,7 +272,6 @@ function DeskBank({ centerX, centerZ, facesPositiveX, bankIndex, deskMaterial, t
 }
 
 const DESK_BANKS: Array<{ centerX: number; centerZ: number; facesPositiveX: boolean }> = [
-  { centerX: -8, centerZ: -7, facesPositiveX: true },
   { centerX: -8, centerZ: 7, facesPositiveX: true },
   { centerX: 8, centerZ: -7, facesPositiveX: false },
   { centerX: 8, centerZ: 7, facesPositiveX: false },
@@ -629,9 +629,17 @@ function SkylineNightWindows() {
 interface RoomEnvironmentProps {
   /** Content for currently-visible office slots, keyed by `OfficeSlot.id` — see OfficeWing.tsx. Populated by App.tsx once a player is near enough to have fetched it; defaults to all-vacant. */
   officeSlotContentById?: Record<string, OfficeSlotContent>;
+  pitchActive?: boolean;
+  pitchPresenterName?: string;
+  pitchTokenTicker?: string;
 }
 
-export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContentById }: RoomEnvironmentProps = {}) {
+export const RoomEnvironment = memo(function RoomEnvironment({
+  officeSlotContentById,
+  pitchActive = false,
+  pitchPresenterName = "",
+  pitchTokenTicker = "BULL",
+}: RoomEnvironmentProps = {}) {
   const { asset: concreteWallDiffuse } = useTexture("/assets/textures/concrete_wall_diff_2k.jpg");
   const { asset: concreteWallNormal } = useTexture("/assets/textures/concrete_wall_nor_2k.jpg");
   const { asset: floorTileDiffuse } = useTexture("/assets/textures/granite_tile_diff_2k.jpg");
@@ -695,7 +703,6 @@ export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContent
   // Central trading-pit platform + terminal cluster.
   const pitStepMaterial = useMaterial({ diffuse: "#4a4d52", metalness: 0.3, gloss: 0.4 });
   const pitTopMaterial = useMaterial({ diffuse: "#5c6066", metalness: 0.3, gloss: 0.45 });
-  const terminalDeskMaterial = useMaterial({ diffuse: "#3a3630" });
 
   // The window is an open visual layer: the daytime HDR skybox and low-poly
   // foreground buildings remain fully visible behind the steel frame. Keeping
@@ -938,6 +945,17 @@ export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContent
       */}
       <WorldClocksDisplay />
 
+      {/* Main-floor stand-up token pitch corner, mounted on the west wall. */}
+      <Prop src="/assets/microphone_pitch.glb" position={[-8.2, 0, -4.8]} rotation={[0, 90, 0]} />
+      <TokenPitchWallDisplay
+        kind="token"
+        position={[-9.7, 2.75, -4.8]}
+        scale={[1.7, 2.1, 0.01]}
+        active={pitchActive}
+        presenterName={pitchPresenterName}
+        ticker={pitchTokenTicker}
+      />
+
       {/*
         16 trading desks in four 2x2 banks, flanking the central pit on the
         west (x=-8) and east (x=8) sides, between the windows and reception.
@@ -968,30 +986,6 @@ export const RoomEnvironment = memo(function RoomEnvironment({ officeSlotContent
       <StaticCylinder position={[0, 0.075, 0]} rotation={[0, 0, 0]} radius={2.5} height={0.15} material={pitStepMaterial} />
       <StaticCylinder position={[0, 0.225, 0]} rotation={[0, 0, 0]} radius={1.8} height={0.15} material={pitStepMaterial} />
       <StaticCylinder position={[0, 0.375, 0]} rotation={[0, 0, 0]} radius={1.2} height={0.15} material={pitTopMaterial} />
-      {[
-        [-0.6, -0.6],
-        [0.6, -0.6],
-        [-0.6, 0.6],
-        [0.6, 0.6],
-      ].map(([dx, dz], index) => (
-        <Fragment key={`pit-terminal-${index}`}>
-          <StaticBox
-            position={[dx, 0.65, dz]}
-            size={[0.55, 0.5, 0.5]}
-            material={terminalDeskMaterial}
-            renderVisible={true}
-          />
-          <DeskMonitor
-            position={[dx, 0.9, dz]}
-            rotationY={index % 2 === 0 ? 0 : 180}
-            screenMaterial={terminalScreenMaterial}
-            scaleMultiplier={0.65}
-          />
-        </Fragment>
-      ))}
-
-      {/* First token-launch booth prototype, facing inward toward the IPO floor. */}
-
       {/* Filing cabinets along the side walls between the desk banks and reception — "peripheral office clutter". */}
       {FILING_CABINET_POSITIONS.map((position, index) => (
         <Fragment key={`cabinet-${index}`}>
