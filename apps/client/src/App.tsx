@@ -482,6 +482,8 @@ function App() {
   const stickyWallHintTimerRef = useRef<number | null>(null);
   const justPlacedStickyNoteTimerRef = useRef<number | null>(null);
   const [entered, setEntered] = useState(false);
+  const enteredRef = useRef(false);
+  const intentionalUnlockRef = useRef(false);
   const [selectedSceneId, setSelectedSceneId] = useState("trading-floor");
   const selectedSceneIdRef = useRef("trading-floor");
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
@@ -972,6 +974,12 @@ function App() {
     };
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Shift") isRunningRef.current = true;
+      if (event.key === "Alt" && enteredRef.current) {
+        event.preventDefault();
+        intentionalUnlockRef.current = true;
+        document.exitPointerLock();
+        return;
+      }
       const target = event.target;
       const typing =
         target instanceof HTMLInputElement ||
@@ -1050,20 +1058,15 @@ function App() {
         setPointerLockLost(false);
         return;
       }
-      const inFreeLookGameplay =
-        !terminalOpenRef.current &&
-        !whiteboardOpenRef.current &&
-        !officeEditorOpenRef.current &&
-        !stickyNoteEditorOpenRef.current &&
-        !needsDisplayNameRef.current;
-      if (!inFreeLookGameplay) return;
-      setPointerLockLost(true);
-      const cameraEntity = playerEntityRef.current?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
-      const canvas = cameraEntity?.camera?.system.app.graphicsDevice.canvas;
-      const request = canvas?.requestPointerLock();
-      if (request && typeof request.catch === "function") {
-        request.catch(() => {});
+      if (intentionalUnlockRef.current) {
+        intentionalUnlockRef.current = false;
+        setPointerLockLost(true);
+        return;
       }
+      if (!enteredRef.current) return;
+      enteredRef.current = false;
+      setEntered(false);
+      setPointerLockLost(false);
     };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -1232,9 +1235,7 @@ function App() {
   }, [selectedSceneId]);
 
   const handleEnter = (): void => {
-    // Just dismiss the overlay. The ready-made controller requests pointer lock
-    // itself the moment the user clicks the now-visible canvas underneath — a
-    // second manual request here raced against that one and neither ever won.
+    enteredRef.current = true;
     setEntered(true);
   };
 
