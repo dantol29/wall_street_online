@@ -7,7 +7,7 @@ import type { RemotePlayerRecord } from "./remotePlayerRecord";
 
 const UPDATE_INTERVAL_MS = 1000 / 12;
 const LOCAL_CAMERA_ENTITY_NAME = "local-camera";
-/** A bit above the name label (see NameLabelsOverlay's own LABEL_HEIGHT_ABOVE_ORIGIN) so the two never overlap. */
+/** A bit above the name/PnL billboard (see PlayerLabelBillboard's own LABEL_HEIGHT_ABOVE_ORIGIN) so the two never overlap. */
 const BUBBLE_HEIGHT_ABOVE_ORIGIN = 1.35;
 const BUBBLE_DURATION_MS = 6000;
 
@@ -23,10 +23,12 @@ interface ChatBubblesOverlayProps {
 
 /**
  * Transient speech-bubble DOM labels over a remote player's head when they
- * send a chat message — same imperative screen-space-projection technique as
- * NameLabelsOverlay (a plain DOM sibling of the canvas, not an in-engine
- * world-space Text Element, which would need an SDF font asset we don't
- * have), just keyed on recent messages instead of persistent name tags.
+ * send a chat message — a plain DOM sibling of the canvas, positioned via
+ * imperative screen-space projection, unlike the name/PnL billboard (see
+ * PlayerLabelBillboard.tsx), which is real in-world geometry. Kept as a DOM
+ * overlay here since it's transient/rare (one short-lived bubble at a time
+ * per sender) rather than a persistent per-player fixture — not worth a
+ * canvas-texture entity that would mostly sit unused.
  * Your own messages are skipped implicitly, not by filtering: `recordsRef`
  * only ever tracks *other* players, so looking up the local session id here
  * simply finds no record to position a bubble against.

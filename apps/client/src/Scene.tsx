@@ -1,12 +1,13 @@
-import { forwardRef, useImperativeHandle, useRef, useState, type MutableRefObject, type Ref } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type MutableRefObject, type Ref } from "react";
 import type { Entity as PcEntity } from "playcanvas";
 import {
-  SPAWN_POINTS,
   type AnimationState,
   type ChatMessage,
   type StickyNote,
   type WhiteboardSnapshot,
 } from "@multiplayer/shared";
+import { getSceneConfig } from "./scenes/registry";
+import { EditorScene } from "./game/scene/EditorScene";
 import { RoomEnvironment } from "./game/scene/Environment";
 import type { OfficeSlotContent } from "./game/scene/OfficeContentDisplay";
 import { CollaborativeWhiteboardDisplay } from "./game/scene/CollaborativeWhiteboardDisplay";
@@ -14,8 +15,6 @@ import { StickyWallDisplay } from "./game/scene/StickyWallDisplay";
 import { Lighting } from "./game/scene/Lighting";
 import { LocalPlayer } from "./game/player/LocalPlayer";
 import { RemotePlayer } from "./game/player/RemotePlayer";
-import { NameLabelsOverlay } from "./game/player/NameLabelsOverlay";
-import { ChatBubblesOverlay } from "./game/player/ChatBubblesOverlay";
 import {
   createRemoteTransform,
   getVisualTransform,
@@ -27,14 +26,16 @@ import type { WorldTimeAnchor } from "./game/scene/dayNight";
 import { DayNightProvider } from "./game/scene/DayNightContext";
 
 interface SceneProps {
+  sceneId: string;
   playerEntityRef?: Ref<PcEntity>;
   /** Read every frame by LocalPlayer's own body model — see App.tsx's movement tick. */
   localAnimationRef: MutableRefObject<AnimationState>;
   localSeated: boolean;
-  nameLabelsContainerRef: React.RefObject<HTMLDivElement | null>;
   speakingPlayerIds: ReadonlySet<string>;
-  /** Drives ChatBubblesOverlay — a transient speech bubble over a remote sender's head, in addition to the side chat panel. */
   messages: ChatMessage[];
+  chatFocused: boolean;
+  chatDraft: string;
+  chatDisabled: boolean;
   whiteboardSnapshot: WhiteboardSnapshot;
   officeSlotContentById?: Record<string, OfficeSlotContent>;
   stickyNotes: StickyNote[];
@@ -56,18 +57,21 @@ export interface SceneHandle {
   }>;
   /** Which connected player (if any) is currently bound to this office slot — see OFFICE_SLOTS/PlayerState.officeSlotId. */
   getSessionIdForOfficeSlot: (slotId: string) => string | null;
+  /** Applies a pnl_update entry — a no-op if that session isn't (or is no longer) a tracked remote player. */
+  updateRemotePnl: (sessionId: string, pnlUsd: number) => void;
 }
-
-const DEFAULT_SPAWN = SPAWN_POINTS[0];
 
 const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
   {
+    sceneId,
     playerEntityRef,
     localAnimationRef,
     localSeated,
-    nameLabelsContainerRef,
     speakingPlayerIds,
     messages,
+    chatFocused,
+    chatDraft,
+    chatDisabled,
     whiteboardSnapshot,
     officeSlotContentById,
     stickyNotes,
@@ -79,6 +83,9 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
 ) {
   const recordsRef = useRef<Map<string, RemotePlayerRecord>>(new Map());
   const [remoteIds, setRemoteIds] = useState<string[]>([]);
+  const [editorSceneReady, setEditorSceneReady] = useState(false);
+  const onEditorSceneReady = useCallback(() => setEditorSceneReady(true), []);
+  useEffect(() => setEditorSceneReady(false), [sceneId]);
 
   useImperativeHandle(
     ref,
@@ -91,6 +98,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
           animation: snapshot.animation,
           seatedDeskId: snapshot.seatedDeskId,
           officeSlotId: snapshot.officeSlotId,
+          pnlUsd: null,
         });
         setRemoteIds((prev) => [...prev, snapshot.sessionId]);
       },
@@ -98,6 +106,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
         const record = recordsRef.current.get(snapshot.sessionId);
         if (!record) return;
         updateRemoteTransformTarget(record.transform, snapshot, Date.now());
+        record.displayName = snapshot.displayName;
         record.animation = snapshot.animation;
         record.seatedDeskId = snapshot.seatedDeskId;
         record.officeSlotId = snapshot.officeSlotId;
@@ -130,35 +139,58 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
         }
         return null;
       },
+      updateRemotePnl(sessionId, pnlUsd) {
+        const record = recordsRef.current.get(sessionId);
+        if (!record) return;
+        record.pnlUsd = pnlUsd;
+      },
     }),
     []
   );
 
+  const sceneConfig = getSceneConfig(sceneId);
+  const spawn = sceneConfig.spawnPoints[0];
+
+  const sceneEnvironment =
+    sceneConfig.type === "editor" && sceneConfig.configUrl && sceneConfig.sceneUrl ? (
+      <EditorScene configUrl={sceneConfig.configUrl} sceneUrl={sceneConfig.sceneUrl} onReady={onEditorSceneReady} />
+    ) : (
+      <DayNightProvider worldTime={worldTime} overridePhase={worldTimeOverridePhase}>
+        <RoomEnvironment officeSlotContentById={officeSlotContentById} />
+        <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
+        <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />
+        <Lighting />
+      </DayNightProvider>
+    );
+
+  const playerReady = sceneConfig.type !== "editor" || editorSceneReady;
+
   return (
-    <DayNightProvider worldTime={worldTime} overridePhase={worldTimeOverridePhase}>
-      <RoomEnvironment officeSlotContentById={officeSlotContentById} />
-      <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
-      <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />
-      <Lighting />
-      <LocalPlayer
-        spawn={DEFAULT_SPAWN}
-        seated={localSeated}
-        animationRef={localAnimationRef}
-        ref={playerEntityRef}
-      />
+    <>
+      {sceneEnvironment}
+      {playerReady && (
+        <LocalPlayer
+          spawn={spawn}
+          seated={localSeated}
+          animationRef={localAnimationRef}
+          chatMessages={messages}
+          chatFocused={chatFocused}
+          chatDraft={chatDraft}
+          chatDisabled={chatDisabled}
+          ref={playerEntityRef}
+        />
+      )}
 
       {remoteIds.map((sessionId) => (
-        <RemotePlayer key={sessionId} sessionId={sessionId} recordsRef={recordsRef} />
+        <RemotePlayer
+          key={sessionId}
+          sessionId={sessionId}
+          recordsRef={recordsRef}
+          speaking={speakingPlayerIds.has(sessionId)}
+        />
       ))}
 
-      <NameLabelsOverlay
-        remoteIds={remoteIds}
-        recordsRef={recordsRef}
-        containerRef={nameLabelsContainerRef}
-        speakingPlayerIds={speakingPlayerIds}
-      />
-      <ChatBubblesOverlay messages={messages} recordsRef={recordsRef} containerRef={nameLabelsContainerRef} />
-    </DayNightProvider>
+    </>
   );
 });
 

@@ -6,6 +6,7 @@ import type { Entity as PcEntity } from "playcanvas";
 import type { AnimationState } from "@multiplayer/shared";
 import { getVisualTransform } from "../multiplayer/interpolation";
 import type { RemotePlayerRecord } from "./remotePlayerRecord";
+import { PlayerLabelBillboard } from "./PlayerLabelBillboard";
 import {
   CHARACTER_ANIM_TRANSITION_BLEND_SECONDS,
   CHARACTER_MODEL_ASSET_PATH,
@@ -24,6 +25,7 @@ const UPDATE_INTERVAL_MS = 1000 / 12;
 interface RemotePlayerProps {
   sessionId: string;
   recordsRef: React.RefObject<Map<string, RemotePlayerRecord>>;
+  speaking: boolean;
 }
 
 /**
@@ -34,7 +36,7 @@ interface RemotePlayerProps {
  * the asset), so the anim component is added and wired up here imperatively
  * instead, registering our three clips as distinct, switchable states.
  */
-export function RemotePlayer({ sessionId, recordsRef }: RemotePlayerProps) {
+export function RemotePlayer({ sessionId, recordsRef, speaking }: RemotePlayerProps) {
   const rootRef = useRef<PcEntity | null>(null);
   const modelRef = useRef<PcEntity | null>(null);
   const statesRegisteredRef = useRef(false);
@@ -100,6 +102,7 @@ export function RemotePlayer({ sessionId, recordsRef }: RemotePlayerProps) {
           <Render type="asset" asset={asset} />
         </Entity>
       )}
+      <PlayerLabelBillboard sessionId={sessionId} recordsRef={recordsRef} speaking={speaking} />
     </Entity>
   );
 }

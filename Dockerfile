@@ -4,7 +4,7 @@ ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ca-certificates \
+    && apt-get install -y --no-install-recommends git ca-certificates python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
@@ -20,6 +20,15 @@ RUN pnpm install --frozen-lockfile
 
 COPY apps apps
 COPY packages packages
+
+# Vite bakes VITE_* vars into the client bundle at build time, not runtime —
+# .dockerignore excludes .env, so these must come in as build args (e.g.
+# `docker build --build-arg VITE_PRIVY_APP_ID=...`). Leaving VITE_PRIVY_APP_ID
+# unset is fine — it just disables the wallet-connect UI (see privyConfig.ts).
+ARG VITE_PRIVY_APP_ID=""
+ARG VITE_GAME_SERVER_URL=""
+ENV VITE_PRIVY_APP_ID=$VITE_PRIVY_APP_ID
+ENV VITE_GAME_SERVER_URL=$VITE_GAME_SERVER_URL
 
 RUN pnpm build
 RUN pnpm --filter @multiplayer/game-server deploy --prod --legacy /deployment/server

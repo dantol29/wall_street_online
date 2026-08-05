@@ -1,5 +1,6 @@
 import { Client, Room } from "colyseus";
 import {
+  HYPERLIQUID_PNL_POLL_INTERVAL_MS,
   MAX_PLAYERS,
   RECONNECTION_TIMEOUT_SECONDS,
   STICKY_NOTE_UPDATE_COOLDOWN_MS,
@@ -19,8 +20,12 @@ import {
   type OfficeProfileRequestMessage,
   type OfficeProfileResultMessage,
   type PlayerInputMessage,
+  type PlayerPnlEntry,
+  type PnlUpdateMessage,
   type SeatRequestMessage,
   type SeatResultMessage,
+  type SetDisplayNameRequestMessage,
+  type SetDisplayNameResultMessage,
   type StickyNote,
   type StickyNoteDeleteMessage,
   type StickyNoteDeleteRequestMessage,
@@ -59,23 +64,21 @@ import { createVoiceToken } from "../voice/voiceToken";
 import { verifyPrivyWallet } from "../wallet/privyAuth";
 import { validateWhiteboardShape } from "../validation/whiteboardValidation";
 import { getDb } from "../db/client";
+import { fetchHyperliquidAllTimePnl } from "../hyperliquid/hyperliquidPnl";
 import {
   addVisitorBookEntry,
   getOfficeProfileBundle,
+  getProfileDisplayName,
   publishThesis,
   replaceWatchlist,
   resolveProfileIdByAddress,
   upsertProfileAndWallet,
 } from "../db/officeRepository";
+import { validateDisplayName } from "../validation/displayNameValidation";
 
-const GUEST_DISPLAY_NAME_PATTERN = /^Trader-\d{4}$/;
 const MAX_CHAT_HISTORY_MESSAGES = 20;
 /** Shared by every room/shard in this server process, so all traders see the same time. */
 const WORLD_TIME_EPOCH_MS = Date.now() - (WORLD_START_HOUR / 24) * WORLD_DAY_DURATION_MS;
-
-function shortenWalletAddress(address: string): string {
-  return address.length > 12 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address;
-}
 
 interface JoinOptions {
   displayName?: string;
@@ -107,10 +110,13 @@ export class SocialRoom extends Room<SocialRoomState> {
   /** Ephemeral, like whiteboardShapes — one note per session, keyed by sessionId so there's structurally no way to add a second or edit someone else's. Reset when the shard empties/restarts, not persisted. */
   private readonly stickyNotesBySessionId = new Map<string, StickyNote>();
   private readonly stickyNoteUpdateRateLimiter = new SlidingWindowRateLimiter(1, STICKY_NOTE_UPDATE_COOLDOWN_MS);
+  /** Purely a defensive debounce against accidental double-submits — this isn't meant to be a frequent action. */
+  private readonly setDisplayNameRateLimiter = new SlidingWindowRateLimiter(1, 5000);
 
   override onCreate(): void {
     this.setState(new SocialRoomState());
     this.clock.setInterval(() => this.broadcast("world_time_sync", this.worldTimeSync()), WORLD_TIME_SYNC_INTERVAL_MS);
+    this.clock.setInterval(() => void this.pollAndBroadcastPnl(), HYPERLIQUID_PNL_POLL_INTERVAL_MS);
 
     this.onMessage("world_time_request", (client) => {
       client.send("world_time_sync", this.worldTimeSync());
@@ -180,6 +186,10 @@ export class SocialRoom extends Room<SocialRoomState> {
       void this.handleWalletLinkRequest(client, message);
     });
 
+    this.onMessage("set_display_name_request", (client, message: SetDisplayNameRequestMessage) => {
+      this.handleSetDisplayNameRequest(client, message);
+    });
+
     this.onMessage("office_profile_request", (client, message: OfficeProfileRequestMessage) => {
       this.handleOfficeProfileRequest(client, message);
     });
@@ -240,6 +250,34 @@ export class SocialRoom extends Room<SocialRoomState> {
       dayDurationMs: WORLD_DAY_DURATION_MS,
       serverTimeMs,
     };
+  }
+
+  /**
+   * Real HyperLiquid all-time PnL (Perps + Spot + Vaults, realized +
+   * unrealized) for every currently wallet-linked player, via HyperLiquid's
+   * public info endpoint (no auth, no API key, same data anyone could look
+   * up for that address directly). A player with no trading history at all
+   * (or a failed lookup) is simply omitted from that cycle's broadcast
+   * rather than sent as a false 0.
+   */
+  private async pollAndBroadcastPnl(): Promise<void> {
+    const linkedPlayers: Array<{ sessionId: string; address: string }> = [];
+    for (const [sessionId, player] of this.state.players.entries()) {
+      if (player.walletAddress) linkedPlayers.push({ sessionId, address: player.walletAddress });
+    }
+    if (linkedPlayers.length === 0) return;
+
+    const results = await Promise.all(
+      linkedPlayers.map(async ({ sessionId, address }) => {
+        const pnlUsd = await fetchHyperliquidAllTimePnl(address);
+        return pnlUsd === null ? null : { sessionId, pnlUsd };
+      }),
+    );
+
+    const entries = results.filter((entry): entry is PlayerPnlEntry => entry !== null);
+    if (entries.length === 0) return;
+
+    this.broadcast("pnl_update", { entries } satisfies PnlUpdateMessage);
   }
 
   override async onLeave(client: Client, consented: boolean): Promise<void> {
@@ -600,8 +638,18 @@ export class SocialRoom extends Room<SocialRoomState> {
     player.walletAddress = wallet.address;
     player.walletChain = wallet.chain;
     player.playerId = wallet.userId;
-    if (GUEST_DISPLAY_NAME_PATTERN.test(player.displayName)) {
-      player.displayName = shortenWalletAddress(wallet.address);
+
+    // Restore whatever name this identity already chose in a past session —
+    // otherwise every reconnect would re-derive the in-memory guest-pattern
+    // placeholder as "current", clobbering a real chosen name back to
+    // nothing every time. No existing profile at all means this is their
+    // very first wallet link ever, so there's nothing to restore: they're
+    // required to choose a real name via set_display_name_request, and the
+    // guest placeholder stays until they do.
+    const existingDisplayName = getProfileDisplayName(this.db, wallet.userId);
+    const needsDisplayName = existingDisplayName === null;
+    if (existingDisplayName !== null) {
+      player.displayName = existingDisplayName;
     }
 
     upsertProfileAndWallet(this.db, {
@@ -618,7 +666,73 @@ export class SocialRoom extends Room<SocialRoomState> {
       address: wallet.address,
       chain: wallet.chain,
       ...(player.officeSlotId ? { officeSlotId: player.officeSlotId } : {}),
+      needsDisplayName,
     } satisfies WalletLinkResultMessage);
+
+    // A one-off lookup for just this player, so their PnL shows up promptly
+    // rather than waiting for the next full poll cycle (see pollAndBroadcastPnl).
+    const sessionId = client.sessionId;
+    void fetchHyperliquidAllTimePnl(wallet.address).then((pnlUsd) => {
+      if (pnlUsd === null) return;
+      this.broadcast("pnl_update", { entries: [{ sessionId, pnlUsd }] } satisfies PnlUpdateMessage);
+    });
+  }
+
+  /**
+   * Only meaningful for a wallet-linked identity — `player.playerId` (the
+   * Privy DID) is empty for guests, and there's no profile row to persist
+   * a name against. Setting `state.players`' own `displayName` here is
+   * enough for every other client to see it live: it's a schema field,
+   * replicated automatically, no broadcast needed.
+   */
+  private handleSetDisplayNameRequest(client: Client, message: SetDisplayNameRequestMessage): void {
+    if (!message || !Number.isSafeInteger(message.requestId)) return;
+    const baseResult: Pick<SetDisplayNameResultMessage, "requestId"> = { requestId: message.requestId };
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    if (!player.playerId) {
+      client.send("set_display_name_result", {
+        ...baseResult,
+        success: false,
+        message: "Link a wallet first.",
+      } satisfies SetDisplayNameResultMessage);
+      return;
+    }
+
+    if (!this.setDisplayNameRateLimiter.isAllowed(client.sessionId, Date.now())) {
+      client.send("set_display_name_result", {
+        ...baseResult,
+        success: false,
+        message: "Please wait before changing your name again.",
+      } satisfies SetDisplayNameResultMessage);
+      return;
+    }
+
+    const validation = validateDisplayName(typeof message.displayName === "string" ? message.displayName : "");
+    if (!validation.valid) {
+      client.send("set_display_name_result", {
+        ...baseResult,
+        success: false,
+        message: validation.reason,
+      } satisfies SetDisplayNameResultMessage);
+      return;
+    }
+
+    player.displayName = validation.text;
+    upsertProfileAndWallet(this.db, {
+      playerId: player.playerId,
+      displayName: validation.text,
+      address: player.walletAddress,
+      chain: player.walletChain,
+    });
+
+    client.send("set_display_name_result", {
+      ...baseResult,
+      success: true,
+      displayName: validation.text,
+    } satisfies SetDisplayNameResultMessage);
   }
 
   /** Binds a newly wallet-linked player to a free physical office slot for this shard session, if one is available (see officeSlotAssignment.ts — unlike spawn/desk assignment, there's no overlap fallback). Idempotent: a player who already has a slot keeps it. */

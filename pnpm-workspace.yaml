@@ -1,3 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+allowBuilds:
+  '@reown/appkit': true
+  better-sqlite3: true
+  bufferutil: true
+  keccak: true
+  utf-8-validate: true
