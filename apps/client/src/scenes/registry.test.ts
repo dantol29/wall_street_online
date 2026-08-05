@@ -22,9 +22,21 @@ describe("scene registry", () => {
     expect(scene.spawnPoints.length).toBeGreaterThan(0);
   });
 
+  it("has trading-space entry with type editor", () => {
+    const scene = SCENES["trading-space"];
+    expect(scene).toBeDefined();
+    expect(scene.id).toBe("trading-space");
+    expect(scene.type).toBe("editor");
+    expect(scene.label).toBe("Trading Space");
+    expect(scene.configUrl).toBe("/scenes/trading-space/config.json");
+    expect(scene.sceneUrl).toBe("/scenes/trading-space/scenes/trading-space.json");
+    expect(scene.spawnPoints.length).toBeGreaterThan(0);
+  });
+
   it("getSceneConfig returns the right entry", () => {
     expect(getSceneConfig("trading-floor").type).toBe("react");
     expect(getSceneConfig("small-office").type).toBe("editor");
+    expect(getSceneConfig("trading-space").type).toBe("editor");
   });
 
   it("getSceneConfig throws for unknown id", () => {

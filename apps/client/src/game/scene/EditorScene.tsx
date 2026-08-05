@@ -14,11 +14,14 @@ interface LoadState {
   message?: string;
 }
 
-const ASSET_BASE_PATH = "/scenes/small-office/";
+function deriveBasePath(configUrl: string): string {
+  const lastSlash = configUrl.lastIndexOf("/");
+  return lastSlash >= 0 ? configUrl.slice(0, lastSlash + 1) : "/";
+}
 
-function prefixUrl(url: string): string {
+function prefixUrl(url: string, basePath: string): string {
   if (url.startsWith("http") || url.startsWith("/")) return url;
-  return ASSET_BASE_PATH + url;
+  return basePath + url;
 }
 
 const PRELOADABLE_TYPES = new Set(["container", "texture", "cubemap"]);
@@ -42,6 +45,8 @@ export function EditorScene({ configUrl, sceneUrl, onReady }: EditorSceneProps) 
     floorEntity.setLocalPosition(0, -0.25, 0);
     app.root.addChild(floorEntity);
     floorCollider = floorEntity;
+
+    const basePath = deriveBasePath(configUrl);
 
     const load = async () => {
       try {
@@ -73,7 +78,7 @@ export function EditorScene({ configUrl, sceneUrl, onReady }: EditorSceneProps) 
           const asset = new Asset(
             entry.name || `asset-${id}`,
             entry.type as Asset["type"],
-            entry.file ? { url: prefixUrl(entry.file.url), filename: entry.file.filename || "" } : undefined,
+            entry.file ? { url: prefixUrl(entry.file.url, basePath), filename: entry.file.filename || "" } : undefined,
             entry.data as object | string | undefined,
           );
           asset.id = id;
