@@ -1,4 +1,4 @@
-import { forwardRef, memo, useRef, useState, type MutableRefObject } from "react";
+import { forwardRef, memo, useEffect, useRef, useState, type MutableRefObject } from "react";
 import { Entity } from "@playcanvas/react";
 import { Camera, Render, Script } from "@playcanvas/react/components";
 import { useAppEvent, useModel, usePhysics } from "@playcanvas/react/hooks";
@@ -22,10 +22,13 @@ import {
 } from "./characterAnimation";
 
 const EYE_HEIGHT_OFFSET = 0.8;
+const THIRD_PERSON_DISTANCE = 4;
+const THIRD_PERSON_HEIGHT = 2;
+const DEG_TO_RAD = Math.PI / 180;
 
 /** Just enough of first-person-controller.mjs's runtime shape to read its yaw accumulator — see the note below. */
 interface FirstPersonControllerRuntime {
-  _angles?: { y: number };
+  _angles?: { x: number; y: number };
 }
 
 interface LocalPlayerProps {
@@ -72,36 +75,45 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
   const { asset } = useModel(CHARACTER_MODEL_ASSET_PATH);
   const modelRef = useRef<PcEntity | null>(null);
   const statesRegisteredRef = useRef(false);
-  const headHiddenRef = useRef(false);
+  const thirdPersonRef = useRef(false);
   const lastRequestedAnimationRef = useRef<AnimationState | null>(null);
   const seatedPoseRigRef = useRef<CharacterSeatedPoseRig | null>(null);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "KeyV" && !chatFocused) {
+        thirdPersonRef.current = !thirdPersonRef.current;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [chatFocused]);
 
   useAppEvent("update", () => {
     const model = modelRef.current;
     if (!model || !asset?.resource || !cameraEntity) return;
     model.setLocalPosition(0, seated ? CHARACTER_SEATED_MODEL_Y_OFFSET : CHARACTER_MODEL_Y_OFFSET, 0);
 
-    if (!headHiddenRef.current) {
-      const head = model.findByName(CHARACTER_HEAD_NODE_NAME);
-      if (head) {
-        head.enabled = false;
-        headHiddenRef.current = true;
-      }
-    }
-
-    // Reads the controller's own yaw accumulator rather than decomposing it
-    // back out of the camera's rotation quaternion via getLocalEulerAngles():
-    // that decomposition also encodes pitch, and degrades (misreporting yaw)
-    // as pitch approaches ±90° — classic Euler gimbal lock, which is exactly
-    // why the body would sometimes end up facing a different way than the
-    // camera/movement direction actually was. `_angles.y` is the plain float
-    // the controller itself increments every frame, entirely independent of
-    // pitch, so it's immune to that. Falls back to the old method only if the
-    // controller script isn't mounted yet.
     const controller = (cameraEntity.parent as PcEntity | null)?.script?.get(
       FirstPersonController.scriptName,
     ) as FirstPersonControllerRuntime | undefined;
     const yaw = controller?._angles ? controller._angles.y : cameraEntity.getLocalEulerAngles().y;
+
+    const tp = thirdPersonRef.current;
+    if (tp) {
+      const yawRad = yaw * DEG_TO_RAD;
+      cameraEntity.setLocalPosition(
+        Math.sin(yawRad) * THIRD_PERSON_DISTANCE,
+        THIRD_PERSON_HEIGHT,
+        Math.cos(yawRad) * THIRD_PERSON_DISTANCE,
+      );
+    } else {
+      cameraEntity.setLocalPosition(0, EYE_HEIGHT_OFFSET, 0);
+    }
+
+    const head = model.findByName(CHARACTER_HEAD_NODE_NAME);
+    if (head) head.enabled = tp;
+
     model.setLocalEulerAngles(0, yaw + CHARACTER_MODEL_YAW_OFFSET_DEGREES, 0);
 
     if (!statesRegisteredRef.current) {
