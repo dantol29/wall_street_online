@@ -53,6 +53,20 @@ export const SCENES: Record<string, SceneConfig> = {
     ],
     worldBounds: { minX: -30, maxX: 30, minY: -1, maxY: 20, minZ: -30, maxZ: 30 },
   },
+  "trading-space-v2": {
+    id: "trading-space-v2",
+    label: "Trading Space v2",
+    type: "editor",
+    configUrl: "/scenes/trading-space-v2/config.json",
+    sceneUrl: "/scenes/trading-space-v2/scenes/trading-space-2.json",
+    spawnPoints: [
+      { x: 0, y: 1, z: 0 },
+      { x: 1, y: 1, z: 1 },
+      { x: -1, y: 1, z: 0 },
+      { x: 0, y: 1, z: -1 },
+    ],
+    worldBounds: { minX: -30, maxX: 30, minY: -1, maxY: 20, minZ: -30, maxZ: 30 },
+  },
 };
 
 export function getSceneConfig(id: string): SceneConfig {
