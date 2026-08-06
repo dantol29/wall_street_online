@@ -182,6 +182,8 @@
                 "0235ea65-c580-4bc1-9ed8-de282a463345",
                 "b854ce4c-1eb3-4e14-ac9a-b9b5d03bfbb3",
                 "3b8efb07-17ca-4de3-bfdf-7a243f69157a",
+                "b6ab9345-060b-4e59-b474-e95121c7aff7",
+                "73e0e546-b958-468c-afe5-99c46b25bbbd",
                 "5609845b-7b0c-43fb-98a8-7118ddcc7b0d",
                 "ee84f388-4f30-47c5-a7c4-bdaa812b1431",
                 "7bcf6454-7acb-4251-bb36-8f6d527cde3f",
@@ -14984,7 +14986,7 @@
             "parent": "0c7157ff-3a83-4cff-a7e5-0c1390f9b823",
             "children": [],
             "position": [
-                -13.453107470468108,
+                -13.46063553144997,
                 3.8054921627044678,
                 -28.755422592163086
             ],
@@ -19472,19 +19474,19 @@
             "parent": "0c7157ff-3a83-4cff-a7e5-0c1390f9b823",
             "children": [],
             "position": [
-                2.074856758117676,
+                2.418699264526367,
                 11.603894233703613,
-                -40.65005874633789
+                -40.27741277996419
             ],
             "rotation": [
                 -179.28910188669423,
-                -0.7556327268640648,
+                -0.755632726864075,
                 163.3970693427411
             ],
             "scale": [
-                0.05895871917787566,
-                3.1619649788260937,
-                3.8736572730298136
+                0.11980419740553595,
+                4.1446628513508745,
+                6.481214268725725
             ],
             "components": {
                 "render": {
@@ -19609,14 +19611,14 @@
                 -40.65005874633789
             ],
             "rotation": [
-                -179.57940059279963,
-                3.3069034707592233,
-                -165.40636632813008
+                -179.33212892775757,
+                -1.9858203833452865,
+                -165.30455115493115
             ],
             "scale": [
                 0.05895871917787566,
-                3.1619649788260937,
-                3.8736572730298136
+                4.065850226400038,
+                5.725798042700247
             ],
             "components": {
                 "render": {
@@ -50180,6 +50182,94 @@
                 "render": {
                     "enabled": true,
                     "type": "cylinder",
+                    "asset": null,
+                    "materialAssets": [
+                        null
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "b6ab9345-060b-4e59-b474-e95121c7aff7": {
+            "name": "Box",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "b6ab9345-060b-4e59-b474-e95121c7aff7",
+            "parent": "0c7157ff-3a83-4cff-a7e5-0c1390f9b823",
+            "children": [],
+            "position": [
+                -14.353303909301758,
+                9.612747192382812,
+                -39.05010377358637
+            ],
+            "rotation": [
+                0,
+                0,
+                0
+            ],
+            "scale": [
+                0.4612426512469732,
+                15.259374972892422,
+                2.3031322372558756
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "box",
+                    "asset": null,
+                    "materialAssets": [
+                        null
+                    ],
+                    "layers": [
+                        0
+                    ],
+                    "batchGroupId": null,
+                    "castShadows": true,
+                    "castShadowsLightmap": true,
+                    "receiveShadows": true,
+                    "lightmapped": false,
+                    "lightmapSizeMultiplier": 1,
+                    "isStatic": false,
+                    "rootBone": null
+                }
+            }
+        },
+        "73e0e546-b958-468c-afe5-99c46b25bbbd": {
+            "name": "Box",
+            "tags": [],
+            "enabled": true,
+            "resource_id": "73e0e546-b958-468c-afe5-99c46b25bbbd",
+            "parent": "0c7157ff-3a83-4cff-a7e5-0c1390f9b823",
+            "children": [],
+            "position": [
+                -14.038524572569413,
+                9.612747192382812,
+                -39.05010223388672
+            ],
+            "rotation": [
+                0,
+                0,
+                0
+            ],
+            "scale": [
+                0.4612426512469732,
+                15.259374972892422,
+                1.234427808582989
+            ],
+            "components": {
+                "render": {
+                    "enabled": true,
+                    "type": "box",
                     "asset": null,
                     "materialAssets": [
                         null
