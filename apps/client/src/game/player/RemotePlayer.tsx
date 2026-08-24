@@ -15,6 +15,7 @@ import {
   CHARACTER_MODEL_YAW_OFFSET_DEGREES,
   CHARACTER_SEATED_MODEL_Y_OFFSET,
   applyCharacterSeatedPose,
+  applyCharacterMaterialFinish,
   registerCharacterAnimationStates,
   resolveCharacterSeatedPoseRig,
   type CharacterSeatedPoseRig,
@@ -40,6 +41,7 @@ export function RemotePlayer({ sessionId, recordsRef, speaking }: RemotePlayerPr
   const rootRef = useRef<PcEntity | null>(null);
   const modelRef = useRef<PcEntity | null>(null);
   const statesRegisteredRef = useRef(false);
+  const materialFinishAppliedRef = useRef(false);
   const lastRequestedAnimationRef = useRef<AnimationState | null>(null);
   const seatedPoseRigRef = useRef<CharacterSeatedPoseRig | null>(null);
   const { asset } = useModel(CHARACTER_MODEL_ASSET_PATH);
@@ -56,6 +58,10 @@ export function RemotePlayer({ sessionId, recordsRef, speaking }: RemotePlayerPr
     const model = modelRef.current;
     if (!model || !asset?.resource) return;
     model.setLocalPosition(0, record.seatedDeskId ? CHARACTER_SEATED_MODEL_Y_OFFSET : CHARACTER_MODEL_Y_OFFSET, 0);
+
+    if (!materialFinishAppliedRef.current) {
+      materialFinishAppliedRef.current = applyCharacterMaterialFinish(model);
+    }
 
     if (!statesRegisteredRef.current) {
       if (registerCharacterAnimationStates(model, asset)) statesRegisteredRef.current = true;

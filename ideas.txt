@@ -1,0 +1,5 @@
+1. Token burn
+2. Token airdrop
+3. Token buying/selling has to be through physicall world not GUI or react
+4. Milestone celebrations - confetti at market-cap milestones ($10k, $50k, etc.), not just at graduation
+5. Friends referral - you get fee rebate for them

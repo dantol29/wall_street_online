@@ -2,16 +2,15 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import type { Entity as PcEntity } from "playcanvas";
 import {
   type AnimationState,
-  type ChatMessage,
   type StickyNote,
   type WhiteboardSnapshot,
 } from "@multiplayer/shared";
 import { getSceneConfig } from "./scenes/registry";
 import { EditorScene } from "./game/scene/EditorScene";
 import { RoomEnvironment } from "./game/scene/Environment";
-import type { OfficeSlotContent } from "./game/scene/OfficeContentDisplay";
 import { CollaborativeWhiteboardDisplay } from "./game/scene/CollaborativeWhiteboardDisplay";
 import { StickyWallDisplay } from "./game/scene/StickyWallDisplay";
+import { TokenMonitor } from "./game/scene/TokenMonitor";
 import { Lighting } from "./game/scene/Lighting";
 import { LocalPlayer } from "./game/player/LocalPlayer";
 import { RemotePlayer } from "./game/player/RemotePlayer";
@@ -32,16 +31,14 @@ interface SceneProps {
   localAnimationRef: MutableRefObject<AnimationState>;
   localSeated: boolean;
   speakingPlayerIds: ReadonlySet<string>;
-  messages: ChatMessage[];
   chatFocused: boolean;
-  chatDraft: string;
-  chatDisabled: boolean;
   whiteboardSnapshot: WhiteboardSnapshot;
-  officeSlotContentById?: Record<string, OfficeSlotContent>;
   stickyNotes: StickyNote[];
   justPlacedStickyNoteAuthorSessionId?: string | null;
   worldTime: WorldTimeAnchor;
   worldTimeOverridePhase: number | null;
+  tokenMonitorTimeframeIndex: number;
+  tokenMonitorTradePress: { side: "buy" | "sell"; id: number } | null;
 }
 
 export interface SceneHandle {
@@ -68,16 +65,14 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     localAnimationRef,
     localSeated,
     speakingPlayerIds,
-    messages,
     chatFocused,
-    chatDraft,
-    chatDisabled,
     whiteboardSnapshot,
-    officeSlotContentById,
     stickyNotes,
     justPlacedStickyNoteAuthorSessionId,
     worldTime,
     worldTimeOverridePhase,
+    tokenMonitorTimeframeIndex,
+    tokenMonitorTradePress,
   },
   ref,
 ) {
@@ -156,9 +151,10 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
       <EditorScene configUrl={sceneConfig.configUrl} sceneUrl={sceneConfig.sceneUrl} onReady={onEditorSceneReady} />
     ) : (
       <DayNightProvider worldTime={worldTime} overridePhase={worldTimeOverridePhase}>
-        <RoomEnvironment officeSlotContentById={officeSlotContentById} />
+        <RoomEnvironment />
         <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
         <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />
+        <TokenMonitor activeTimeframeIndex={tokenMonitorTimeframeIndex} tradePress={tokenMonitorTradePress} />
         <Lighting />
       </DayNightProvider>
     );
@@ -173,10 +169,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
           spawn={spawn}
           seated={localSeated}
           animationRef={localAnimationRef}
-          chatMessages={messages}
           chatFocused={chatFocused}
-          chatDraft={chatDraft}
-          chatDisabled={chatDisabled}
           ref={playerEntityRef}
         />
       )}
@@ -189,7 +182,6 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
           speaking={speakingPlayerIds.has(sessionId)}
         />
       ))}
-
     </>
   );
 });

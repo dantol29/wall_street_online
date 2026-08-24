@@ -14,7 +14,7 @@ const ASSEMBLY_CENTER_Z = 0;
 
 /** Ticker: matte black steel box. */
 export const TICKER_SIZE: [number, number, number] = [9, 0.6, 0.28];
-export const TICKER_PANEL_POSITION: [number, number, number] = [ASSEMBLY_CENTER_X, 5.25, ASSEMBLY_CENTER_Z];
+export const TICKER_PANEL_POSITION: [number, number, number] = [ASSEMBLY_CENTER_X, 8.7, ASSEMBLY_CENTER_Z];
 /** Two black steel suspension rods, inset from the ticker's own ends. */
 export const TICKER_ROD_X_OFFSET = 4.0;
 
@@ -24,7 +24,7 @@ export const TICKER_TEXT =
 export const CLOCK_LABELS = ["NEW YORK", "LONDON", "TOKYO", "HONG KONG"];
 
 /** The white painted-metal panel the four clocks are mounted on, directly beneath the ticker — reintroduced per explicit request ("clocks should be in a component like on an image"), matching the reference image's single housing rather than four independently-floating clocks. */
-export const CLOCK_BOARD_POSITION: [number, number, number] = [0, 4.1, 0];
+export const CLOCK_BOARD_POSITION: [number, number, number] = [0, 7.25, 0];
 export const CLOCK_BOARD_SIZE: [number, number, number] = [4.4, 1.5, 0.15];
 
 /**
@@ -34,8 +34,8 @@ export const CLOCK_BOARD_SIZE: [number, number, number] = [4.4, 1.5, 0.15];
  * clearance) so there's no z-fighting.
  */
 export const CLOCK_POSITIONS: Array<[number, number, number]> = [
-  [-1.5, 4.1, 0.13],
-  [-0.5, 4.1, 0.13],
-  [0.5, 4.1, 0.13],
-  [1.5, 4.1, 0.13],
+  [-1.5, 7.25, 0.13],
+  [-0.5, 7.25, 0.13],
+  [0.5, 7.25, 0.13],
+  [1.5, 7.25, 0.13],
 ];

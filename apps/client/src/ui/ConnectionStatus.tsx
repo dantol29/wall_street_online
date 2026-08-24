@@ -8,5 +8,6 @@ const LABEL_BY_STATE: Record<ConnectionState, string> = {
 };
 
 export function ConnectionStatus({ state }: { state: ConnectionState }) {
+  if (state === "connected") return null;
   return <div className={`connection-status connection-status--${state}`}>{LABEL_BY_STATE[state]}</div>;
 }

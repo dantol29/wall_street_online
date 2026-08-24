@@ -17,9 +17,14 @@ import {
 } from "playcanvas";
 import type { DayNightProfile } from "./dayNight";
 import { useDayNight } from "./DayNightContext";
+import { ROOM_HEIGHT } from "./roomConstants";
 
-const CEILING_Y = 7.5;
-const LIGHT_ROW_X = [-8, -4, 0, 4, 8];
+// Six downlights cover the terminal grid in pairs. This replaces the old 15
+// overlapping 25m omni lights, which illuminated almost every surface evenly.
+const TERMINAL_DOWNLIGHTS = [-10, 0, 10].flatMap((z) => [
+  { x: -7.75, z, shadows: z === 0 },
+  { x: 7.75, z, shadows: z === 0 },
+]);
 const REFLECTION_FACE_SIZE = 64;
 
 const SKY_VERTEX_SHADER = `
@@ -315,21 +320,43 @@ export function Lighting() {
         />
       </Entity>
 
-      {LIGHT_ROW_X.map((x) => (
-        <Entity key={`light-fixture-${x}`} position={[x, CEILING_Y - 0.15, 0]}>
-          <Entity scale={[1.5, 0.1, 0.5]}>
+      {TERMINAL_DOWNLIGHTS.map(({ x, z, shadows }) => (
+        <Entity
+          key={`terminal-downlight-${x}-${z}`}
+          position={[x, ROOM_HEIGHT - 0.18, z]}
+        >
+          <Entity scale={[1.15, 0.08, 0.42]}>
             <Render type="box" material={fixtureMaterial} />
           </Entity>
           <Light
-            type="omni"
-            color="#ffe0ad"
+            type="spot"
+            color="#ffe1c2"
             intensity={profile.fixtureIntensity}
-            range={25}
+            range={15.5}
+            innerConeAngle={24}
+            outerConeAngle={48}
             falloffMode={LIGHTFALLOFF_LINEAR}
-            castShadows={false}
+            castShadows={shadows}
+            shadowResolution={512}
+            shadowBias={0.18}
+            normalOffsetBias={0.08}
           />
         </Entity>
       ))}
+
+      {/* Restrained warm wash for the collaborative west wall. */}
+      <Entity position={[-11.8, 5.8, -0.8]} rotation={[0, 0, -90]}>
+        <Light
+          type="spot"
+          color="#ffddbd"
+          intensity={1.15}
+          range={8.5}
+          innerConeAngle={28}
+          outerConeAngle={52}
+          falloffMode={LIGHTFALLOFF_LINEAR}
+          castShadows={false}
+        />
+      </Entity>
     </>
   );
 }

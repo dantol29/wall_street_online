@@ -4,13 +4,11 @@ export const MOVEMENT_SEND_RATE_HZ = 12;
 export const MAX_CHAT_LENGTH = 200;
 
 export const WORLD_BOUNDS = {
-  minX: -10,
-  maxX: 10,
+  minX: -16,
+  maxX: 16,
   minY: 0,
-  maxY: 8,
-  minZ: -12.5,
-  // Extended 12m south of the original 12.5 to fit the office wing corridor
-  // (see OFFICE_SLOTS) — the rest of the interior is unchanged.
+  maxY: 12,
+  minZ: -20,
   maxZ: 24.5,
 } as const;
 
@@ -46,16 +44,16 @@ export interface SpawnPoint {
 }
 
 export const SPAWN_POINTS: readonly SpawnPoint[] = [
-  { x: -6, y: 1, z: -8 },
-  { x: -3, y: 1, z: -8 },
-  { x: 0, y: 1, z: -8 },
-  { x: 3, y: 1, z: -8 },
-  { x: 6, y: 1, z: -8 },
-  { x: -6, y: 1, z: 8 },
-  { x: -3, y: 1, z: 8 },
-  { x: 0, y: 1, z: 8 },
-  { x: 3, y: 1, z: 8 },
-  { x: 6, y: 1, z: 8 },
+  { x: -10, y: 1, z: -15 },
+  { x: -5, y: 1, z: -15 },
+  { x: 0, y: 1, z: -15 },
+  { x: 5, y: 1, z: -15 },
+  { x: 10, y: 1, z: -15 },
+  { x: -10, y: 1, z: 15 },
+  { x: -5, y: 1, z: 15 },
+  { x: 0, y: 1, z: 15 },
+  { x: 5, y: 1, z: 15 },
+  { x: 10, y: 1, z: 15 },
 ] as const;
 
 export interface DeskStation {

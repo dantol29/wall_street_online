@@ -5,7 +5,7 @@
  * Environment.tsx). See Environment.tsx's own doc comment for the full
  * room-layout rationale.
  */
-export const ROOM_WIDTH = 20;
-export const ROOM_LENGTH = 25;
-export const ROOM_HEIGHT = 7.5;
+export const ROOM_WIDTH = 32;
+export const ROOM_LENGTH = 40;
+export const ROOM_HEIGHT = 11.5;
 export const WALL_THICKNESS = 0.5;

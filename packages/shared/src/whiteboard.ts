@@ -7,14 +7,17 @@ export const WHITEBOARD_MAX_STROKE_POINTS = 2048;
 export const WHITEBOARD_MAX_TEXT_LENGTH = 160;
 
 export const WHITEBOARD_POSITION = {
-  x: -9.68,
+  // Project the board in front of the west-wall structural piers. Their
+  // interior face reaches x=-15.60, so the frame's rear face must sit farther
+  // into the room instead of intersecting the columns.
+  x: -15.35,
   y: 3.25,
-  z: 0,
+  z: -3.8,
 } as const;
 
 export const WHITEBOARD_INTERACTION_POSITION = {
-  x: -8.35,
-  z: 0,
+  x: -13.77,
+  z: -3.8,
 } as const;
 
 export const WHITEBOARD_INTERACTION_DISTANCE_METERS = 2.4;

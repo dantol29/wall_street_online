@@ -1,11 +1,13 @@
 import {
   Quat,
+  StandardMaterial,
   Vec3,
   type Asset,
   type AnimComponent,
   type AnimTrack,
   type Entity as PcEntity,
   type GraphNode,
+  type RenderComponent,
 } from "playcanvas";
 import type { AnimationState } from "@multiplayer/shared";
 
@@ -42,6 +44,32 @@ export const CHARACTER_MODEL_YAW_OFFSET_DEGREES = 180;
 
 /** Crossfade duration between animation states, matching PlayCanvas's own anim-blending tutorial. */
 export const CHARACTER_ANIM_TRANSITION_BLEND_SECONDS = 0.2;
+
+/**
+ * The source GLB ships with a highly polished material response that becomes
+ * mirror-like once the scene reflection cubemap is enabled. Keep its color and
+ * texture maps, but normalize the physical response to matte cloth/skin.
+ */
+export function applyCharacterMaterialFinish(model: PcEntity): boolean {
+  const renderComponents = model.findComponents("render") as RenderComponent[];
+  const materials = new Set<StandardMaterial>();
+
+  for (const render of renderComponents) {
+    for (const meshInstance of render.meshInstances) {
+      if (meshInstance.material instanceof StandardMaterial) materials.add(meshInstance.material);
+    }
+  }
+  if (materials.size === 0) return false;
+
+  for (const material of materials) {
+    material.useMetalness = true;
+    material.metalness = 0;
+    material.gloss = 0.18;
+    material.specular.set(0.08, 0.08, 0.08);
+    material.update();
+  }
+  return true;
+}
 
 /**
  * The mesh node covering the head (see the glTF's node list: Suit_Head, a

@@ -113,8 +113,10 @@ export function getDayNightProfile(phase: number): DayNightProfile {
   const night = 1 - smoothstep(-0.22, 0.04, sunDirection[1]);
   const twilight = clamp01(1 - Math.abs(sunDirection[1]) / 0.34);
   const sunriseWarmth = twilight * (1 - night * 0.65);
-  const ambientNight: Rgb = [0.025, 0.035, 0.07];
-  const ambientDay: Rgb = [0.29, 0.28, 0.25];
+  // Restrained cool exterior fill: enough to navigate the shadows, low enough
+  // for the warm ceiling pools to define the room.
+  const ambientNight: Rgb = [0.035, 0.045, 0.075];
+  const ambientDay: Rgb = [0.16, 0.18, 0.21];
   const ambient = mixRgb(ambientNight, ambientDay, daylight);
   ambient[0] += sunriseWarmth * 0.08;
   ambient[1] += sunriseWarmth * 0.025;
@@ -129,12 +131,12 @@ export function getDayNightProfile(phase: number): DayNightProfile {
     moonDirection,
     ...skyColorsAtHour(hour),
     ambient,
-    sunColor: sunriseWarmth > 0.25 ? "#ff9a55" : "#fff1d2",
-    sunIntensity: daylight * mix(0.38, 1.15, smoothstep(0.05, 0.62, sunDirection[1])),
-    moonIntensity: night * 0.14,
-    fixtureIntensity: mix(2.25, 1.25, daylight),
-    fixtureEmissiveIntensity: mix(5.5, 3.2, daylight),
-    environmentIntensity: mix(0.075, 0.72, daylight),
+    sunColor: sunriseWarmth > 0.25 ? "#d5c4b3" : "#c7d9eb",
+    sunIntensity: daylight * mix(0.2, 0.55, smoothstep(0.05, 0.62, sunDirection[1])),
+    moonIntensity: night * 0.1,
+    fixtureIntensity: mix(2.8, 2.15, daylight),
+    fixtureEmissiveIntensity: mix(2.1, 1.45, daylight),
+    environmentIntensity: mix(0.08, 0.46, daylight),
   };
 }
 

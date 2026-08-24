@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 import { Application } from "@playcanvas/react";
 import { FILLMODE_FILL_WINDOW, Quat, Vec3, type Entity as PcEntity } from "playcanvas";
 import {
-  DESK_INTERACTION_DISTANCE_METERS,
-  DESK_STATIONS,
   MOVEMENT_SEND_RATE_HZ,
   OFFICE_INTERACTION_DISTANCE_METERS,
   OFFICE_SLOTS,
@@ -41,7 +39,6 @@ import { getOrCreateGuestDisplayName } from "./game/multiplayer/guestName";
 import type { ConnectionState } from "./game/multiplayer/messages";
 import { PRIVY_ENABLED } from "./game/wallet/privyConfig";
 import type { OfficeSlotContent } from "./game/scene/OfficeContentDisplay";
-import { MainMenuOverlay } from "./ui/MainMenuOverlay";
 import { ConnectionStatus } from "./ui/ConnectionStatus";
 import { Chat } from "./ui/Chat";
 import { ErrorOverlay } from "./ui/ErrorOverlay";
@@ -52,10 +49,28 @@ import { SetDisplayNameModal } from "./ui/SetDisplayNameModal";
 import { StickyNoteEditor } from "./ui/StickyNoteEditor";
 import { VoiceControls, type VoiceTalkMode } from "./ui/VoiceControls";
 import { WalletPanel } from "./ui/WalletPanel";
-import { Minimap } from "./ui/Minimap";
 import { MobileGameControls } from "./ui/MobileGameControls";
 import { DayNightDebugControls } from "./ui/DayNightDebugControls";
 import { HyperliquidTerminal } from "./ui/HyperliquidTerminal";
+import { TokenDock, type DockToken } from "./ui/TokenDock";
+import { MONITOR_INTERACTION_DISTANCE_METERS, MONITOR_POSITION, TIMEFRAMES } from "./game/scene/TokenMonitor";
+
+/** Placeholder holdings until the launchpad terminal/holdings system exists — the dock itself doesn't care where the list comes from. */
+const MOCK_DOCK_TOKENS: DockToken[] = [
+  { id: "fart", symbol: "FART", logo: "/assets/token-logos/fart.svg" },
+  { id: "hype", symbol: "HYPE", logo: "/assets/token-logos/hype.svg" },
+  { id: "pepe", symbol: "PEPE", logo: "/assets/token-logos/pepe.svg" },
+  { id: "mu", symbol: "MU", logo: "/assets/token-logos/mu.svg" },
+  { id: "gold", symbol: "GOLD", logo: "/assets/token-logos/gold.svg" },
+  { id: "lit", symbol: "LIT", logo: "/assets/token-logos/lit.svg" },
+  { id: "near", symbol: "NEAR", logo: "/assets/token-logos/near.svg" },
+  { id: "nvda", symbol: "NVDA", logo: "/assets/token-logos/nvda.svg" },
+  { id: "silver", symbol: "SILVER", logo: "/assets/token-logos/sliver.svg" },
+  { id: "sol", symbol: "SOL", logo: "/assets/token-logos/sol.svg" },
+  { id: "sp500", symbol: "SP500", logo: "/assets/token-logos/sp500.svg" },
+  { id: "spcx", symbol: "SPCX", logo: "/assets/token-logos/spcx.svg" },
+  { id: "tsla", symbol: "TSLA", logo: "/assets/token-logos/tsla.svg" },
+];
 import {
   anchorWorldTime,
   createInitialWorldTimeAnchor,
@@ -140,6 +155,7 @@ function setPlayerControllerPaused(
   player: PcEntity | null,
   paused: boolean,
   inputDetachedRef: MutableRefObject<boolean>,
+  options?: { keepPointerLock?: boolean },
 ): void {
   if (!player) return;
   const controller = player.script?.get(
@@ -149,7 +165,7 @@ function setPlayerControllerPaused(
 
   resetControllerInput(controller);
   if (paused) {
-    document.exitPointerLock();
+    if (!options?.keepPointerLock) document.exitPointerLock();
     if (!inputDetachedRef.current) {
       controller._desktopInput?.detach();
       inputDetachedRef.current = true;
@@ -449,9 +465,9 @@ function App() {
   const isRunningRef = useRef(false);
   /** Mirrors whatever animation state was last sent to the server (see the movement tick below) — read by LocalPlayer's own body model, which has no server round trip for its own state the way RemotePlayer gets one. */
   const localAnimationRef = useRef<AnimationState>("idle");
-  const nearbyDeskIdRef = useRef<string | null>(null);
   const seatedDeskIdRef = useRef<string | null>(null);
   const nearWhiteboardRef = useRef(false);
+  const nearTokenMonitorRef = useRef(false);
   const whiteboardOpenRef = useRef(false);
   const terminalOpenRef = useRef(false);
   const savedCameraViewRef = useRef<SavedCameraView | null>(null);
@@ -481,10 +497,12 @@ function App() {
   const pendingStickyNotePositionRef = useRef<{ xFraction: number; yFraction: number } | null>(null);
   const stickyWallHintTimerRef = useRef<number | null>(null);
   const justPlacedStickyNoteTimerRef = useRef<number | null>(null);
-  const [entered, setEntered] = useState(false);
-  const enteredRef = useRef(false);
+  // The trading floor now opens directly; the first canvas click is only
+  // needed for the browser's pointer-lock permission, not to dismiss a menu.
+  const entered = true;
+  const enteredRef = useRef(true);
   const intentionalUnlockRef = useRef(false);
-  const [selectedSceneId, setSelectedSceneId] = useState("trading-floor");
+  const [selectedSceneId] = useState("trading-floor");
   const selectedSceneIdRef = useRef("trading-floor");
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
   const [connectErrorMessage, setConnectErrorMessage] = useState<string | null>(null);
@@ -492,12 +510,17 @@ function App() {
   const [chatHudState, setChatHudState] = useState({ focused: false, draft: "" });
   const [hasMoved, setHasMoved] = useState(false);
   const [waveActive, setWaveActive] = useState(false);
-  const [nearbyDeskId, setNearbyDeskId] = useState<string | null>(null);
   const [seatedDeskId, setSeatedDeskId] = useState<string | null>(null);
   const [seatError, setSeatError] = useState<string | null>(null);
   /** True right after the browser drops pointer lock outside our control (Escape, focus loss, etc.) during normal gameplay — see handlePointerLockChange. */
   const [pointerLockLost, setPointerLockLost] = useState(false);
   const [nearWhiteboard, setNearWhiteboard] = useState(false);
+  const [nearTokenMonitor, setNearTokenMonitor] = useState(false);
+  const [tokenMonitorTimeframeIndex, setTokenMonitorTimeframeIndex] = useState(1);
+  const [tokenMonitorTradePress, setTokenMonitorTradePress] = useState<{
+    side: "buy" | "sell";
+    id: number;
+  } | null>(null);
   const [whiteboardOpen, setWhiteboardOpen] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [whiteboardSnapshot, setWhiteboardSnapshot] =
@@ -512,7 +535,7 @@ function App() {
   const [voiceSelectedAudioOutputId, setVoiceSelectedAudioOutputId] = useState("default");
   const [voiceAudioOutputSelectionSupported, setVoiceAudioOutputSelectionSupported] = useState(false);
   const [nearOfficeSlotId, setNearOfficeSlotId] = useState<string | null>(null);
-  const [officeSlotContentById, setOfficeSlotContentById] = useState<Record<string, OfficeSlotContent>>({});
+  const [, setOfficeSlotContentById] = useState<Record<string, OfficeSlotContent>>({});
   const [officeError, setOfficeError] = useState<string | null>(null);
   const [needsDisplayName, setNeedsDisplayName] = useState(false);
   const [officeEditorData, setOfficeEditorData] = useState<{
@@ -539,6 +562,9 @@ function App() {
   );
   const [worldTime, setWorldTime] = useState<WorldTimeAnchor>(() => createInitialWorldTimeAnchor());
   const [worldTimeOverridePhase, setWorldTimeOverridePhase] = useState<number | null>(null);
+  const [tokenArcOpen, setTokenArcOpen] = useState(false);
+  const tokenArcOpenRef = useRef(false);
+  const [tokenArcActiveIndex, setTokenArcActiveIndex] = useState(0);
 
   const openHyperliquidTerminal = useCallback((): void => {
     const player = playerEntityRef.current;
@@ -776,8 +802,6 @@ function App() {
       const camera = player?.findByName(LOCAL_CAMERA_ENTITY_NAME);
       seatedDeskIdRef.current = result.deskId;
       setSeatedDeskId(result.deskId);
-      nearbyDeskIdRef.current = null;
-      setNearbyDeskId(null);
 
       if (!player || !camera) return;
       const controller = player.script?.get(
@@ -945,12 +969,12 @@ function App() {
         setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
         enterWhiteboardCamera(playerEntityRef.current, savedCameraViewRef);
         client.requestWhiteboardPresenter();
-      } else if (nearbyDeskIdRef.current) {
-        client.requestSeat(nearbyDeskIdRef.current);
       } else if (nearOfficeSlotIdRef.current) {
         void handleOfficeInteract(nearOfficeSlotIdRef.current);
       } else if (nearStickyWallRef.current) {
         openStickyNoteEditor();
+      } else if (nearTokenMonitorRef.current) {
+        setTokenMonitorTimeframeIndex((index) => (index + 1) % TIMEFRAMES.length);
       }
     };
     primaryInteractionRef.current = triggerPrimaryInteraction;
@@ -1017,13 +1041,44 @@ function App() {
           client.requestSeat(null);
         } else if (
           nearWhiteboardRef.current ||
-          nearbyDeskIdRef.current ||
           nearOfficeSlotIdRef.current ||
-          nearStickyWallRef.current
+          nearStickyWallRef.current ||
+          nearTokenMonitorRef.current
         ) {
           event.preventDefault();
           triggerPrimaryInteraction();
         }
+      }
+      if (
+        (event.code === "Digit1" || event.code === "Digit2") &&
+        !event.repeat &&
+        !typing &&
+        !needsDisplayNameRef.current &&
+        nearTokenMonitorRef.current
+      ) {
+        event.preventDefault();
+        const side = event.code === "Digit1" ? "buy" : "sell";
+        setTokenMonitorTradePress((current) => ({ side, id: (current?.id ?? 0) + 1 }));
+      }
+      if (
+        event.code === "KeyT" &&
+        !event.repeat &&
+        !typing &&
+        !needsDisplayNameRef.current &&
+        enteredRef.current &&
+        (tokenArcOpenRef.current ||
+          (!seatedDeskIdRef.current &&
+            !whiteboardOpenRef.current &&
+            !officeEditorOpenRef.current &&
+            !stickyNoteEditorOpenRef.current))
+      ) {
+        event.preventDefault();
+        const next = !tokenArcOpenRef.current;
+        tokenArcOpenRef.current = next;
+        setTokenArcOpen(next);
+        setPlayerControllerPaused(playerEntityRef.current, next, gameplayInputDetachedRef, {
+          keepPointerLock: true,
+        });
       }
     };
     const handleKeyUp = (event: KeyboardEvent): void => {
@@ -1064,9 +1119,7 @@ function App() {
         return;
       }
       if (!enteredRef.current) return;
-      enteredRef.current = false;
-      setEntered(false);
-      setPointerLockLost(false);
+      setPointerLockLost(true);
     };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -1159,18 +1212,11 @@ function App() {
           setNearWhiteboard(isNearWhiteboard);
         }
 
-        let nearestId: string | null = null;
-        let nearestDistance = DESK_INTERACTION_DISTANCE_METERS;
-        for (const desk of DESK_STATIONS) {
-          const distance = Math.hypot(position.x - desk.seatX, position.z - desk.seatZ);
-          if (distance <= nearestDistance) {
-            nearestDistance = distance;
-            nearestId = desk.id;
-          }
-        }
-        if (nearestId !== nearbyDeskIdRef.current) {
-          nearbyDeskIdRef.current = nearestId;
-          setNearbyDeskId(nearestId);
+        const monitorDistance = Math.hypot(position.x - MONITOR_POSITION[0], position.z - MONITOR_POSITION[2]);
+        const isNearTokenMonitor = monitorDistance <= MONITOR_INTERACTION_DISTANCE_METERS;
+        if (isNearTokenMonitor !== nearTokenMonitorRef.current) {
+          nearTokenMonitorRef.current = isNearTokenMonitor;
+          setNearTokenMonitor(isNearTokenMonitor);
         }
 
         let nearestOfficeSlotId: string | null = null;
@@ -1223,8 +1269,6 @@ function App() {
 
   useEffect(() => {
     if (selectedSceneId !== "trading-floor") {
-      setNearbyDeskId(null);
-      nearbyDeskIdRef.current = null;
       setNearWhiteboard(false);
       nearWhiteboardRef.current = false;
       setNearOfficeSlotId(null);
@@ -1233,11 +1277,6 @@ function App() {
       nearStickyWallRef.current = false;
     }
   }, [selectedSceneId]);
-
-  const handleEnter = (): void => {
-    enteredRef.current = true;
-    setEntered(true);
-  };
 
   const handleChatSend = (text: string): void => {
     clientRef.current?.sendChat(text);
@@ -1532,9 +1571,7 @@ function App() {
   const myStickyNote = mySessionId ? stickyNotes.find((note) => note.authorSessionId === mySessionId) ?? null : null;
   const mobileActionLabel = nearWhiteboard
     ? "Use board"
-    : nearbyDeskId
-      ? "Sit at desk"
-      : isNearOwnOffice
+    : isNearOwnOffice
         ? "Manage office"
         : nearOfficeOccupantSessionId
           ? "Visit office"
@@ -1555,16 +1592,14 @@ function App() {
             localSeated={Boolean(seatedDeskId)}
             ref={sceneRef}
             speakingPlayerIds={speakingPlayerIds}
-            messages={messages}
             chatFocused={chatHudState.focused}
-            chatDraft={chatHudState.draft}
-            chatDisabled={whiteboardOpen || terminalOpen}
             whiteboardSnapshot={whiteboardSnapshot}
-            officeSlotContentById={officeSlotContentById}
             stickyNotes={stickyNotes}
             justPlacedStickyNoteAuthorSessionId={justPlacedStickyNoteAuthorSessionId}
             worldTime={worldTime}
             worldTimeOverridePhase={worldTimeOverridePhase}
+            tokenMonitorTimeframeIndex={tokenMonitorTimeframeIndex}
+            tokenMonitorTradePress={tokenMonitorTradePress}
           />
         </Application>
       </ApplicationErrorBoundary>
@@ -1602,26 +1637,14 @@ function App() {
           onParticipantMuteChange={handleParticipantMuteChange}
         />
       )}
-      {entered && !whiteboardOpen && !terminalOpen && !officeEditorData && !stickyNoteEditorOpen && (
-        <Minimap playerEntityRef={playerEntityRef} sceneRef={sceneRef} />
-      )}
       <Chat
+        messages={messages}
         onSend={handleChatSend}
         onFocusChange={handleChatFocusChange}
         onHudChange={handleChatHudChange}
-        disabled={whiteboardOpen || terminalOpen}
+        disabled={whiteboardOpen || terminalOpen || tokenArcOpen}
       />
       {entered && !seatedDeskId && !whiteboardOpen && <div className="crosshair" />}
-      {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
-        <button
-          type="button"
-          className={`wave-emote-button${waveActive ? " wave-emote-button--active" : ""}`}
-          onClick={triggerWaveEmote}
-          disabled={waveActive}
-        >
-          <kbd>G</kbd> {waveActive ? "Waving…" : "Wave"}
-        </button>
-      )}
       {entered && !hasMoved && !seatedDeskId && !whiteboardOpen && <div className="wasd-hint">WASD to move</div>}
       {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
         <MobileGameControls
@@ -1639,11 +1662,28 @@ function App() {
           onTalkToggle={handleVoiceTalkToggle}
         />
       )}
+      <TokenDock
+        tokens={MOCK_DOCK_TOKENS}
+        activeIndex={tokenArcActiveIndex}
+        onActiveIndexChange={setTokenArcActiveIndex}
+        active={entered && tokenArcOpen}
+        onSelect={() => {
+          tokenArcOpenRef.current = false;
+          setTokenArcOpen(false);
+          setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef, {
+            keepPointerLock: true,
+          });
+        }}
+      />
       {entered && nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
         <div className="desk-interaction"><kbd>E</kbd> Open live analysis board</div>
       )}
-      {entered && nearbyDeskId && !nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
-        <div className="desk-interaction"><kbd>E</kbd> Sit down</div>
+      {entered && nearTokenMonitor && !nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
+        <div className="desk-interaction token-monitor-controls">
+          <span><kbd>1</kbd> Buy $10</span>
+          <span><kbd>2</kbd> Sell $10</span>
+          <span><kbd>E</kbd> Change timeframe</span>
+        </div>
       )}
       {entered && seatedDeskId && !whiteboardOpen && !terminalOpen && (
         <>
@@ -1734,13 +1774,6 @@ function App() {
           onDeleteShape={handleWhiteboardDelete}
         />
       )}
-      <MainMenuOverlay
-        visible={!entered && !showErrorOverlay}
-        connecting={connectionState !== "connected"}
-        selectedSceneId={selectedSceneId}
-        onSceneSelect={setSelectedSceneId}
-        onEnter={handleEnter}
-      />
       <ErrorOverlay message={showErrorOverlay} onRetry={handleRetry} />
     </div>
   );
