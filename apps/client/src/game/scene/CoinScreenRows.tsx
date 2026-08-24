@@ -169,15 +169,6 @@ function useStandScreenMaterial(symbol: string): StandardMaterial | null {
       ctx.fillRect(x - 7, top, 14, Math.max(2, bottom - top));
     });
 
-    ctx.textAlign = "center";
-    ["5M", "1H", "6H", "1D"].forEach((label, index) => {
-      const x = 42 + index * 67;
-      ctx.fillStyle = index === 1 ? "#4d4d4d" : "#222222";
-      ctx.fillRect(x, 247, 58, 38);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = 'bold 15px "Courier New", monospace';
-      ctx.fillText(label, x + 29, 272);
-    });
     ctx.textAlign = "left";
     ctx.fillStyle = "#a0a0a0";
     ctx.font = 'bold 12px "Courier New", monospace';

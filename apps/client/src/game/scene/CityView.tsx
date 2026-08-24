@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Entity } from "@playcanvas/react";
-import { Render } from "@playcanvas/react/components";
-import { useApp, useMaterial, useTexture } from "@playcanvas/react/hooks";
-import { ADDRESS_REPEAT, CULLFACE_NONE, FILTER_LINEAR_MIPMAP_LINEAR, StandardMaterial, Texture, type Asset, type Texture as PcTexture } from "playcanvas";
+import { useApp, useMaterial } from "@playcanvas/react/hooks";
+import { ADDRESS_REPEAT, FILTER_LINEAR_MIPMAP_LINEAR, StandardMaterial, Texture } from "playcanvas";
 import { VisualBox, VisualCylinder } from "./primitives";
 
 type TowerVariant = "A" | "B" | "C" | "D";
@@ -13,12 +12,7 @@ const BUILDINGS: BuildingSpec[] = [
   { variant: "A", x: -13.5, z: -38, width: 10.5, depth: 10, height: 132, rotation: -8 },
   { variant: "B", x: 13, z: -57, width: 12, depth: 11, height: 148, rotation: 11 },
   { variant: "C", x: -4, z: -82, width: 18, depth: 12, height: 126, rotation: -5 },
-  { variant: "D", x: 25, z: -118, width: 9, depth: 9, height: 166, rotation: 13 },
 ];
-
-function textureOf(asset: Asset | null): PcTexture | undefined {
-  return (asset?.resource as PcTexture | undefined) ?? undefined;
-}
 
 /** Recreates the crisp blue-purple facade graphics from the supplied screenshot. */
 function useGraphicFacadeMaterial(variant: TowerVariant): StandardMaterial | null {
@@ -128,16 +122,11 @@ export function CityView() {
     C: useGraphicFacadeMaterial("C"),
     D: useGraphicFacadeMaterial("D"),
   };
-  const { asset: skylineTexture } = useTexture("/assets/city/blue-hour-skyline.png");
-  const skylineMaterial = useMaterial({ diffuseMap: textureOf(skylineTexture), emissiveMap: textureOf(skylineTexture), emissive: "#9daac0", emissiveIntensity: 0.72, diffuse: "#8291aa", gloss: 0, metalness: 0, cull: CULLFACE_NONE, twoSidedLighting: true });
   const trimMaterial = useMaterial({ diffuse: "#0d0e18", metalness: 0.28, gloss: 0.22 });
   const roofMaterial = useMaterial({ diffuse: "#111320", gloss: 0.12, metalness: 0.1 });
 
   return (
     <>
-      <Entity position={[0, 28, -185]} rotation={[90, 0, 0]} scale={[420, 1, 168]}>
-        <Render type="plane" material={skylineMaterial} />
-      </Entity>
       {BUILDINGS.map((building) => {
         const facade = facades[building.variant];
         return facade ? <Tower key={building.variant} building={building} facade={facade} trim={trimMaterial} roof={roofMaterial} /> : null;

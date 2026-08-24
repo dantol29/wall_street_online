@@ -11,19 +11,21 @@ import {
 } from "@multiplayer/shared";
 
 const BOARD_FACE_X = WHITEBOARD_POSITION.x + 0.13;
-const TOOL_FACE_X = WHITEBOARD_POSITION.x + 0.51;
+const TOOL_FACE_X = WHITEBOARD_POSITION.x + 0.31;
 const ERASER_RADIUS = 26;
-const MARKER_WORLD_Y = WHITEBOARD_POSITION.y - 1.94;
-const ERASER_WORLD_Y = WHITEBOARD_POSITION.y - 1.93;
+const MARKER_WORLD_Y = WHITEBOARD_POSITION.y - 2.005;
+const ERASER_WORLD_Y = WHITEBOARD_POSITION.y - 1.97;
 
 type EquippedTool =
   | { type: "pen"; color: string; label: string }
   | { type: "eraser"; label: string };
 
 const TRAY_MARKERS: ReadonlyArray<EquippedTool & { z: number }> = [
-  { type: "pen", color: "#161b19", label: "Black marker", z: -0.55 },
-  { type: "pen", color: "#1769aa", label: "Blue marker", z: 0 },
-  { type: "pen", color: "#c7352e", label: "Red marker", z: 0.55 },
+  { type: "pen", color: "#161b19", label: "Black marker", z: -1.1 },
+  { type: "pen", color: "#1769aa", label: "Blue marker", z: -0.55 },
+  { type: "pen", color: "#c7352e", label: "Red marker", z: 0 },
+  { type: "pen", color: "#218653", label: "Green marker", z: 0.55 },
+  { type: "pen", color: "#8b4aa0", label: "Purple marker", z: 1.1 },
 ];
 
 interface InWorldWhiteboardControlsProps {
@@ -81,7 +83,10 @@ export function InWorldWhiteboardControls({
     event: React.PointerEvent<HTMLDivElement>,
     planeX: number,
   ): { y: number; z: number } | null => {
-    const cameraEntity = playerEntityRef.current?.findByName("local-camera") as PcEntity | null;
+    const cameraEntity = (
+      playerEntityRef.current?.root.findByName("whiteboard-camera") ??
+      playerEntityRef.current?.findByName("local-camera")
+    ) as PcEntity | null;
     const camera = cameraEntity?.camera;
     if (!camera) return null;
     const canvas = camera.system.app.graphicsDevice.canvas;
@@ -135,14 +140,14 @@ export function InWorldWhiteboardControls({
     for (const marker of TRAY_MARKERS) {
       if (
         Math.abs(point.y - MARKER_WORLD_Y) <= 0.18 &&
-        Math.abs(point.z - marker.z) <= 0.24
+        Math.abs(point.z - (WHITEBOARD_POSITION.z + marker.z)) <= 0.24
       ) {
         return marker;
       }
     }
     if (
       Math.abs(point.y - ERASER_WORLD_Y) <= 0.2 &&
-      Math.abs(point.z - 1.35) <= 0.3
+      Math.abs(point.z - (WHITEBOARD_POSITION.z + 1.75)) <= 0.3
     ) {
       return { type: "eraser", label: "Eraser" };
     }
@@ -276,7 +281,7 @@ export function InWorldWhiteboardControls({
           }}
         />
       )}
-      <div className="in-world-whiteboard__hint">
+      <div className="in-world-whiteboard__hint game-instruction">
         {isPresenter
           ? <>
               <span className="in-world-whiteboard__hint-desktop">

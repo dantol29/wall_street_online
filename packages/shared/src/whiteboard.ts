@@ -7,10 +7,9 @@ export const WHITEBOARD_MAX_STROKE_POINTS = 2048;
 export const WHITEBOARD_MAX_TEXT_LENGTH = 160;
 
 export const WHITEBOARD_POSITION = {
-  // Project the board in front of the west-wall structural piers. Their
-  // interior face reaches x=-15.60, so the frame's rear face must sit farther
-  // into the room instead of intersecting the columns.
-  x: -15.35,
+  // Flush-mount the frame against the west wall. The 16 cm frame is centered
+  // here so its rear face meets the wall's interior surface at x=-15.75.
+  x: -15.67,
   y: 3.25,
   z: -3.8,
 } as const;

@@ -4,10 +4,10 @@
 **/node_modules
 **/dist
 **/.env
-Office Pack-glb
-low_poly_skyscrapers.glb
-concrete_panels_2k.gltf
-scenes
+/Office Pack-glb
+/low_poly_skyscrapers.glb
+/concrete_panels_2k.gltf
+/scenes
 view.png
 wall_street.png
 /*.svg

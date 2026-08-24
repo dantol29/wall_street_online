@@ -1,4 +1,4 @@
-import { forwardRef, memo, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { forwardRef, memo, useRef, useState, type MutableRefObject } from "react";
 import { Entity } from "@playcanvas/react";
 import { Camera, Render, Script } from "@playcanvas/react/components";
 import { useAppEvent, useModel, usePhysics } from "@playcanvas/react/hooks";
@@ -8,6 +8,7 @@ import { FirstPersonController } from "playcanvas/scripts/esm/first-person-contr
 import type { AnimationState } from "@multiplayer/shared";
 import {
   CHARACTER_ANIM_TRANSITION_BLEND_SECONDS,
+  CHARACTER_BODY_NODE_NAME,
   CHARACTER_HEAD_NODE_NAME,
   CHARACTER_MODEL_ASSET_PATH,
   CHARACTER_MODEL_SCALE,
@@ -22,9 +23,7 @@ import {
 } from "./characterAnimation";
 
 const EYE_HEIGHT_OFFSET = 0.8;
-const THIRD_PERSON_DISTANCE = 4;
-const THIRD_PERSON_HEIGHT = 2;
-const DEG_TO_RAD = Math.PI / 180;
+const FIRST_PERSON_FORWARD_OFFSET = 0.42;
 
 /** Just enough of first-person-controller.mjs's runtime shape to read its yaw accumulator — see the note below. */
 interface FirstPersonControllerRuntime {
@@ -35,6 +34,7 @@ interface LocalPlayerProps {
   spawn: { x: number; y: number; z: number };
   seated: boolean;
   chatFocused: boolean;
+  alternateCameraActive: boolean;
   /** Updated every movement tick in App.tsx (the same value sent to the server) — read here each frame since there's no server round trip for your own state the way RemotePlayer gets one. */
   animationRef: MutableRefObject<AnimationState>;
 }
@@ -42,19 +42,17 @@ interface LocalPlayerProps {
 /**
  * The local player now has a visible body (the same Business Man model
  * RemotePlayer uses), not just a camera — previously it was camera-only,
- * which meant looking down showed nothing at all. The head mesh node is
- * disabled specifically for this instance (see CHARACTER_HEAD_NODE_NAME):
- * left alone, it would sit right in front of the eye-height camera and clip
- * into view whenever looking down or spinning around. Movement/look is
- * still handled entirely by PlayCanvas's own ready-made
+ * which meant looking down showed nothing at all. Movement/look is still
+ * handled entirely by PlayCanvas's own ready-made
  * `first-person-controller.mjs`, not custom logic — it self-manages pointer
  * lock, WASD, mouse-look, jumping, and ground/air movement, and creates its
  * own capsule Collision + dynamic RigidBody (including a locked
  * angularFactor so the capsule can't tip over) since none is pre-declared
- * here.
+ * here. The camera sits just ahead of the face so the complete head and torso
+ * can remain visible without exposing their interior surfaces when looking down.
  */
 const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function LocalPlayer(
-  { spawn, seated, chatFocused, animationRef },
+  { spawn, seated, alternateCameraActive, animationRef },
   ref,
 ) {
   const [cameraEntity, setCameraEntity] = useState<PcEntity | null>(null);
@@ -73,19 +71,8 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
   const modelRef = useRef<PcEntity | null>(null);
   const statesRegisteredRef = useRef(false);
   const materialFinishAppliedRef = useRef(false);
-  const thirdPersonRef = useRef(false);
   const lastRequestedAnimationRef = useRef<AnimationState | null>(null);
   const seatedPoseRigRef = useRef<CharacterSeatedPoseRig | null>(null);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "KeyV" && !chatFocused) {
-        thirdPersonRef.current = !thirdPersonRef.current;
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [chatFocused]);
 
   useAppEvent("update", () => {
     const model = modelRef.current;
@@ -97,20 +84,18 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
     ) as FirstPersonControllerRuntime | undefined;
     const yaw = controller?._angles ? controller._angles.y : cameraEntity.getLocalEulerAngles().y;
 
-    const tp = thirdPersonRef.current;
-    if (tp) {
-      const yawRad = yaw * DEG_TO_RAD;
-      cameraEntity.setLocalPosition(
-        Math.sin(yawRad) * THIRD_PERSON_DISTANCE,
-        THIRD_PERSON_HEIGHT,
-        Math.cos(yawRad) * THIRD_PERSON_DISTANCE,
-      );
-    } else {
-      cameraEntity.setLocalPosition(0, EYE_HEIGHT_OFFSET, 0);
-    }
+    const forward = cameraEntity.forward;
+    const horizontalLength = Math.hypot(forward.x, forward.z) || 1;
+    cameraEntity.setLocalPosition(
+      (forward.x / horizontalLength) * FIRST_PERSON_FORWARD_OFFSET,
+      EYE_HEIGHT_OFFSET,
+      (forward.z / horizontalLength) * FIRST_PERSON_FORWARD_OFFSET,
+    );
 
     const head = model.findByName(CHARACTER_HEAD_NODE_NAME);
-    if (head) head.enabled = tp;
+    const body = model.findByName(CHARACTER_BODY_NODE_NAME);
+    if (head) head.enabled = true;
+    if (body) body.enabled = true;
 
     model.setLocalEulerAngles(0, yaw + CHARACTER_MODEL_YAW_OFFSET_DEGREES, 0);
 
@@ -142,7 +127,7 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
   return (
     <Entity name="local-player" position={initialPositionRef.current} ref={ref}>
       <Entity name="local-camera" position={cameraPositionRef.current} ref={setCameraEntity}>
-        <Camera fov={75} nearClip={0.05} farClip={220} />
+        <Camera enabled={!alternateCameraActive} fov={75} nearClip={0.05} farClip={220} />
       </Entity>
 
       {asset && (

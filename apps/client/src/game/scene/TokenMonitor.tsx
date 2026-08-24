@@ -87,12 +87,11 @@ export const TIMEFRAMES = ["5M", "1H", "6H", "1D"];
 /** Minutes represented by one candle at each timeframe, matching TIMEFRAMES by index. */
 const TIMEFRAME_INTERVAL_MINUTES = [5, 60, 360, 1440];
 
-/** Small physical nubs on the bezel, like a real TV's channel/input buttons — not another screen. */
+/** Small physical controls mounted into the terminal's lower bezel. */
 const BUTTON_RADIUS = 0.024;
 const BUTTON_DEPTH = 0.016;
 const BUTTON_SPACING = 0.065;
 const BUTTON_ROW_START_X = -(MONITOR_SIZE[0] / 2) + 0.08;
-/** How far a button sinks into the bezel at the peak of its press animation. */
 const BUTTON_PRESS_TRAVEL = 0.006;
 const BUTTON_ROW_Y = -(MONITOR_SIZE[1] / 2) + 0.05;
 
@@ -300,7 +299,10 @@ interface TokenMonitorProps {
 
 const TRADE_BUTTON_Y = -(MONITOR_SIZE[1] / 2) + 0.055;
 const TRADE_BUTTON_Z = MONITOR_SIZE[2] / 2 + 0.022;
-const TRADE_BUTTON_SIZE: [number, number, number] = [0.25, 0.085, 0.035];
+const TRADE_BUTTON_DIAMETER = 0.13;
+const TRADE_BUTTON_DEPTH = 0.035;
+const TRADE_BUTTON_SPACING = 0.16;
+const TRADE_BUTTON_ROW_END_X = MONITOR_SIZE[0] / 2 - 0.08;
 const TRADE_BUTTON_COLOR = "#1c1c1c";
 const TRADE_BUTTON_TEXT_COLOR = "#ffffff";
 
@@ -325,29 +327,31 @@ function PhysicalTradeButton({ label, x, pressId }: { label: string; x: number; 
     app,
     `token-monitor-${label.toLowerCase()}-label`,
     160,
-    40,
+    160,
     (ctx) => {
-      ctx.fillStyle = TRADE_BUTTON_COLOR;
-      ctx.fillRect(0, 0, 160, 40);
       ctx.fillStyle = TRADE_BUTTON_TEXT_COLOR;
-      ctx.font = `bold 20px "Courier New", monospace`;
+      ctx.font = `bold 30px "Courier New", monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(label, 80, 21);
+      ctx.fillText(label, 80, 82);
     },
     [label],
+    true,
   );
 
   return (
     <Entity position={[x, TRADE_BUTTON_Y, TRADE_BUTTON_Z - pressDepth * 0.018]}>
-      <Entity scale={TRADE_BUTTON_SIZE}>
-        <Render type="box" material={buttonMaterial} />
+      <Entity
+        rotation={[90, 0, 0]}
+        scale={[TRADE_BUTTON_DIAMETER, TRADE_BUTTON_DEPTH, TRADE_BUTTON_DIAMETER]}
+      >
+        <Render type="cylinder" material={buttonMaterial} />
       </Entity>
       {labelMaterial && (
         <Entity
-          position={[0, 0, TRADE_BUTTON_SIZE[2] / 2 + 0.001]}
+          position={[0, 0, TRADE_BUTTON_DEPTH / 2 + 0.001]}
           rotation={[90, 0, 0]}
-          scale={[TRADE_BUTTON_SIZE[0], 1, TRADE_BUTTON_SIZE[1]]}
+          scale={[TRADE_BUTTON_DIAMETER * 0.82, 1, TRADE_BUTTON_DIAMETER * 0.82]}
         >
           <Render type="plane" material={labelMaterial} />
         </Entity>
@@ -359,8 +363,11 @@ function PhysicalTradeButton({ label, x, pressId }: { label: string; x: number; 
 export function TokenMonitor({ activeTimeframeIndex, tradePress }: TokenMonitorProps) {
   const app = useApp();
   const buttonMaterial = useMaterial({ diffuse: "#1c1c1c", gloss: 0.4, metalness: 0.3 });
-  // A real "active" indicator LED (soft green, low intensity) rather than a flat white glow.
-  const activeButtonMaterial = useMaterial({ diffuse: "#1c1c1c", emissive: "#4fdc6a", emissiveIntensity: 0.55 });
+  const activeButtonMaterial = useMaterial({
+    diffuse: "#1c1c1c",
+    emissive: "#4fdc6a",
+    emissiveIntensity: 0.55,
+  });
   const tokenSignMaterial = useCanvasScreenMaterial(
     app,
     "token-monitor-hype-sign",
@@ -371,7 +378,6 @@ export function TokenMonitor({ activeTimeframeIndex, tradePress }: TokenMonitorP
     true,
   );
 
-  // Press-in-then-spring-back animation, played whenever the active button changes.
   const [pressedIndex, setPressedIndex] = useState<number | null>(null);
   const [pressDepth, setPressDepth] = useState(0);
 
@@ -383,15 +389,12 @@ export function TokenMonitor({ activeTimeframeIndex, tradePress }: TokenMonitorP
 
     const tick = (now: number) => {
       const t = Math.min((now - start) / durationMs, 1);
-      // Push in over the first 40% of the animation, spring back over the rest.
       const depth = t < 0.4 ? t / 0.4 : 1 - (t - 0.4) / 0.6;
       setPressDepth(Math.max(0, depth));
-      if (t < 1) {
-        animationFrame = requestAnimationFrame(tick);
-      } else {
-        setPressedIndex(null);
-      }
+      if (t < 1) animationFrame = requestAnimationFrame(tick);
+      else setPressedIndex(null);
     };
+
     animationFrame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrame);
   }, [activeTimeframeIndex]);
@@ -456,25 +459,36 @@ export function TokenMonitor({ activeTimeframeIndex, tradePress }: TokenMonitorP
       screenMaterial={screenMaterial}
       logoMaterial={tokenSignMaterial}
     >
-      {TIMEFRAMES.map((label, i) => {
-        const travel = i === pressedIndex ? pressDepth * BUTTON_PRESS_TRAVEL : 0;
+      {TIMEFRAMES.map((label, index) => {
+        const travel = index === pressedIndex ? pressDepth * BUTTON_PRESS_TRAVEL : 0;
         return (
           <Entity
             key={label}
             position={[
-              BUTTON_ROW_START_X + i * BUTTON_SPACING,
+              BUTTON_ROW_START_X + index * BUTTON_SPACING,
               BUTTON_ROW_Y,
               MONITOR_SIZE[2] / 2 + BUTTON_DEPTH / 2 - travel,
             ]}
             rotation={[90, 0, 0]}
             scale={[BUTTON_RADIUS * 2, BUTTON_DEPTH, BUTTON_RADIUS * 2]}
           >
-            <Render type="cylinder" material={i === activeTimeframeIndex ? activeButtonMaterial : buttonMaterial} />
+            <Render
+              type="cylinder"
+              material={index === activeTimeframeIndex ? activeButtonMaterial : buttonMaterial}
+            />
           </Entity>
         );
       })}
-      <PhysicalTradeButton label="BUY" x={0.3} pressId={tradePress?.side === "buy" ? tradePress.id : 0} />
-      <PhysicalTradeButton label="SELL" x={0.59} pressId={tradePress?.side === "sell" ? tradePress.id : 0} />
+      <PhysicalTradeButton
+        label="BUY"
+        x={TRADE_BUTTON_ROW_END_X - TRADE_BUTTON_SPACING}
+        pressId={tradePress?.side === "buy" ? tradePress.id : 0}
+      />
+      <PhysicalTradeButton
+        label="SELL"
+        x={TRADE_BUTTON_ROW_END_X}
+        pressId={tradePress?.side === "sell" ? tradePress.id : 0}
+      />
     </TradingTerminalShell>
   );
 }

@@ -23,6 +23,8 @@ import type { RemotePlayerRecord } from "./game/player/remotePlayerRecord";
 import type { RemotePlayerSnapshot } from "./game/multiplayer/messages";
 import type { WorldTimeAnchor } from "./game/scene/dayNight";
 import { DayNightProvider } from "./game/scene/DayNightContext";
+import { WhiteboardCamera } from "./game/scene/WhiteboardCamera";
+import { StickyWallCamera } from "./game/scene/StickyWallCamera";
 
 interface SceneProps {
   sceneId: string;
@@ -32,6 +34,8 @@ interface SceneProps {
   localSeated: boolean;
   speakingPlayerIds: ReadonlySet<string>;
   chatFocused: boolean;
+  whiteboardOpen: boolean;
+  stickyWallOpen: boolean;
   whiteboardSnapshot: WhiteboardSnapshot;
   stickyNotes: StickyNote[];
   justPlacedStickyNoteAuthorSessionId?: string | null;
@@ -66,6 +70,8 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     localSeated,
     speakingPlayerIds,
     chatFocused,
+    whiteboardOpen,
+    stickyWallOpen,
     whiteboardSnapshot,
     stickyNotes,
     justPlacedStickyNoteAuthorSessionId,
@@ -170,9 +176,12 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
           seated={localSeated}
           animationRef={localAnimationRef}
           chatFocused={chatFocused}
+          alternateCameraActive={whiteboardOpen || stickyWallOpen}
           ref={playerEntityRef}
         />
       )}
+      {playerReady && whiteboardOpen && <WhiteboardCamera />}
+      {playerReady && stickyWallOpen && <StickyWallCamera />}
 
       {remoteIds.map((sessionId) => (
         <RemotePlayer

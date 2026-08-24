@@ -26,6 +26,8 @@ const WhiteboardFrame = memo(function WhiteboardFrame() {
   const blackMarkerMaterial = useMaterial({ diffuse: "#171b19", gloss: 0.28 });
   const blueMarkerMaterial = useMaterial({ diffuse: "#1769aa", gloss: 0.28 });
   const redMarkerMaterial = useMaterial({ diffuse: "#c7352e", gloss: 0.28 });
+  const greenMarkerMaterial = useMaterial({ diffuse: "#218653", gloss: 0.28 });
+  const purpleMarkerMaterial = useMaterial({ diffuse: "#8b4aa0", gloss: 0.28 });
   const eraserMaterial = useMaterial({ diffuse: "#303734", gloss: 0.12 });
 
   return (
@@ -37,20 +39,22 @@ const WhiteboardFrame = memo(function WhiteboardFrame() {
         <Render type="box" material={trayMaterial} />
       </Entity>
       {[
-        { z: -0.55, material: blackMarkerMaterial },
-        { z: 0, material: blueMarkerMaterial },
-        { z: 0.55, material: redMarkerMaterial },
+        { z: -1.1, material: blackMarkerMaterial },
+        { z: -0.55, material: blueMarkerMaterial },
+        { z: 0, material: redMarkerMaterial },
+        { z: 0.55, material: greenMarkerMaterial },
+        { z: 1.1, material: purpleMarkerMaterial },
       ].map(({ z, material }) => (
         <Entity
           key={z}
-          position={[0.51, -1.94, z]}
+          position={[0.31, -2.005, z]}
           rotation={[90, 0, 0]}
           scale={[0.045, 0.34, 0.045]}
         >
           <Render type="cylinder" material={material} />
         </Entity>
       ))}
-      <Entity position={[0.51, -1.93, 1.35]} scale={[0.14, 0.12, 0.34]}>
+      <Entity position={[0.31, -1.97, 1.75]} scale={[0.14, 0.12, 0.34]}>
         <Render type="box" material={eraserMaterial} />
       </Entity>
     </>

@@ -161,6 +161,83 @@ const REFERENCE_SKYLINE_TOWERS: SkylineTowerSpec[] = [
   { x: 8.8, z: -17.8, width: 2.2, depth: 2.0, height: 6.9, bodyColor: "#4d545a", windowColor: "#747f86", crown: "flat" },
 ];
 
+/**
+ * Framed poster art mounted flush against the east or south wall (the two
+ * runs with no other wall-mounted furniture — see the whiteboard/sticky-wall
+ * cluster on the west wall). Mirrors CollaborativeWhiteboardDisplay's
+ * frame-box + rotated-plane structure: the frame box's thin axis is simply
+ * whichever axis is the wall's normal, while the image plane (whose default
+ * orientation only ever faces +Y) needs an explicit rotation to face into
+ * the room instead. East and south use opposite-sign rotations from the
+ * existing west/north examples since their interior faces point the
+ * opposite way (-X and -Z respectively, vs. the west wall's +X and the
+ * north wall's +Z).
+ */
+const POSTER_FRAME_THICKNESS = 0.08;
+const POSTER_FRAME_BORDER = 0.12;
+const EAST_WALL_INTERIOR_X = ROOM_WIDTH / 2 - WALL_THICKNESS / 2;
+const SOUTH_WALL_INTERIOR_Z = ROOM_LENGTH / 2 - WALL_THICKNESS / 2;
+
+interface WallPosterSpec {
+  wall: "east" | "south";
+  /** Position along the wall run: Z for the east wall, X for the south wall. */
+  along: number;
+  y: number;
+  width: number;
+  height: number;
+  imagePath: string;
+}
+
+const TRADING_FLOOR_POSTERS: WallPosterSpec[] = [
+  { wall: "east", along: -16, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/tombstone.png" },
+  { wall: "east", along: -10, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/eagle.png" },
+  { wall: "east", along: -4, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/bull-bear-crest.png" },
+  { wall: "east", along: 2, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/three-pillars.png" },
+  { wall: "east", along: 6, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/ticker-tape.png" },
+  { wall: "east", along: 10, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/greed-is-good.png" },
+];
+
+function WallPoster({ wall, along, y, width, height, imagePath }: WallPosterSpec) {
+  const { asset } = useTexture(imagePath);
+  const frameMaterial = useMaterial({ diffuse: "#2b1f16", metalness: 0.1, gloss: 0.3 });
+  // Both the plane's U and V axes come out inverted relative to the source
+  // image on this wall's rotation — flip both here on the texture's own UVs
+  // rather than fighting it with more rotation math.
+  const posterMaterial = useMaterial({
+    diffuseMap: textureOf(asset),
+    diffuseMapTiling: [-1, -1],
+    diffuseMapOffset: [1, 1],
+    gloss: 0.08,
+    metalness: 0,
+  });
+
+  const position: [number, number, number] =
+    wall === "east"
+      ? [EAST_WALL_INTERIOR_X - POSTER_FRAME_THICKNESS / 2, y, along]
+      : [along, y, SOUTH_WALL_INTERIOR_Z - POSTER_FRAME_THICKNESS / 2];
+  const frameScale: [number, number, number] =
+    wall === "east"
+      ? [POSTER_FRAME_THICKNESS, height + POSTER_FRAME_BORDER, width + POSTER_FRAME_BORDER]
+      : [width + POSTER_FRAME_BORDER, height + POSTER_FRAME_BORDER, POSTER_FRAME_THICKNESS];
+  const planeOffset: [number, number, number] =
+    wall === "east" ? [-POSTER_FRAME_THICKNESS / 2 - 0.005, 0, 0] : [0, 0, -POSTER_FRAME_THICKNESS / 2 - 0.005];
+  const planeRotation: [number, number, number] = wall === "east" ? [0, 90, 90] : [-90, 0, 0];
+  const planeScale: [number, number, number] = wall === "east" ? [width, 1, height] : [width, 1, height];
+
+  return (
+    <Entity position={position}>
+      <Entity scale={frameScale}>
+        <Render type="box" material={frameMaterial} />
+      </Entity>
+      {asset && (
+        <Entity position={planeOffset} rotation={planeRotation} scale={planeScale}>
+          <Render type="plane" material={posterMaterial} />
+        </Entity>
+      )}
+    </Entity>
+  );
+}
+
 export function LowPolySkylineTower({ tower: sourceTower }: { tower: SkylineTowerSpec }) {
   const tower: SkylineTowerSpec = {
     ...sourceTower,
@@ -547,7 +624,7 @@ export const RoomEnvironment = memo(function RoomEnvironment() {
         clipping through the perimeter if a future wall mesh has gaps or doorways.
       */}
       <StaticBox
-        position={[0, ROOM_HEIGHT / 2, -ROOM_LENGTH / 2 + WALL_THICKNESS]}
+        position={[0, ROOM_HEIGHT / 2, -ROOM_LENGTH / 2 + 2.5]}
         size={[ROOM_WIDTH, ROOM_HEIGHT, 0.1]}
         material={plasterWallMaterial}
         renderVisible={false}
@@ -671,6 +748,10 @@ export const RoomEnvironment = memo(function RoomEnvironment() {
       })}
 
       <CoinScreenRows />
+
+      {TRADING_FLOOR_POSTERS.map((poster) => (
+        <WallPoster key={poster.imagePath + poster.along} {...poster} />
+      ))}
 
       {/* Low-pile carpet defining the west-side drawing/sticky-board chill zone. */}
       <VisualBox

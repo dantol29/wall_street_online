@@ -7,12 +7,8 @@ import {
   OFFICE_SLOTS,
   STICKY_WALL_INTERACTION_DISTANCE_METERS,
   STICKY_WALL_INTERACTION_POSITION,
-  STICKY_WALL_POSITION,
   WHITEBOARD_INTERACTION_DISTANCE_METERS,
   WHITEBOARD_INTERACTION_POSITION,
-  WHITEBOARD_POSITION,
-  WHITEBOARD_WORLD_HEIGHT,
-  WHITEBOARD_WORLD_WIDTH,
   findOverlappingStickyNote,
   isStickyWallPositionValid,
   type AnimationState,
@@ -187,124 +183,21 @@ function setPlayerControllerPaused(
   controller.enabled = true;
 }
 
-function enterWhiteboardCamera(
-  player: PcEntity | null,
-  savedViewRef: MutableRefObject<SavedCameraView | null>,
-): void {
-  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
-  const camera = cameraEntity?.camera;
-  if (!cameraEntity || !camera) return;
-  const controller = player?.script?.get(
-    FIRST_PERSON_CONTROLLER_SCRIPT_NAME,
-  ) as FirstPersonControllerRuntime | undefined;
-
-  if (!savedViewRef.current) {
-    savedViewRef.current = {
-      localPosition: cameraEntity.getLocalPosition().clone(),
-      localEulerAngles: cameraEntity.getLocalEulerAngles().clone(),
-      controllerAngles: controller?._angles?.clone() ?? null,
-    };
-  }
-
-  frameWhiteboardCamera(player);
-  controller?._angles?.copy(cameraEntity.getLocalEulerAngles());
-}
-
-function frameWhiteboardCamera(player: PcEntity | null): void {
-  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
-  const camera = cameraEntity?.camera;
-  if (!cameraEntity || !camera) return;
-
-  const canvasBounds = camera.system.app.graphicsDevice.canvas.getBoundingClientRect();
-  const aspect = Math.max(0.5, canvasBounds.width / Math.max(1, canvasBounds.height));
-  const halfVerticalFov = (camera.fov * Math.PI) / 360;
-  const verticalScale = Math.tan(halfVerticalFov);
-  // Include the marker tray below the board, with enough breathing room to
-  // make each physical tool easy to see and click.
-  const framedHeight = WHITEBOARD_WORLD_HEIGHT + 0.8;
-  const framedCenterY = WHITEBOARD_POSITION.y - 0.12;
-  const distanceForHeight = framedHeight / 2 / verticalScale;
-  const distanceForWidth = WHITEBOARD_WORLD_WIDTH / 2 / (verticalScale * aspect);
-  const distance = Math.max(distanceForHeight, distanceForWidth) * 1.14;
-
-  cameraEntity.setPosition(
-    WHITEBOARD_POSITION.x + distance,
-    framedCenterY,
-    WHITEBOARD_POSITION.z,
-  );
-  cameraEntity.lookAt(
-    WHITEBOARD_POSITION.x,
-    framedCenterY,
-    WHITEBOARD_POSITION.z,
-  );
-}
-
-function enterStickyWallCamera(
-  player: PcEntity | null,
-  savedViewRef: MutableRefObject<SavedCameraView | null>,
-): void {
-  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
-  const camera = cameraEntity?.camera;
-  if (!cameraEntity || !camera) return;
-  const controller = player?.script?.get(
-    FIRST_PERSON_CONTROLLER_SCRIPT_NAME,
-  ) as FirstPersonControllerRuntime | undefined;
-
-  if (!savedViewRef.current) {
-    savedViewRef.current = {
-      localPosition: cameraEntity.getLocalPosition().clone(),
-      localEulerAngles: cameraEntity.getLocalEulerAngles().clone(),
-      controllerAngles: controller?._angles?.clone() ?? null,
-    };
-  }
-
-  frameStickyWallOverview(player);
-  controller?._angles?.copy(cameraEntity.getLocalEulerAngles());
-}
-
 /**
  * The overview camera's fit-to-FOV frame, also used to map screen clicks onto
  * the board and back (see stickyWallBoardProjection.ts) — computed once here
  * so the camera framing and the click math can never drift out of sync.
  */
 function getStickyWallCameraFrame(player: PcEntity | null): StickyWallCameraFrame | null {
-  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+  const cameraEntity = (
+    player?.root.findByName("sticky-wall-camera") ??
+    player?.findByName(LOCAL_CAMERA_ENTITY_NAME)
+  ) as PcEntity | null;
   const camera = cameraEntity?.camera;
   if (!camera) return null;
   const canvasBounds = camera.system.app.graphicsDevice.canvas.getBoundingClientRect();
   const aspect = Math.max(0.5, canvasBounds.width / Math.max(1, canvasBounds.height));
   return computeStickyWallCameraFrame(camera.fov, aspect);
-}
-
-/** Establishing shot: the whole board in view — mirrors frameWhiteboardCamera's fit-to-FOV math. */
-function frameStickyWallOverview(player: PcEntity | null): void {
-  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
-  const camera = cameraEntity?.camera;
-  const frame = getStickyWallCameraFrame(player);
-  if (!cameraEntity || !camera || !frame) return;
-
-  // Board is on the east wall (+X) — approach from the room-interior side
-  // (lower x), mirroring how the whiteboard (west wall, -X) approaches from +x.
-  cameraEntity.setPosition(STICKY_WALL_POSITION.x - frame.distance, STICKY_WALL_POSITION.y, STICKY_WALL_POSITION.z);
-  cameraEntity.lookAt(STICKY_WALL_POSITION.x, STICKY_WALL_POSITION.y, STICKY_WALL_POSITION.z);
-}
-
-function restoreFirstPersonCamera(
-  player: PcEntity | null,
-  savedViewRef: MutableRefObject<SavedCameraView | null>,
-): void {
-  const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
-  const savedView = savedViewRef.current;
-  if (!cameraEntity || !savedView) return;
-  cameraEntity.setLocalPosition(savedView.localPosition);
-  cameraEntity.setLocalEulerAngles(savedView.localEulerAngles);
-  const controller = player?.script?.get(
-    FIRST_PERSON_CONTROLLER_SCRIPT_NAME,
-  ) as FirstPersonControllerRuntime | undefined;
-  if (savedView.controllerAngles) {
-    controller?._angles?.copy(savedView.controllerAngles);
-  }
-  savedViewRef.current = null;
 }
 
 function easeInOutCubic(value: number): number {
@@ -470,7 +363,6 @@ function App() {
   const nearTokenMonitorRef = useRef(false);
   const whiteboardOpenRef = useRef(false);
   const terminalOpenRef = useRef(false);
-  const savedCameraViewRef = useRef<SavedCameraView | null>(null);
   const terminalSavedCameraViewRef = useRef<SavedCameraView | null>(null);
   const terminalCameraAnimationFrameRef = useRef<number | null>(null);
   const gameplayInputDetachedRef = useRef(false);
@@ -740,8 +632,6 @@ function App() {
       stickyNoteEditorOpenRef.current = true;
       setStickyNoteEditorOpen(true);
       setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
-      enterStickyWallCamera(playerEntityRef.current, savedCameraViewRef);
-
       pendingStickyNotePositionRef.current = null;
       setPendingStickyNotePosition(null);
       setStickyNoteWriterAnchor(null);
@@ -752,7 +642,10 @@ function App() {
     const handleStickyWallCanvasClick = (event: MouseEvent): void => {
       if (!stickyNoteEditorOpenRef.current || stickyWallStageRef.current !== "viewing") return;
       const player = playerEntityRef.current;
-      const cameraEntity = player?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+      const cameraEntity = (
+        player?.root.findByName("sticky-wall-camera") ??
+        player?.findByName(LOCAL_CAMERA_ENTITY_NAME)
+      ) as PcEntity | null;
       const camera = cameraEntity?.camera;
       if (!camera) return;
       const canvas = camera.system.app.graphicsDevice.canvas as HTMLCanvasElement;
@@ -967,7 +860,6 @@ function App() {
         whiteboardOpenRef.current = true;
         setWhiteboardOpen(true);
         setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
-        enterWhiteboardCamera(playerEntityRef.current, savedCameraViewRef);
         client.requestWhiteboardPresenter();
       } else if (nearOfficeSlotIdRef.current) {
         void handleOfficeInteract(nearOfficeSlotIdRef.current);
@@ -1365,7 +1257,6 @@ function App() {
     clientRef.current?.releaseWhiteboardPresenter();
     whiteboardOpenRef.current = false;
     setWhiteboardOpen(false);
-    restoreFirstPersonCamera(playerEntityRef.current, savedCameraViewRef);
     setPlayerControllerPaused(
       playerEntityRef.current,
       false,
@@ -1382,22 +1273,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!whiteboardOpen) return;
-    const reframe = (): void => frameWhiteboardCamera(playerEntityRef.current);
-    const animationFrame = window.requestAnimationFrame(reframe);
-    window.addEventListener("resize", reframe);
-    window.addEventListener("orientationchange", reframe);
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener("resize", reframe);
-      window.removeEventListener("orientationchange", reframe);
-    };
-  }, [whiteboardOpen]);
-
-  useEffect(() => {
     if (!stickyNoteEditorOpen) return;
     const reframe = (): void => {
-      frameStickyWallOverview(playerEntityRef.current);
       const position = pendingStickyNotePositionRef.current;
       if (!position) return;
       const frame = getStickyWallCameraFrame(playerEntityRef.current);
@@ -1471,7 +1348,6 @@ function App() {
     setPendingStickyNotePosition(null);
     setStickyNoteWriterAnchor(null);
     setStickyWallHint(null);
-    restoreFirstPersonCamera(playerEntityRef.current, savedCameraViewRef);
     setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef);
   }, []);
 
@@ -1593,6 +1469,8 @@ function App() {
             ref={sceneRef}
             speakingPlayerIds={speakingPlayerIds}
             chatFocused={chatHudState.focused}
+            whiteboardOpen={whiteboardOpen}
+            stickyWallOpen={stickyNoteEditorOpen}
             whiteboardSnapshot={whiteboardSnapshot}
             stickyNotes={stickyNotes}
             justPlacedStickyNoteAuthorSessionId={justPlacedStickyNoteAuthorSessionId}
@@ -1645,7 +1523,9 @@ function App() {
         disabled={whiteboardOpen || terminalOpen || tokenArcOpen}
       />
       {entered && !seatedDeskId && !whiteboardOpen && <div className="crosshair" />}
-      {entered && !hasMoved && !seatedDeskId && !whiteboardOpen && <div className="wasd-hint">WASD to move</div>}
+      {entered && !hasMoved && !seatedDeskId && !whiteboardOpen && (
+        <div className="wasd-hint game-instruction"><kbd>WASD</kbd> Move</div>
+      )}
       {entered && !seatedDeskId && !whiteboardOpen && !officeEditorData && !stickyNoteEditorOpen && (
         <MobileGameControls
           actionLabel={mobileActionLabel}
@@ -1676,10 +1556,10 @@ function App() {
         }}
       />
       {entered && nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
-        <div className="desk-interaction"><kbd>E</kbd> Open live analysis board</div>
+        <div className="desk-interaction game-instruction"><kbd>E</kbd> Open drawing board</div>
       )}
       {entered && nearTokenMonitor && !nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
-        <div className="desk-interaction token-monitor-controls">
+        <div className="desk-interaction game-instruction token-monitor-controls">
           <span><kbd>1</kbd> Buy $10</span>
           <span><kbd>2</kbd> Sell $10</span>
           <span><kbd>E</kbd> Change timeframe</span>
@@ -1687,7 +1567,7 @@ function App() {
       )}
       {entered && seatedDeskId && !whiteboardOpen && !terminalOpen && (
         <>
-          <div className="desk-interaction">
+          <div className="desk-interaction game-instruction">
             <kbd>F</kbd> Enable HyperLiquid cursor &nbsp;·&nbsp; <kbd>E</kbd> Stand up
           </div>
           <button
@@ -1715,19 +1595,19 @@ function App() {
         </>
       )}
       {entered && isNearOwnOffice && !seatedDeskId && !whiteboardOpen && !officeEditorData && (
-        <div className="desk-interaction"><kbd>E</kbd> Manage your office</div>
+        <div className="desk-interaction game-instruction"><kbd>E</kbd> Manage your office</div>
       )}
       {entered && nearOfficeOccupantSessionId && !seatedDeskId && !whiteboardOpen && !officeEditorData && (
-        <div className="desk-interaction"><kbd>E</kbd> Sign the visitor book</div>
+        <div className="desk-interaction game-instruction"><kbd>E</kbd> Sign the visitor book</div>
       )}
       {entered && nearStickyWall && !seatedDeskId && !whiteboardOpen && !stickyNoteEditorOpen && (
-        <div className="desk-interaction">
+        <div className="desk-interaction game-instruction">
           <kbd>E</kbd> {myStickyNote ? "Update your note" : "Post a note"}
         </div>
       )}
       {seatError && <div className="seat-error">{seatError}</div>}
       {officeError && <div className="seat-error">{officeError}</div>}
-      {entered && pointerLockLost && <div className="pointer-lock-hint">Click to keep looking around</div>}
+      {entered && pointerLockLost && <div className="pointer-lock-hint game-instruction">Click to keep looking around</div>}
       {seatedDeskId && (
         <HyperliquidTerminal
           player={playerEntityRef.current}
@@ -1750,7 +1630,7 @@ function App() {
         />
       )}
       {stickyNoteEditorOpen && stickyWallStage === "viewing" && (
-        <div className="sticky-wall-placing-hint">
+        <div className="sticky-wall-placing-hint game-instruction">
           <p>{myStickyNote ? "Click your note to edit or delete it" : "Click an empty spot on the board to add your note"}</p>
           {stickyWallHint && <p className="sticky-wall-placing-hint__flash">{stickyWallHint}</p>}
         </div>

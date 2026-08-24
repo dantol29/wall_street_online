@@ -64,8 +64,25 @@ export function applyCharacterMaterialFinish(model: PcEntity): boolean {
   for (const material of materials) {
     material.useMetalness = true;
     material.metalness = 0;
-    material.gloss = 0.18;
+    // The glTF importer leaves glossInvert=true on every material it creates
+    // (it treats `gloss` as raw roughness). Left alone, the `gloss` value
+    // below would be read as roughness=0.18 — a near-mirror-smooth surface,
+    // the opposite of the matte finish intended here — instead of the
+    // glossiness=0.18 (mostly matte) meaning used by every other material in
+    // this codebase (e.g. Environment.tsx's `useMaterial({ gloss: ... })`
+    // calls, which start from a fresh StandardMaterial with glossInvert
+    // defaulting to false).
+    material.glossInvert = false;
+    // `metalness = 0` alone is not enough in PlayCanvas: StandardMaterial can
+    // still sample the scene cubemap through its independent reflectivity
+    // control. Keep only a very faint environment response so skin, hair and
+    // fabric read under the room lights instead of reflecting the whole room.
+    material.gloss = 0.1;
+    material.reflectivity = 0.04;
+    material.specularityFactor = 0.2;
     material.specular.set(0.08, 0.08, 0.08);
+    material.clearCoat = 0;
+    material.clearCoatGloss = 0;
     material.update();
   }
   return true;
@@ -79,6 +96,8 @@ export function applyCharacterMaterialFinish(model: PcEntity): boolean {
  * down or around. Remote players keep it (see RemotePlayer.tsx).
  */
 export const CHARACTER_HEAD_NODE_NAME = "Suit_Head";
+/** Torso mesh node, kept explicit so local-player visibility can be controlled independently if needed. */
+export const CHARACTER_BODY_NODE_NAME = "Suit_Body";
 
 export interface CharacterSeatedPoseRig {
   upperLegLeft: GraphNode;

@@ -5,3 +5,5 @@ dist/
 .DS_Store
 *.log
 apps/game-server/data/
+.agents/
+.claude/
