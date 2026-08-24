@@ -2,7 +2,8 @@ import { STICKY_WALL_WORLD_HEIGHT, STICKY_WALL_WORLD_WIDTH } from "@multiplayer/
 
 /**
  * The camera overview shot (see frameStickyWallOverview in App.tsx) looks
- * straight on at the board — its lookAt makes camera-right == world +Z and
+ * straight on at the board — its east-wall view maps camera-right along the
+ * board's world-Z width and
  * camera-up == world +Y. That means a click's screen position maps to a
  * board fraction by plain NDC scaling, with no raycast against the mesh
  * needed. `OVERVIEW_PADDING` must match the padding used there, or a click

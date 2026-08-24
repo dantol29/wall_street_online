@@ -35,6 +35,7 @@ export interface PlayerInputMessage {
   z: number;
   rotationY: number;
   animation: AnimationState;
+  holdingNotepad: boolean;
 }
 
 export interface ChatMessage {

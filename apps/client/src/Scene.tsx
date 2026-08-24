@@ -14,6 +14,7 @@ import { TokenMonitor } from "./game/scene/TokenMonitor";
 import { Lighting } from "./game/scene/Lighting";
 import { LocalPlayer } from "./game/player/LocalPlayer";
 import { RemotePlayer } from "./game/player/RemotePlayer";
+import { PlayerTokenProjectile, type PlayerTokenThrowVisual } from "./game/player/PlayerTokenProjectile";
 import {
   createRemoteTransform,
   getVisualTransform,
@@ -36,6 +37,7 @@ interface SceneProps {
   /** Read every frame by LocalPlayer's own body model — see App.tsx's movement tick. */
   localAnimationRef: MutableRefObject<AnimationState>;
   localSeated: boolean;
+  localHoldingNotepad: boolean;
   speakingPlayerIds: ReadonlySet<string>;
   chatFocused: boolean;
   whiteboardOpen: boolean;
@@ -46,12 +48,14 @@ interface SceneProps {
   worldTime: WorldTimeAnchor;
   worldTimeOverridePhase: number | null;
   tokenMonitorTimeframeIndex: number;
-  tokenMonitorTradePress: { side: "buy" | "sell"; id: number } | null;
+  tokenMonitorTradePress: { side: "buy" | "sell"; id: number; sourceSessionId: string } | null;
   tokenLaunchDisplay: TokenLaunchDisplayState;
   launchedMarketToken: LaunchedMarketToken | null;
   tickerAnnouncement: string | null;
   launchStandAnnouncementActive: boolean;
   soundPlayingStandAddresses: ReadonlySet<string>;
+  playerTokenThrow: PlayerTokenThrowVisual | null;
+  localSessionId: string | null;
 }
 
 export interface SceneHandle {
@@ -77,6 +81,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     playerEntityRef,
     localAnimationRef,
     localSeated,
+    localHoldingNotepad,
     speakingPlayerIds,
     chatFocused,
     whiteboardOpen,
@@ -93,6 +98,8 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     tickerAnnouncement,
     launchStandAnnouncementActive,
     soundPlayingStandAddresses,
+    playerTokenThrow,
+    localSessionId,
   },
   ref,
 ) {
@@ -112,6 +119,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
           displayName: snapshot.displayName,
           animation: snapshot.animation,
           seatedDeskId: snapshot.seatedDeskId,
+          holdingNotepad: snapshot.holdingNotepad,
           officeSlotId: snapshot.officeSlotId,
           pnlUsd: null,
         });
@@ -124,6 +132,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
         record.displayName = snapshot.displayName;
         record.animation = snapshot.animation;
         record.seatedDeskId = snapshot.seatedDeskId;
+        record.holdingNotepad = snapshot.holdingNotepad;
         record.officeSlotId = snapshot.officeSlotId;
       },
       removeRemotePlayer(sessionId) {
@@ -199,6 +208,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
         <LocalPlayer
           spawn={spawn}
           seated={localSeated}
+          holdingNotepad={localHoldingNotepad}
           animationRef={localAnimationRef}
           chatFocused={chatFocused}
           alternateCameraActive={whiteboardOpen || stickyWallOpen}
@@ -207,6 +217,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
       )}
       {playerReady && whiteboardOpen && <WhiteboardCamera />}
       {playerReady && stickyWallOpen && <StickyWallCamera />}
+      {playerReady && <PlayerTokenProjectile event={playerTokenThrow} localSessionId={localSessionId} />}
 
       {remoteIds.map((sessionId) => (
         <RemotePlayer

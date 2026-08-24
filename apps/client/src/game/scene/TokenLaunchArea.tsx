@@ -3,9 +3,9 @@ import { Entity } from "@playcanvas/react";
 import { Render } from "@playcanvas/react/components";
 import { useApp, useMaterial } from "@playcanvas/react/hooks";
 import { FILTER_LINEAR, StandardMaterial, Texture } from "playcanvas";
-import { StaticBox, StaticCylinder, VisualBox, VisualCylinder } from "./primitives";
+import { StaticCylinder, VisualBox, VisualCylinder } from "./primitives";
 
-export const TOKEN_LAUNCH_INTERACTION_POSITION = { x: 0, z: -0.48 } as const;
+export const TOKEN_LAUNCH_INTERACTION_POSITION = { x: 0, z: 0 } as const;
 export const TOKEN_LAUNCH_INTERACTION_DISTANCE_METERS = 1.65;
 
 export interface TokenLaunchDisplayState {
@@ -45,10 +45,15 @@ function useLaunchScreenMaterial(state: TokenLaunchDisplayState, variant: Launch
       ctx.font = '700 42px "Courier New", monospace';
       ctx.fillText(status, 320, 160);
     } else if (state.phase === "idle") {
-      ctx.fillText(variant === "console" ? "LAUNCH A TOKEN" : "OPEN FOR LISTING", 320, 112);
-      ctx.fillStyle = "#a9aaa6";
-      ctx.font = '700 25px "Courier New", monospace';
-      ctx.fillText(variant === "console" ? "PRESS E TO START" : "LAUNCH A TOKEN", 320, 205);
+      if (variant === "overhead") {
+        ctx.font = '700 72px "Courier New", monospace';
+        ctx.fillText("LAUNCH", 320, 160);
+      } else {
+        ctx.fillText("LAUNCH A TOKEN", 320, 112);
+        ctx.fillStyle = "#a9aaa6";
+        ctx.font = '700 25px "Courier New", monospace';
+        ctx.fillText("PRESS E TO START", 320, 205);
+      }
     } else if (state.phase === "editing") {
       ctx.fillText(variant === "console" ? "CREATE TOKEN" : "NEXT LAUNCH", 320, 72);
       ctx.fillStyle = "#c7c0b2";
@@ -117,7 +122,16 @@ function useLaunchScreenMaterial(state: TokenLaunchDisplayState, variant: Launch
     texture.setSource(canvas);
     texture.upload();
     let disposed = false;
-    if (variant === "overhead" && state.phase === "live" && state.imageUrl) {
+    if (variant === "overhead" && state.phase === "idle") {
+      const image = new Image();
+      image.onload = () => {
+        if (disposed) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        texture.upload();
+      };
+      image.src = "/assets/launch/launch-banner.png";
+    } else if (variant === "overhead" && state.phase === "live" && state.imageUrl) {
       const image = new Image();
       image.crossOrigin = "anonymous";
       image.onload = () => {
@@ -162,7 +176,6 @@ function useLaunchScreenMaterial(state: TokenLaunchDisplayState, variant: Launch
 }
 
 export function TokenLaunchArea({ state }: { state: TokenLaunchDisplayState }) {
-  const consoleScreenMaterial = useLaunchScreenMaterial(state, "console");
   const overheadScreenMaterial = useLaunchScreenMaterial(state, "overhead");
   const [buttonPress, setButtonPress] = useState(0);
   useEffect(() => {
@@ -175,7 +188,6 @@ export function TokenLaunchArea({ state }: { state: TokenLaunchDisplayState }) {
   const stone = useMaterial({ diffuse: "#202326", gloss: 0.1, metalness: 0.02 });
   const insetStone = useMaterial({ diffuse: "#292d30", gloss: 0.08, metalness: 0.02 });
   const metal = useMaterial({ diffuse: "#111416", gloss: 0.18, metalness: 0.38 });
-  const frontMetal = useMaterial({ diffuse: "#2b2f31", gloss: 0.12, metalness: 0.22 });
   const trim = useMaterial({ diffuse: "#48433a", gloss: 0.22, metalness: 0.45 });
   const buttonPlate = useMaterial({ diffuse: "#242729", gloss: 0.22, metalness: 0.5 });
   const redButton = useMaterial({
@@ -211,41 +223,27 @@ export function TokenLaunchArea({ state }: { state: TokenLaunchDisplayState }) {
         );
       })}
 
-      {/* Rear-set, permanent listing console; the south half remains a clear
-          standing and approach area. */}
-      <StaticBox position={[0, 0.68, -0.48]} size={[1.62, 0.94, 0.92]} material={metal} />
-      <VisualBox position={[0, 0.68, 0.005]} size={[1.48, 0.72, 0.055]} material={frontMetal} />
-      {consoleScreenMaterial && (
-        <>
-          <Entity position={[-0.13, 1.275, 0.17]} rotation={[66, 0, 0]} scale={[1.06, 1, 0.46]}>
-            <Render type="plane" material={consoleScreenMaterial} />
-          </Entity>
-          <Entity position={[0.13, 1.275, -1.13]} rotation={[-66, 180, 0]} scale={[1.06, 1, 0.46]}>
-            <Render type="plane" material={consoleScreenMaterial} />
-          </Entity>
-        </>
-      )}
-      <VisualCylinder position={[0.58, 1.25, 0.24]} rotation={[66, 0, 0]} radius={0.16} height={0.045} material={buttonPlate} />
-      <VisualCylinder position={[0.58, 1.3 - buttonPress, 0.285]} rotation={[66, 0, 0]} radius={0.125} height={0.075} material={trim} />
-      <VisualCylinder position={[0.58, 1.33 - buttonPress, 0.31]} rotation={[66, 0, 0]} radius={0.105} height={0.08} material={redButton} />
-      <VisualCylinder position={[-0.58, 1.25, -1.2]} rotation={[-66, 0, 0]} radius={0.16} height={0.045} material={buttonPlate} />
-      <VisualCylinder position={[-0.58, 1.3 - buttonPress, -1.245]} rotation={[-66, 0, 0]} radius={0.125} height={0.075} material={trim} />
-      <VisualCylinder position={[-0.58, 1.33 - buttonPress, -1.27]} rotation={[-66, 0, 0]} radius={0.105} height={0.08} material={redButton} />
-      <VisualCylinder position={[-0.66, 1.04, 0.02]} rotation={[90, 0, 0]} radius={0.026} height={0.018} material={edgeLight} />
+      {/* Minimal ceremonial column, aligned to the exact platform center. */}
+      <StaticCylinder position={[0, 0.12, 0]} rotation={[0, 0, 0]} radius={0.56} height={0.2} material={metal} />
+      <StaticCylinder position={[0, 0.64, 0]} rotation={[0, 0, 0]} radius={0.36} height={0.82} material={metal} />
+
+      {/* One top control: mounting plate and red button. */}
+      <VisualCylinder position={[0, 1.08, 0]} radius={0.29} height={0.07} material={buttonPlate} />
+      <VisualCylinder position={[0, 1.18 - buttonPress, 0]} radius={0.18} height={0.105} material={redButton} />
       {/* Larger exchange display lowered into the platform's vertical sightline;
           full-height rods visibly terminate at the ceiling. */}
-      {[[-1.0, -0.52], [1.0, -0.52], [-1.0, 0.52], [1.0, 0.52]].map(([x, z]) => (
+      {[[-1.0, -1.0], [1.0, -1.0], [-1.0, 1.0], [1.0, 1.0]].map(([x, z]) => (
         <VisualBox key={`launch-hanger-${x}-${z}`} position={[x, 7.78, z]} size={[0.045, 7.45, 0.045]} material={metal} />
       ))}
-      <VisualBox position={[0, 3.75, 0]} size={[3.1, 1.4, 1.75]} material={metal} />
-      <VisualBox position={[0, 3.04, 0]} size={[2.86, 0.055, 1.5]} material={trim} />
-      <VisualBox position={[0, 3.005, 0]} size={[2.5, 0.022, 1.18]} material={edgeLight} />
+      <VisualBox position={[0, 3.75, 0]} size={[3.1, 1.4, 3.1]} material={metal} />
+      <VisualBox position={[0, 3.04, 0]} size={[2.86, 0.055, 2.86]} material={trim} />
+      <VisualBox position={[0, 3.005, 0]} size={[2.5, 0.022, 2.5]} material={edgeLight} />
       {overheadScreenMaterial && (
         <>
-          <Entity position={[0, 3.75, 0.886]} rotation={[90, 0, 0]} scale={[2.78, 1, 1.12]}><Render type="plane" material={overheadScreenMaterial} /></Entity>
-          <Entity position={[0, 3.75, -0.886]} rotation={[90, 180, 0]} scale={[2.78, 1, 1.12]}><Render type="plane" material={overheadScreenMaterial} /></Entity>
-          <Entity position={[1.561, 3.75, 0]} rotation={[90, 90, 0]} scale={[1.46, 1, 1.12]}><Render type="plane" material={overheadScreenMaterial} /></Entity>
-          <Entity position={[-1.561, 3.75, 0]} rotation={[90, -90, 0]} scale={[1.46, 1, 1.12]}><Render type="plane" material={overheadScreenMaterial} /></Entity>
+          <Entity position={[0, 3.75, 1.561]} rotation={[90, 0, 0]} scale={[2.78, 1, 1.12]}><Render type="plane" material={overheadScreenMaterial} /></Entity>
+          <Entity position={[0, 3.75, -1.561]} rotation={[90, 180, 0]} scale={[2.78, 1, 1.12]}><Render type="plane" material={overheadScreenMaterial} /></Entity>
+          <Entity position={[1.561, 3.75, 0]} rotation={[90, 90, 0]} scale={[2.78, 1, 1.12]}><Render type="plane" material={overheadScreenMaterial} /></Entity>
+          <Entity position={[-1.561, 3.75, 0]} rotation={[90, -90, 0]} scale={[2.78, 1, 1.12]}><Render type="plane" material={overheadScreenMaterial} /></Entity>
         </>
       )}
 

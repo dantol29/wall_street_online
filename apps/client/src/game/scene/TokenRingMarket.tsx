@@ -15,7 +15,7 @@ import {
   type Candle,
 } from "./TokenMonitor";
 
-export interface LaunchedMarketToken { name: string; ticker: string; imageUrl?: string; description?: string; soundUrl?: string }
+export interface LaunchedMarketToken { name: string; ticker: string; imageUrl?: string; description?: string; soundUrl?: string; seedSizeUsdc?: number }
 
 const MALFUNCTIONING_STAND_ADDRESS = "R1-009";
 
@@ -407,7 +407,7 @@ function useMalfunctioningLogo(enabled: boolean): StandardMaterial | null {
   return material;
 }
 
-function FullTokenStand({ slot, launched, announcing = false, soundPlaying = false }: { slot: TokenStandAddress; launched?: LaunchedMarketToken; announcing?: boolean; soundPlaying?: boolean }) {
+function FullTokenStand({ slot, launched, announcing = false, soundPlaying = false, terminalLightActive = false }: { slot: TokenStandAddress; launched?: LaunchedMarketToken; announcing?: boolean; soundPlaying?: boolean; terminalLightActive?: boolean }) {
   const canMalfunction = !launched && slot.address === MALFUNCTIONING_STAND_ADDRESS;
   const normalScreen = useStandScreen(launched ?? null, slot.address, !canMalfunction, announcing);
   const malfunctioningScreen = useMalfunctioningScreen(slot.address, canMalfunction);
@@ -422,6 +422,7 @@ function FullTokenStand({ slot, launched, announcing = false, soundPlaying = fal
       screenMaterial={canMalfunction ? malfunctioningScreen : normalScreen}
       logoMaterial={launched ? launchedLogo : canMalfunction ? malfunctioningLogo : placeholderLogo}
       logoBorderActive={soundPlaying}
+      terminalLightActive={terminalLightActive}
     >
       {launched && !announcing && (
         <>
@@ -474,6 +475,16 @@ export function TokenRingMarket({ launchedToken, launchAnnouncementActive = fals
     setPlayerPosition((current) => Math.hypot(position.x - current.x, position.z - current.z) > 0.8 ? { x: position.x, z: position.z } : current);
   });
 
+  // Keep real-time terminal lighting bounded regardless of market size.
+  const nearestLitStandAddresses = new Set(
+    TOKEN_STAND_LAYOUT
+      .filter((slot) => slot.address !== FIRST_TOKEN_STAND.address)
+      .map((slot) => ({ slot, distance: Math.hypot(slot.x - playerPosition.x, slot.z - playerPosition.z) }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 6)
+      .map(({ slot }) => slot.address),
+  );
+
   return (
     <>
       {TOKEN_STAND_LAYOUT.map((slot) => {
@@ -487,12 +498,13 @@ export function TokenRingMarket({ launchedToken, launchAnnouncementActive = fals
               slot={slot}
               launched={fakeToken}
               soundPlaying={soundPlayingStandAddresses?.has(slot.address)}
+              terminalLightActive={nearestLitStandAddresses.has(slot.address)}
             />
           );
         }
         const distance = Math.hypot(slot.x - playerPosition.x, slot.z - playerPosition.z);
         return distance <= 25
-          ? <FullTokenStand key={slot.address} slot={slot} />
+          ? <FullTokenStand key={slot.address} slot={slot} terminalLightActive={nearestLitStandAddresses.has(slot.address)} />
           : <SimplifiedTokenStand key={slot.address} slot={slot} far={distance > 23} />;
       })}
       {launchedToken && (
@@ -501,6 +513,7 @@ export function TokenRingMarket({ launchedToken, launchAnnouncementActive = fals
           launched={launchedToken}
           announcing={launchAnnouncementActive}
           soundPlaying={soundPlayingStandAddresses?.has(NEXT_TOKEN_STAND.address)}
+          terminalLightActive={nearestLitStandAddresses.has(NEXT_TOKEN_STAND.address)}
         />
       )}
     </>

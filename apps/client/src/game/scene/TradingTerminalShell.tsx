@@ -1,9 +1,10 @@
 import { useRef, type ReactNode } from "react";
 import { Entity } from "@playcanvas/react";
-import { Render } from "@playcanvas/react/components";
+import { Light, Render } from "@playcanvas/react/components";
 import { useApp, useAppEvent, useMaterial } from "@playcanvas/react/hooks";
-import type { Entity as PcEntity, StandardMaterial } from "playcanvas";
+import { LIGHTFALLOFF_LINEAR, type Entity as PcEntity, type StandardMaterial } from "playcanvas";
 import { VisualBox, VisualCylinder } from "./primitives";
+import { ROOM_HEIGHT } from "./roomConstants";
 
 export const TERMINAL_SCREEN_CENTER_Y = 1.52;
 export const TERMINAL_SCREEN_SIZE: [number, number, number] = [1.65, 1.02, 0.1];
@@ -16,6 +17,7 @@ interface TradingTerminalShellProps {
   screenMaterial: StandardMaterial | null;
   logoMaterial: StandardMaterial | null;
   logoBorderActive?: boolean;
+  terminalLightActive?: boolean;
   children?: ReactNode;
 }
 
@@ -61,6 +63,7 @@ export function TradingTerminalShell({
   screenMaterial,
   logoMaterial,
   logoBorderActive = false,
+  terminalLightActive = false,
   children,
 }: TradingTerminalShellProps) {
   const bodyMaterial = useMaterial({ diffuse: "#141619", metalness: 0.42, gloss: 0.24 });
@@ -81,9 +84,35 @@ export function TradingTerminalShell({
     metalness: 0.08,
     gloss: 0.22,
   });
+  const downlightMaterial = useMaterial({
+    diffuse: "#101214",
+    emissive: "#d7b895",
+    emissiveIntensity: terminalLightActive ? 0.28 : 0.03,
+    gloss: 0.08,
+    metalness: 0.2,
+  });
 
   return (
     <Entity position={position} rotation={rotation}>
+      {/* Only nearby stands receive a real light. The housing remains visible
+          on every full-detail terminal so the illumination has a physical source. */}
+      <Entity position={[0, ROOM_HEIGHT - TERMINAL_SCREEN_CENTER_Y - 0.2, 0]}>
+        <Entity scale={[0.2, 0.08, 0.2]}>
+          <Render type="cylinder" material={downlightMaterial} />
+        </Entity>
+        {terminalLightActive && (
+          <Light
+            type="spot"
+            color="#efd2b4"
+            intensity={0.72}
+            range={12.8}
+            innerConeAngle={10}
+            outerConeAngle={24}
+            falloffMode={LIGHTFALLOFF_LINEAR}
+            castShadows={false}
+          />
+        )}
+      </Entity>
       {/* Heavy, stepped base: the smaller upper plate reads as a cheap bevel. */}
       <VisualBox position={[0, -1.485, 0]} size={[0.5, 0.07, 0.36]} material={bodyMaterial} />
       <VisualBox position={[0, -1.438, 0]} size={[0.44, 0.025, 0.31]} material={secondaryMaterial} />

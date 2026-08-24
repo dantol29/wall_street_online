@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Entity } from "@playcanvas/react";
 import { Render } from "@playcanvas/react/components";
 import { useApp, useMaterial } from "@playcanvas/react/hooks";
-import { BLEND_NORMAL, FILTER_LINEAR, StandardMaterial, Texture } from "playcanvas";
+import { BLEND_NORMAL, FILTER_LINEAR, StandardMaterial, Texture, Vec3, type Entity as PcEntity } from "playcanvas";
 import {
   TERMINAL_SCREEN_CENTER_Y,
   TERMINAL_SCREEN_SIZE,
@@ -295,8 +295,49 @@ function useCanvasScreenMaterial(
 
 interface TokenMonitorProps {
   activeTimeframeIndex: number;
-  tradePress: { side: "buy" | "sell"; id: number } | null;
+  tradePress: { side: "buy" | "sell"; id: number; sourceSessionId: string } | null;
   soundPlaying?: boolean;
+}
+
+export function useCoinLogoMaterial(path: string, name: string): StandardMaterial | null {
+  const app = useApp();
+  const [material, setMaterial] = useState<StandardMaterial | null>(null);
+  useEffect(() => {
+    let disposed = false;
+    let texture: Texture | null = null;
+    let logoMaterial: StandardMaterial | null = null;
+    const image = new Image();
+    image.onload = () => {
+      if (disposed) return;
+      const canvas = document.createElement("canvas");
+      canvas.width = 256;
+      canvas.height = 256;
+      canvas.getContext("2d")?.drawImage(image, 0, 0, 256, 256);
+      texture = new Texture(app.graphicsDevice, { name, width: 256, height: 256, mipmaps: true, minFilter: FILTER_LINEAR, magFilter: FILTER_LINEAR });
+      texture.setSource(canvas);
+      texture.upload();
+      logoMaterial = new StandardMaterial();
+      logoMaterial.diffuse.set(0, 0, 0);
+      logoMaterial.emissive.set(1, 1, 1);
+      logoMaterial.emissiveMap = texture;
+      logoMaterial.opacityMap = texture;
+      logoMaterial.opacityMapChannel = "a";
+      logoMaterial.blendType = BLEND_NORMAL;
+      logoMaterial.depthWrite = false;
+      logoMaterial.emissiveIntensity = 0.85;
+      logoMaterial.update();
+      setMaterial(logoMaterial);
+    };
+    image.src = path;
+    return () => {
+      disposed = true;
+      image.onload = null;
+      setMaterial(null);
+      logoMaterial?.destroy();
+      texture?.destroy();
+    };
+  }, [app, name, path]);
+  return material;
 }
 
 const TRADE_BUTTON_Y = -(MONITOR_SIZE[1] / 2) + 0.055;
@@ -305,26 +346,104 @@ const TRADE_BUTTON_DIAMETER = 0.13;
 const TRADE_BUTTON_DEPTH = 0.035;
 const TRADE_BUTTON_SPACING = 0.16;
 const TRADE_BUTTON_ROW_END_X = MONITOR_SIZE[0] / 2 - 0.08;
-const TRADE_BUTTON_COLOR = "#1c1c1c";
 const TRADE_BUTTON_TEXT_COLOR = "#ffffff";
+const COIN_THROW_DURATION_MS = 520;
 
-export function PhysicalTradeButton({ label, x, pressId }: { label: string; x: number; pressId: number }) {
+export function PhysicalTradeButton({ label, x, pressId, sourceSessionId }: { label: string; x: number; pressId: number; sourceSessionId?: string }) {
   const app = useApp();
-  const [pressDepth, setPressDepth] = useState(0);
-  const buttonMaterial = useMaterial({ diffuse: TRADE_BUTTON_COLOR, gloss: 0.4, metalness: 0.3 });
+  const holeRef = useRef<PcEntity | null>(null);
+  const rimRef = useRef<PcEntity | null>(null);
+  const coinRef = useRef<PcEntity | null>(null);
+  const rimMaterial = useMaterial({ diffuse: "#343536", gloss: 0.18, metalness: 0.42 });
+  const holeMaterial = useMaterial({ diffuse: "#030404", gloss: 0.03, metalness: 0.08 });
+  const buying = label === "BUY";
+  const coinMaterial = useMaterial({
+    diffuse: buying ? "#2775ca" : "#062821",
+    emissive: buying ? "#0b2850" : "#0b3b30",
+    emissiveIntensity: 0.14,
+    gloss: 0.36,
+    metalness: 0.45,
+  });
+  const usdcCoinFaceMaterial = useCoinLogoMaterial("/assets/ui/usdc.svg", "trade-coin-usdc-face");
+  const tokenCoinFaceMaterial = useCanvasScreenMaterial(
+    app,
+    `trade-coin-${label.toLowerCase()}-face`,
+    128,
+    128,
+    (ctx) => {
+      ctx.save();
+      ctx.scale(0.5, 0.5);
+      drawTokenSign(ctx);
+      ctx.restore();
+    },
+    [buying],
+    true,
+  );
+  const coinFaceMaterial = buying ? usdcCoinFaceMaterial : tokenCoinFaceMaterial;
 
   useEffect(() => {
     if (pressId === 0) return;
+    const hole = holeRef.current;
+    const rim = rimRef.current;
+    const coin = coinRef.current;
+    const localPlayer = app.root.findByName("local-player") as PcEntity | null;
+    const player = !sourceSessionId || sourceSessionId === "local"
+      ? localPlayer
+      : app.root.findByName(`remote-${sourceSessionId}`) as PcEntity | null
+        ?? (sourceSessionId === localPlayer?.name ? localPlayer : null);
+    if (!hole || !coin || !player) return;
+    const worldStart = player.getPosition().clone();
+    worldStart.y += 0.72;
+    const localStart = new Vec3();
+    hole.getWorldTransform().clone().invert().transformPoint(worldStart, localStart);
+    coin.enabled = true;
+    coin.setLocalScale(0.72, 0.72, 0.72);
     let frame = 0;
+    let impactResetTimer = 0;
+    let impacted = false;
     const start = performance.now();
     const tick = (now: number) => {
-      const t = Math.min((now - start) / 180, 1);
-      setPressDepth(t < 0.35 ? t / 0.35 : 1 - (t - 0.35) / 0.65);
+      const t = Math.min((now - start) / COIN_THROW_DURATION_MS, 1);
+      const eased = t * t * (3 - 2 * t);
+      coin.setLocalPosition(
+        localStart.x * (1 - eased),
+        localStart.y * (1 - eased) + Math.sin(t * Math.PI) * 0.18,
+        localStart.z * (1 - eased) + 0.025 * eased,
+      );
+      // Starting value after the 540-degree version read as excessive: a
+      // one-third turn keeps the logo moving but identifiable throughout.
+      // Pass when observers can identify the coin before it reaches the hole.
+      coin.setLocalEulerAngles(0, t * 120, 0);
+      const appearScale = Math.min(1, 0.72 + t * 2.8);
+      const sinkScale = t > 0.82 ? Math.max(0.12, 1 - ((t - 0.82) / 0.18) * 0.88) : 1;
+      coin.setLocalScale(appearScale * sinkScale, appearScale * sinkScale, appearScale * sinkScale);
+      if (t >= 0.9 && !impacted) {
+        impacted = true;
+        // Keep the physical scale response neutral: receiving a coin should
+        // not change the Buy/Sell hole's material or color.
+        rim?.setLocalScale(TRADE_BUTTON_DIAMETER * 1.16, TRADE_BUTTON_DEPTH, TRADE_BUTTON_DIAMETER * 1.16);
+        const impactAudio = new Audio("/assets/audio/terminal/transaction-click.wav");
+        impactAudio.volume = 0.16;
+        void impactAudio.play().catch(() => undefined);
+        impactResetTimer = window.setTimeout(() => {
+          rim?.setLocalScale(TRADE_BUTTON_DIAMETER, TRADE_BUTTON_DEPTH, TRADE_BUTTON_DIAMETER);
+        }, 160);
+      }
       if (t < 1) frame = requestAnimationFrame(tick);
+      else {
+        coin.enabled = false;
+        coin.setLocalScale(1, 1, 1);
+      }
     };
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [pressId]);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(impactResetTimer);
+      coin.enabled = false;
+      coin.setLocalScale(1, 1, 1);
+      rim?.setLocalScale(TRADE_BUTTON_DIAMETER, TRADE_BUTTON_DEPTH, TRADE_BUTTON_DIAMETER);
+    };
+  }, [app, pressId, rimMaterial, sourceSessionId]);
   const labelMaterial = useCanvasScreenMaterial(
     app,
     `token-monitor-${label.toLowerCase()}-label`,
@@ -342,22 +461,35 @@ export function PhysicalTradeButton({ label, x, pressId }: { label: string; x: n
   );
 
   return (
-    <Entity position={[x, TRADE_BUTTON_Y, TRADE_BUTTON_Z - pressDepth * 0.018]}>
-      <Entity
-        rotation={[90, 0, 0]}
-        scale={[TRADE_BUTTON_DIAMETER, TRADE_BUTTON_DEPTH, TRADE_BUTTON_DIAMETER]}
-      >
-        <Render type="cylinder" material={buttonMaterial} />
+    <Entity ref={holeRef} position={[x, TRADE_BUTTON_Y, TRADE_BUTTON_Z]}>
+      {/* Recessed physical trade hole. Starting value: 520ms throw duration.
+          Pass when an observer can identify source and destination in one view;
+          shorten it if input feels delayed, lengthen it if the coin is unreadable. */}
+      <Entity ref={rimRef} rotation={[90, 0, 0]} scale={[TRADE_BUTTON_DIAMETER, TRADE_BUTTON_DEPTH, TRADE_BUTTON_DIAMETER]}>
+        <Render type="cylinder" material={rimMaterial} />
+      </Entity>
+      <Entity position={[0, 0, 0.019]} rotation={[90, 0, 0]} scale={[TRADE_BUTTON_DIAMETER * 0.68, 0.008, TRADE_BUTTON_DIAMETER * 0.68]}>
+        <Render type="cylinder" material={holeMaterial} />
       </Entity>
       {labelMaterial && (
         <Entity
-          position={[0, 0, TRADE_BUTTON_DEPTH / 2 + 0.001]}
+          position={[0, 0.095, TRADE_BUTTON_DEPTH / 2 + 0.006]}
           rotation={[90, 0, 0]}
-          scale={[TRADE_BUTTON_DIAMETER * 0.82, 1, TRADE_BUTTON_DIAMETER * 0.82]}
+          scale={[TRADE_BUTTON_DIAMETER * 0.9, 1, TRADE_BUTTON_DIAMETER * 0.35]}
         >
           <Render type="plane" material={labelMaterial} />
         </Entity>
       )}
+      <Entity ref={coinRef} enabled={false}>
+        <Entity rotation={[90, 0, 0]} scale={[0.085, 0.014, 0.085]}>
+          <Render type="cylinder" material={coinMaterial} />
+        </Entity>
+        {coinFaceMaterial && (
+          <Entity position={[0, 0, 0.009]} rotation={[90, 0, 0]} scale={[0.075, 1, 0.075]}>
+            <Render type="plane" material={coinFaceMaterial} />
+          </Entity>
+        )}
+      </Entity>
     </Entity>
   );
 }
@@ -462,6 +594,7 @@ export function TokenMonitor({ activeTimeframeIndex, tradePress, soundPlaying = 
       screenMaterial={screenMaterial}
       logoMaterial={tokenSignMaterial}
       logoBorderActive={soundPlaying}
+      terminalLightActive
     >
       {TIMEFRAMES.map((label, index) => {
         const travel = index === pressedIndex ? pressDepth * BUTTON_PRESS_TRAVEL : 0;
@@ -487,11 +620,13 @@ export function TokenMonitor({ activeTimeframeIndex, tradePress, soundPlaying = 
         label="BUY"
         x={TRADE_BUTTON_ROW_END_X - TRADE_BUTTON_SPACING}
         pressId={tradePress?.side === "buy" ? tradePress.id : 0}
+        sourceSessionId={tradePress?.side === "buy" ? tradePress.sourceSessionId : undefined}
       />
       <PhysicalTradeButton
         label="SELL"
         x={TRADE_BUTTON_ROW_END_X}
         pressId={tradePress?.side === "sell" ? tradePress.id : 0}
+        sourceSessionId={tradePress?.side === "sell" ? tradePress.sourceSessionId : undefined}
       />
     </TradingTerminalShell>
   );

@@ -6,6 +6,7 @@ import type { Entity as PcEntity } from "playcanvas";
 // @ts-expect-error - PlayCanvas ESM scripts don't have type declarations
 import { FirstPersonController } from "playcanvas/scripts/esm/first-person-controller.mjs";
 import type { AnimationState } from "@multiplayer/shared";
+import { HeldNotepad } from "./HeldNotepad";
 import {
   CHARACTER_ANIM_TRANSITION_BLEND_SECONDS,
   CHARACTER_BODY_NODE_NAME,
@@ -16,9 +17,12 @@ import {
   CHARACTER_MODEL_Y_OFFSET,
   CHARACTER_SEATED_MODEL_Y_OFFSET,
   applyCharacterSeatedPose,
+  applyCharacterNotepadPose,
   applyCharacterMaterialFinish,
   registerCharacterAnimationStates,
   resolveCharacterSeatedPoseRig,
+  resolveCharacterNotepadPoseRig,
+  type CharacterNotepadPoseRig,
   type CharacterSeatedPoseRig,
 } from "./characterAnimation";
 // import { TradingFloorCameraFrame } from "../scene/Atmosphere";
@@ -34,6 +38,7 @@ interface FirstPersonControllerRuntime {
 interface LocalPlayerProps {
   spawn: { x: number; y: number; z: number };
   seated: boolean;
+  holdingNotepad: boolean;
   chatFocused: boolean;
   alternateCameraActive: boolean;
   /** Updated every movement tick in App.tsx (the same value sent to the server) — read here each frame since there's no server round trip for your own state the way RemotePlayer gets one. */
@@ -53,7 +58,7 @@ interface LocalPlayerProps {
  * can remain visible without exposing their interior surfaces when looking down.
  */
 const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function LocalPlayer(
-  { spawn, seated, alternateCameraActive, animationRef },
+  { spawn, seated, holdingNotepad, alternateCameraActive, animationRef },
   ref,
 ) {
   const [cameraEntity, setCameraEntity] = useState<PcEntity | null>(null);
@@ -70,10 +75,13 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
   const { isPhysicsLoaded } = usePhysics();
   const { asset } = useModel(CHARACTER_MODEL_ASSET_PATH);
   const modelRef = useRef<PcEntity | null>(null);
+  const notepadFacingRef = useRef<PcEntity | null>(null);
   const statesRegisteredRef = useRef(false);
   const materialFinishAppliedRef = useRef(false);
   const lastRequestedAnimationRef = useRef<AnimationState | null>(null);
   const seatedPoseRigRef = useRef<CharacterSeatedPoseRig | null>(null);
+  const notepadPoseRigRef = useRef<CharacterNotepadPoseRig | null>(null);
+  const heldNotepadRef = useRef<PcEntity | null>(null);
 
   useAppEvent("update", () => {
     const model = modelRef.current;
@@ -99,6 +107,7 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
     if (body) body.enabled = true;
 
     model.setLocalEulerAngles(0, yaw + CHARACTER_MODEL_YAW_OFFSET_DEGREES, 0);
+    notepadFacingRef.current?.setLocalEulerAngles(0, yaw + CHARACTER_MODEL_YAW_OFFSET_DEGREES, 0);
 
     if (!materialFinishAppliedRef.current) {
       materialFinishAppliedRef.current = applyCharacterMaterialFinish(model);
@@ -118,11 +127,21 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
 
   useAppEvent("prerender", () => {
     const model = modelRef.current;
-    if (!seated || !model) return;
-    const rig = seatedPoseRigRef.current ?? resolveCharacterSeatedPoseRig(model);
-    if (!rig) return;
-    seatedPoseRigRef.current = rig;
-    applyCharacterSeatedPose(model, rig);
+    if (!model) return;
+    if (seated) {
+      const rig = seatedPoseRigRef.current ?? resolveCharacterSeatedPoseRig(model);
+      if (rig) {
+        seatedPoseRigRef.current = rig;
+        applyCharacterSeatedPose(model, rig);
+      }
+    }
+    if (holdingNotepad && heldNotepadRef.current) {
+      const rig = notepadPoseRigRef.current ?? resolveCharacterNotepadPoseRig(model);
+      if (rig) {
+        notepadPoseRigRef.current = rig;
+        applyCharacterNotepadPose(model, rig, heldNotepadRef.current);
+      }
+    }
   });
 
   return (
@@ -139,6 +158,8 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
           <Render type="asset" asset={asset} />
         </Entity>
       )}
+
+      {holdingNotepad && <Entity ref={notepadFacingRef}><HeldNotepad ref={heldNotepadRef} /></Entity>}
 
       {/*
         Only mounted once the camera entity ref AND physics are ready. The script

@@ -6,6 +6,8 @@ import {
   type OfficeProfileResultMessage,
   type OfficeWatchlistItem,
   type PlayerInputMessage,
+  type PlayerTokenThrowEventMessage,
+  type PlayerTokenThrowRequestMessage,
   type PnlUpdateMessage,
   type SeatResultMessage,
   type SetDisplayNameResultMessage,
@@ -17,6 +19,8 @@ import {
   type ThesisPublishResultMessage,
   type TokenSoundEventMessage,
   type TokenSoundRequestMessage,
+  type TokenTradeThrowEventMessage,
+  type TokenTradeThrowRequestMessage,
   type VisitorBookSignResultMessage,
   type VoiceTokenResultMessage,
   type WalletLinkResultMessage,
@@ -48,7 +52,9 @@ export interface MultiplayerClientCallbacks {
   onStickyNoteDelete: (authorSessionId: string) => void;
   onWorldTimeSync: (message: WorldTimeSyncMessage) => void;
   onPnlUpdate: (message: PnlUpdateMessage) => void;
+  onPlayerTokenThrow: (message: PlayerTokenThrowEventMessage) => void;
   onTokenSound: (message: TokenSoundEventMessage) => void;
+  onTokenTradeThrow: (message: TokenTradeThrowEventMessage) => void;
 }
 
 /**
@@ -127,6 +133,14 @@ export class MultiplayerClient {
 
   sendTokenSound(message: TokenSoundRequestMessage): void {
     this.room?.send("token_sound_request", message);
+  }
+
+  sendTokenTradeThrow(message: TokenTradeThrowRequestMessage): void {
+    this.room?.send("token_trade_throw_request", message);
+  }
+
+  sendPlayerTokenThrow(message: PlayerTokenThrowRequestMessage): void {
+    this.room?.send("player_token_throw_request", message);
   }
 
   requestSeat(deskId: string | null): void {
@@ -447,6 +461,22 @@ export class MultiplayerClient {
       this.callbacks.onTokenSound(message);
     });
 
+    room.onMessage<TokenTradeThrowEventMessage>("token_trade_throw", (message) => {
+      if (!message || typeof message.standAddress !== "string" || (message.side !== "buy" && message.side !== "sell") || typeof message.triggeredBy !== "string") return;
+      this.callbacks.onTokenTradeThrow(message);
+    });
+
+    room.onMessage<PlayerTokenThrowEventMessage>("player_token_throw", (message) => {
+      if (
+        !message ||
+        typeof message.targetSessionId !== "string" ||
+        typeof message.triggeredBy !== "string" ||
+        typeof message.ticker !== "string" ||
+        typeof message.logoUrl !== "string"
+      ) return;
+      this.callbacks.onPlayerTokenThrow(message);
+    });
+
     room.onLeave((code: number) => {
       const abnormalClose = code !== 1000;
       if (!abnormalClose) {
@@ -490,6 +520,7 @@ export class MultiplayerClient {
       rotationY: player.rotationY as number,
       animation: player.animation as RemotePlayerSnapshot["animation"],
       seatedDeskId: typeof player.seatedDeskId === "string" && player.seatedDeskId ? player.seatedDeskId : null,
+      holdingNotepad: player.holdingNotepad === true,
       walletAddress: typeof player.walletAddress === "string" && player.walletAddress ? player.walletAddress : null,
       officeSlotId: typeof player.officeSlotId === "string" && player.officeSlotId ? player.officeSlotId : null,
     };

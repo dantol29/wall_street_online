@@ -6,6 +6,7 @@ import type { Entity as PcEntity } from "playcanvas";
 import type { AnimationState } from "@multiplayer/shared";
 import { getVisualTransform } from "../multiplayer/interpolation";
 import type { RemotePlayerRecord } from "./remotePlayerRecord";
+import { HeldNotepad } from "./HeldNotepad";
 import { PlayerLabelBillboard } from "./PlayerLabelBillboard";
 import {
   CHARACTER_ANIM_TRANSITION_BLEND_SECONDS,
@@ -15,9 +16,12 @@ import {
   CHARACTER_MODEL_YAW_OFFSET_DEGREES,
   CHARACTER_SEATED_MODEL_Y_OFFSET,
   applyCharacterSeatedPose,
+  applyCharacterNotepadPose,
   applyCharacterMaterialFinish,
   registerCharacterAnimationStates,
   resolveCharacterSeatedPoseRig,
+  resolveCharacterNotepadPoseRig,
+  type CharacterNotepadPoseRig,
   type CharacterSeatedPoseRig,
 } from "./characterAnimation";
 
@@ -40,10 +44,13 @@ interface RemotePlayerProps {
 export function RemotePlayer({ sessionId, recordsRef, speaking }: RemotePlayerProps) {
   const rootRef = useRef<PcEntity | null>(null);
   const modelRef = useRef<PcEntity | null>(null);
+  const notepadRef = useRef<PcEntity | null>(null);
   const statesRegisteredRef = useRef(false);
   const materialFinishAppliedRef = useRef(false);
   const lastRequestedAnimationRef = useRef<AnimationState | null>(null);
   const seatedPoseRigRef = useRef<CharacterSeatedPoseRig | null>(null);
+  const notepadPoseRigRef = useRef<CharacterNotepadPoseRig | null>(null);
+  const heldNotepadRef = useRef<PcEntity | null>(null);
   const { asset } = useModel(CHARACTER_MODEL_ASSET_PATH);
 
   useAppEvent("update", () => {
@@ -56,6 +63,7 @@ export function RemotePlayer({ sessionId, recordsRef, speaking }: RemotePlayerPr
     root.setEulerAngles(0, (visual.rotationY * 180) / Math.PI + CHARACTER_MODEL_YAW_OFFSET_DEGREES, 0);
 
     const model = modelRef.current;
+    if (notepadRef.current) notepadRef.current.enabled = record.holdingNotepad;
     if (!model || !asset?.resource) return;
     model.setLocalPosition(0, record.seatedDeskId ? CHARACTER_SEATED_MODEL_Y_OFFSET : CHARACTER_MODEL_Y_OFFSET, 0);
 
@@ -91,6 +99,17 @@ export function RemotePlayer({ sessionId, recordsRef, speaking }: RemotePlayerPr
     applyCharacterSeatedPose(model, rig);
   });
 
+  useAppEvent("prerender", () => {
+    const record = recordsRef.current.get(sessionId);
+    const model = modelRef.current;
+    const notepad = heldNotepadRef.current;
+    if (!record?.holdingNotepad || !model || !notepad) return;
+    const rig = notepadPoseRigRef.current ?? resolveCharacterNotepadPoseRig(model);
+    if (!rig) return;
+    notepadPoseRigRef.current = rig;
+    applyCharacterNotepadPose(model, rig, notepad);
+  });
+
   return (
     <Entity ref={rootRef} name={`remote-${sessionId}`}>
       {asset && (
@@ -108,6 +127,9 @@ export function RemotePlayer({ sessionId, recordsRef, speaking }: RemotePlayerPr
           <Render type="asset" asset={asset} />
         </Entity>
       )}
+      <Entity ref={notepadRef} enabled={recordsRef.current.get(sessionId)?.holdingNotepad ?? false}>
+        <HeldNotepad ref={heldNotepadRef} />
+      </Entity>
       <PlayerLabelBillboard sessionId={sessionId} recordsRef={recordsRef} speaking={speaking} />
     </Entity>
   );

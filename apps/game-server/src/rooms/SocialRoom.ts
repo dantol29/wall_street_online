@@ -6,6 +6,8 @@ import {
   STICKY_NOTE_UPDATE_COOLDOWN_MS,
   TOKEN_SOUND_COOLDOWN_MS,
   TOKEN_SOUND_SERVER_INTERACTION_DISTANCE_METERS,
+  TOKEN_TRADE_THROW_COOLDOWN_MS,
+  TOKEN_TRADE_THROW_INTERACTION_DISTANCE_METERS,
   TOKEN_STAND_LAYOUT,
   isStickyWallSpotFree,
   THESIS_PUBLISH_COOLDOWN_MS,
@@ -23,6 +25,10 @@ import {
   type OfficeProfileRequestMessage,
   type OfficeProfileResultMessage,
   type PlayerInputMessage,
+  PLAYER_TOKEN_THROW_COOLDOWN_MS,
+  PLAYER_TOKEN_THROW_MAX_DISTANCE_METERS,
+  type PlayerTokenThrowEventMessage,
+  type PlayerTokenThrowRequestMessage,
   type PlayerPnlEntry,
   type PnlUpdateMessage,
   type SeatRequestMessage,
@@ -40,6 +46,8 @@ import {
   type ThesisPublishResultMessage,
   type TokenSoundEventMessage,
   type TokenSoundRequestMessage,
+  type TokenTradeThrowEventMessage,
+  type TokenTradeThrowRequestMessage,
   type VisitorBookSignRequestMessage,
   type VisitorBookSignResultMessage,
   type VoiceTokenRequestMessage,
@@ -118,6 +126,8 @@ export class SocialRoom extends Room<SocialRoomState> {
   /** Purely a defensive debounce against accidental double-submits — this isn't meant to be a frequent action. */
   private readonly setDisplayNameRateLimiter = new SlidingWindowRateLimiter(1, 5000);
   private readonly tokenSoundRateLimiter = new SlidingWindowRateLimiter(1, TOKEN_SOUND_COOLDOWN_MS);
+  private readonly tokenTradeThrowRateLimiter = new SlidingWindowRateLimiter(1, TOKEN_TRADE_THROW_COOLDOWN_MS);
+  private readonly playerTokenThrowRateLimiter = new SlidingWindowRateLimiter(1, PLAYER_TOKEN_THROW_COOLDOWN_MS);
 
   override onCreate(): void {
     this.setState(new SocialRoomState());
@@ -141,6 +151,12 @@ export class SocialRoom extends Room<SocialRoomState> {
 
     this.onMessage("token_sound_request", (client, message: TokenSoundRequestMessage) => {
       this.handleTokenSoundRequest(client, message);
+    });
+    this.onMessage("token_trade_throw_request", (client, message: TokenTradeThrowRequestMessage) => {
+      this.handleTokenTradeThrowRequest(client, message);
+    });
+    this.onMessage("player_token_throw_request", (client, message: PlayerTokenThrowRequestMessage) => {
+      this.handlePlayerTokenThrowRequest(client, message);
     });
 
     this.onMessage("chat", (client, message: { text: unknown }) => {
@@ -309,6 +325,8 @@ export class SocialRoom extends Room<SocialRoomState> {
       this.visitorBookGlobalRateLimiter.clear(client.sessionId);
       this.stickyNoteUpdateRateLimiter.clear(client.sessionId);
       this.tokenSoundRateLimiter.clear(client.sessionId);
+      this.tokenTradeThrowRateLimiter.clear(client.sessionId);
+      this.playerTokenThrowRateLimiter.clear(client.sessionId);
       if (this.stickyNotesBySessionId.delete(client.sessionId)) {
         this.broadcast("sticky_note_delete", { authorSessionId: client.sessionId } satisfies StickyNoteDeleteMessage);
       }
@@ -329,6 +347,7 @@ export class SocialRoom extends Room<SocialRoomState> {
       if (Number.isFinite(message.rotationY)) {
         player.rotationY = message.rotationY;
         player.animation = "idle";
+        player.holdingNotepad = Boolean(message.holdingNotepad);
       }
       return;
     }
@@ -349,6 +368,7 @@ export class SocialRoom extends Room<SocialRoomState> {
     player.z = message.z;
     player.rotationY = message.rotationY;
     player.animation = message.animation;
+    player.holdingNotepad = Boolean(message.holdingNotepad);
 
     this.previousPositionBySessionId.set(client.sessionId, { x: message.x, y: message.y, z: message.z, updatedAtMs: now });
   }
@@ -376,6 +396,36 @@ export class SocialRoom extends Room<SocialRoomState> {
       soundUrl,
       triggeredBy: client.sessionId,
     } satisfies TokenSoundEventMessage);
+  }
+
+  private handleTokenTradeThrowRequest(client: Client, message: TokenTradeThrowRequestMessage): void {
+    const player = this.state.players.get(client.sessionId);
+    if (!player || !message || (message.side !== "buy" && message.side !== "sell")) return;
+    const stand = TOKEN_STAND_LAYOUT.find((candidate) => candidate.address === message.standAddress);
+    if (!stand) return;
+    if (Math.hypot(player.x - stand.x, player.z - stand.z) > TOKEN_TRADE_THROW_INTERACTION_DISTANCE_METERS) return;
+    if (!this.tokenTradeThrowRateLimiter.isAllowed(client.sessionId, Date.now())) return;
+    this.broadcast("token_trade_throw", {
+      standAddress: stand.address,
+      side: message.side,
+      triggeredBy: client.sessionId,
+    } satisfies TokenTradeThrowEventMessage);
+  }
+
+  private handlePlayerTokenThrowRequest(client: Client, message: PlayerTokenThrowRequestMessage): void {
+    const thrower = this.state.players.get(client.sessionId);
+    const target = message && this.state.players.get(message.targetSessionId);
+    if (!thrower || !target || message.targetSessionId === client.sessionId) return;
+    if (!/^[A-Z0-9]{1,12}$/.test(message.ticker)) return;
+    if (!/^\/assets\/token-logos\/[a-z0-9.-]+\.(?:svg|png)$/.test(message.logoUrl)) return;
+    if (Math.hypot(thrower.x - target.x, thrower.y - target.y, thrower.z - target.z) > PLAYER_TOKEN_THROW_MAX_DISTANCE_METERS) return;
+    if (!this.playerTokenThrowRateLimiter.isAllowed(client.sessionId, Date.now())) return;
+    this.broadcast("player_token_throw", {
+      targetSessionId: message.targetSessionId,
+      ticker: message.ticker,
+      logoUrl: message.logoUrl,
+      triggeredBy: client.sessionId,
+    } satisfies PlayerTokenThrowEventMessage);
   }
 
   private handleSeat(client: Client, message: SeatRequestMessage): void {

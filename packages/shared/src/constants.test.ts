@@ -46,7 +46,7 @@ describe("shared constants", () => {
   });
 
   it("matches the enlarged trading-floor world bounds", () => {
-    expect(WORLD_BOUNDS).toEqual({ minX: -24, maxX: 24, minY: 0, maxY: 12, minZ: -24, maxZ: 24 });
+    expect(WORLD_BOUNDS).toEqual({ minX: -36, maxX: 36, minY: 0, maxY: 12, minZ: -36, maxZ: 36 });
   });
 
   it("defines 8 uniquely-identified office slots, all within WORLD_BOUNDS", () => {

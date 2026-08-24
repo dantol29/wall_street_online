@@ -7,16 +7,15 @@ export const WHITEBOARD_MAX_STROKE_POINTS = 2048;
 export const WHITEBOARD_MAX_TEXT_LENGTH = 160;
 
 export const WHITEBOARD_POSITION = {
-  // Flush-mount the frame against the west wall. The 16 cm frame is centered
-  // here so its rear face meets the wall's interior surface at x=-15.75.
-  x: -23.67,
+  // Centered at the far end of the west radial market path.
+  x: -35.67,
   y: 3.25,
-  z: -3.8,
+  z: 0,
 } as const;
 
 export const WHITEBOARD_INTERACTION_POSITION = {
-  x: -21.77,
-  z: -3.8,
+  x: -33.55,
+  z: 0,
 } as const;
 
 export const WHITEBOARD_INTERACTION_DISTANCE_METERS = 2.4;

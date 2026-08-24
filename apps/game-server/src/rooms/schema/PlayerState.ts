@@ -26,6 +26,9 @@ export class PlayerState extends Schema {
   @type("string")
   seatedDeskId: string = "";
 
+  @type("boolean")
+  holdingNotepad: boolean = false;
+
   /** Empty until the player links a wallet (see SocialRoom's wallet_link_request handler) — guest play never sets these. */
   @type("string")
   walletAddress: string = "";

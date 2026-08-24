@@ -5,9 +5,9 @@
  * Environment.tsx). See Environment.tsx's own doc comment for the full
  * room-layout rationale.
  */
-export const ROOM_WIDTH = 48;
-// Starting value: adds 4m beyond each end of the original room. Pass when the
-// launch podium has a clear circulation loop without breaking wall-mounted UI.
-export const ROOM_LENGTH = 48;
+export const ROOM_WIDTH = 72;
+// The larger footprint gives the radial market and navigation lights room to
+// disappear into darkness before the player reaches the physical perimeter.
+export const ROOM_LENGTH = 72;
 export const ROOM_HEIGHT = 11.5;
 export const WALL_THICKNESS = 0.5;

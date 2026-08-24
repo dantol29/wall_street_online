@@ -7,6 +7,7 @@ export interface RemotePlayerRecord {
   displayName: string;
   animation: AnimationState;
   seatedDeskId: string | null;
+  holdingNotepad: boolean;
   officeSlotId: string | null;
   /** Real HyperLiquid unrealized PnL in USD, if this player has linked a wallet — null until the first server broadcast arrives (see pnl_update). */
   pnlUsd: number | null;

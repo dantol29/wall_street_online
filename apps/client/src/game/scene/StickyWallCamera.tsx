@@ -23,8 +23,8 @@ export function StickyWallCamera() {
   return (
     <Entity
       name="sticky-wall-camera"
-      position={[STICKY_WALL_POSITION.x + frame.distance, STICKY_WALL_POSITION.y, STICKY_WALL_POSITION.z]}
-      rotation={[0, 90, 0]}
+      position={[STICKY_WALL_POSITION.x - frame.distance, STICKY_WALL_POSITION.y, STICKY_WALL_POSITION.z]}
+      rotation={[0, -90, 0]}
     >
       <Camera fov={CAMERA_FOV} nearClip={0.05} farClip={220} priority={1} />
     </Entity>

@@ -15,9 +15,12 @@ import {
   type ChatMessage,
   type OfficeProfileLookup,
   type PnlUpdateMessage,
+  PLAYER_TOKEN_THROW_MAX_DISTANCE_METERS,
+  type PlayerTokenThrowEventMessage,
   type SeatResultMessage,
   type StickyNote,
   type TokenSoundEventMessage,
+  type TokenTradeThrowEventMessage,
   type VoiceTokenResultMessage,
   type WhiteboardShape,
   type WhiteboardSnapshot,
@@ -59,6 +62,7 @@ import {
 import { TokenLaunchModal, type TokenLaunchDraft } from "./ui/TokenLaunchModal";
 import type { LaunchedMarketToken } from "./game/scene/TokenRingMarket";
 import { FIRST_TOKEN_STAND, NEXT_TOKEN_STAND, TOKEN_STAND_LAYOUT } from "./game/scene/tokenRingLayout";
+import type { PlayerTokenThrowVisual } from "./game/player/PlayerTokenProjectile";
 
 /** Placeholder holdings until the launchpad terminal/holdings system exists — the dock itself doesn't care where the list comes from. */
 const MOCK_DOCK_TOKENS: DockToken[] = [
@@ -94,6 +98,7 @@ import {
   type VoiceConnectionState,
   type VoiceParticipantState,
 } from "./game/voice/VoiceClient";
+import { calculateProximityGain } from "./game/voice/spatialAudio";
 import "./App.css";
 import Scene, { type SceneHandle } from "./Scene";
 import { getSceneConfig } from "./scenes/registry";
@@ -388,6 +393,7 @@ function App() {
   const tickerTestTokenRef = useRef<LaunchedMarketToken | null>(null);
   const lastTokenSoundAtRef = useRef(0);
   const tokenSoundPlaybackSequenceRef = useRef(0);
+  const tokenArcActiveIndexRef = useRef(0);
   const activeTokenSoundPlaybackByStandRef = useRef<Map<string, number>>(new Map());
   const tokenLaunchOpenRef = useRef(false);
   const whiteboardOpenRef = useRef(false);
@@ -449,7 +455,9 @@ function App() {
   const [tokenMonitorTradePress, setTokenMonitorTradePress] = useState<{
     side: "buy" | "sell";
     id: number;
+    sourceSessionId: string;
   } | null>(null);
+  const [playerTokenThrow, setPlayerTokenThrow] = useState<PlayerTokenThrowVisual | null>(null);
   const [whiteboardOpen, setWhiteboardOpen] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [whiteboardSnapshot, setWhiteboardSnapshot] =
@@ -568,6 +576,7 @@ function App() {
     let seatErrorTimer: number | null = null;
     let officeErrorTimer: number | null = null;
     let spatialAnimationFrame = 0;
+    const activeTokenAudio = new Map<number, { audio: HTMLAudioElement; standX: number; standZ: number }>();
 
     /**
      * Ambient content population: as soon as any connected player is known to
@@ -808,9 +817,7 @@ function App() {
       if (!stand || !player) return;
       const position = player.getPosition();
       const distance = Math.hypot(position.x - stand.x, position.z - stand.z);
-      // Starting value: fade to silence at 25m. Pass when one nearby group shares the sound
-      // without several rings overlapping; shorten this range if a busy room becomes noisy.
-      const distanceGain = Math.max(0, 1 - distance / 25);
+      const distanceGain = calculateProximityGain(distance);
       if (distanceGain <= 0) return;
       const playbackId = ++tokenSoundPlaybackSequenceRef.current;
       activeTokenSoundPlaybackByStandRef.current.set(message.standAddress, playbackId);
@@ -826,9 +833,14 @@ function App() {
       };
       if (message.soundUrl) {
         const audio = new Audio(message.soundUrl);
-        audio.volume = Math.min(0.5, 0.5 * distanceGain * distanceGain);
-        audio.addEventListener("ended", clearPlayingBorder, { once: true });
-        audio.addEventListener("error", clearPlayingBorder, { once: true });
+        audio.volume = 0.5 * distanceGain;
+        activeTokenAudio.set(playbackId, { audio, standX: stand.x, standZ: stand.z });
+        const finishPlayback = () => {
+          activeTokenAudio.delete(playbackId);
+          clearPlayingBorder();
+        };
+        audio.addEventListener("ended", finishPlayback, { once: true });
+        audio.addEventListener("error", finishPlayback, { once: true });
         void audio.play().catch(clearPlayingBorder);
         return;
       }
@@ -934,6 +946,14 @@ function App() {
         }
       },
       onTokenSound: playBroadcastTokenSound,
+      onTokenTradeThrow: (message: TokenTradeThrowEventMessage) => {
+        if (message.standAddress !== FIRST_TOKEN_STAND.address) return;
+        if (message.triggeredBy === clientRef.current?.getSessionId()) return;
+        setTokenMonitorTradePress((current) => ({ side: message.side, id: (current?.id ?? 0) + 1, sourceSessionId: message.triggeredBy }));
+      },
+      onPlayerTokenThrow: (message: PlayerTokenThrowEventMessage) => {
+        setPlayerTokenThrow((current) => ({ ...message, id: (current?.id ?? 0) + 1 }));
+      },
     });
     clientRef.current = client;
 
@@ -1029,6 +1049,42 @@ function App() {
         waveEmoteRef.current();
       }
       if (
+        event.code === "KeyQ" &&
+        !event.repeat &&
+        !typing &&
+        !needsDisplayNameRef.current &&
+        !seatedDeskIdRef.current &&
+        !whiteboardOpenRef.current &&
+        !officeEditorOpenRef.current &&
+        !stickyNoteEditorOpenRef.current &&
+        !tokenLaunchOpenRef.current
+      ) {
+        const camera = playerEntityRef.current?.findByName(LOCAL_CAMERA_ENTITY_NAME) as PcEntity | null;
+        if (camera) {
+          const origin = camera.getPosition();
+          const forward = camera.forward.clone().normalize();
+          let best: { sessionId: string; score: number } | null = null;
+          for (const candidate of sceneRef.current?.getRemoteMinimapPlayers() ?? []) {
+            const toward = new Vec3(candidate.x, origin.y - 0.02, candidate.z).sub(origin);
+            const distance = toward.length();
+            if (distance < 0.5 || distance > PLAYER_TOKEN_THROW_MAX_DISTANCE_METERS) continue;
+            const alignment = toward.mulScalar(1 / distance).dot(forward);
+            if (alignment < Math.cos((15 * Math.PI) / 180)) continue;
+            const score = alignment - distance * 0.003;
+            if (!best || score > best.score) best = { sessionId: candidate.sessionId, score };
+          }
+          if (best) {
+            event.preventDefault();
+            const token = MOCK_DOCK_TOKENS[tokenArcActiveIndexRef.current] ?? MOCK_DOCK_TOKENS[0];
+            client.sendPlayerTokenThrow({
+              targetSessionId: best.sessionId,
+              ticker: token.symbol,
+              logoUrl: token.logo,
+            });
+          }
+        }
+      }
+      if (
         event.code === "KeyF" &&
         !event.repeat &&
         !typing &&
@@ -1070,7 +1126,9 @@ function App() {
       ) {
         event.preventDefault();
         const side = event.code === "Digit1" ? "buy" : "sell";
-        setTokenMonitorTradePress((current) => ({ side, id: (current?.id ?? 0) + 1 }));
+        const sourceSessionId = "local";
+        setTokenMonitorTradePress((current) => ({ side, id: (current?.id ?? 0) + 1, sourceSessionId }));
+        client.sendTokenTradeThrow({ standAddress: FIRST_TOKEN_STAND.address, side });
       }
       if (
         event.code === "KeyT" &&
@@ -1141,6 +1199,16 @@ function App() {
 
     const updateSpatialAudio = (): void => {
       voice.updateSpatialAudio();
+      const listener = playerEntityRef.current?.getPosition();
+      if (listener) {
+        for (const { audio, standX, standZ } of activeTokenAudio.values()) {
+          const distance = Math.hypot(listener.x - standX, listener.z - standZ);
+          // Match voice-chat attenuation: full nearby, smooth linear fade,
+          // silent beyond VOICE_MAX_DISTANCE_METERS. Updating every frame means
+          // walking toward or away from a playing token responds immediately.
+          audio.volume = 0.5 * calculateProximityGain(distance);
+        }
+      }
       spatialAnimationFrame = window.requestAnimationFrame(updateSpatialAudio);
     };
     spatialAnimationFrame = window.requestAnimationFrame(updateSpatialAudio);
@@ -1210,6 +1278,7 @@ function App() {
         z: position.z,
         rotationY,
         animation: finalAnimation,
+        holdingNotepad: tokenLaunchOpenRef.current,
       });
 
       if (!seatedDeskIdRef.current && selectedSceneIdRef.current === "trading-floor") {
@@ -1290,6 +1359,11 @@ function App() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("pointerlockchange", handlePointerLockChange);
       window.cancelAnimationFrame(spatialAnimationFrame);
+      for (const { audio } of activeTokenAudio.values()) {
+        audio.pause();
+        audio.src = "";
+      }
+      activeTokenAudio.clear();
       if (seatErrorTimer !== null) window.clearTimeout(seatErrorTimer);
       if (officeErrorTimer !== null) window.clearTimeout(officeErrorTimer);
       if (waveTimeoutRef.current !== null) window.clearTimeout(waveTimeoutRef.current);
@@ -1605,7 +1679,7 @@ function App() {
     );
     const goLive = window.setTimeout(() => {
       setTokenLaunchDisplay({ phase: "live", name: draft.name, ticker: draft.ticker, imageUrl: draft.imageUrl, address: NEXT_TOKEN_STAND.address });
-      setLaunchedMarketToken({ name: draft.name, ticker: draft.ticker, imageUrl: draft.imageUrl, soundUrl: draft.soundUrl });
+      setLaunchedMarketToken({ name: draft.name, ticker: draft.ticker, description: draft.description, seedSizeUsdc: draft.seedSizeUsdc, imageUrl: draft.imageUrl, soundUrl: draft.soundUrl });
     }, 3700);
     // Starting value: keep the successful listing visible for 15 seconds.
     // Pass when observers across the room can read it before the display resets.
@@ -1675,6 +1749,7 @@ function App() {
             playerEntityRef={playerEntityRef}
             localAnimationRef={localAnimationRef}
             localSeated={Boolean(seatedDeskId)}
+            localHoldingNotepad={tokenLaunchOpen}
             ref={sceneRef}
             speakingPlayerIds={speakingPlayerIds}
             chatFocused={chatHudState.focused}
@@ -1692,6 +1767,8 @@ function App() {
             tickerAnnouncement={liveTickerAnnouncement ?? tickerTestAnnouncement}
             launchStandAnnouncementActive={tokenLaunchDisplay.phase === "live" || tickerTestToken !== null}
             soundPlayingStandAddresses={soundPlayingStandAddresses}
+            playerTokenThrow={playerTokenThrow}
+            localSessionId={mySessionId}
           />
         </Application>
       </ApplicationErrorBoundary>
@@ -1772,7 +1849,10 @@ function App() {
       <TokenDock
         tokens={MOCK_DOCK_TOKENS}
         activeIndex={tokenArcActiveIndex}
-        onActiveIndexChange={setTokenArcActiveIndex}
+        onActiveIndexChange={(index) => {
+          tokenArcActiveIndexRef.current = index;
+          setTokenArcActiveIndex(index);
+        }}
         active={entered && tokenArcOpen}
         onSelect={() => {
           tokenArcOpenRef.current = false;
@@ -1782,6 +1862,10 @@ function App() {
           });
         }}
       />
+      {entered && !seatedDeskId && !whiteboardOpen && !tokenLaunchOpen &&
+        !nearTokenMonitor && !nearWhiteboard && !nearTokenLaunch && !nearOfficeSlotId && !nearStickyWall && (
+        <div className="desk-interaction game-instruction"><kbd>Q</kbd> Throw token at player</div>
+      )}
       {entered && nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
         <div className="desk-interaction game-instruction"><kbd>E</kbd> Open drawing board</div>
       )}

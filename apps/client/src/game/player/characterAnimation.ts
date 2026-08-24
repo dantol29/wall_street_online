@@ -108,6 +108,26 @@ export interface CharacterSeatedPoseRig {
   footRight: GraphNode;
 }
 
+export interface CharacterNotepadPoseRig {
+  upperArmLeft: GraphNode;
+  lowerArmLeft: GraphNode;
+  wristLeft: GraphNode;
+  upperArmRight: GraphNode;
+  lowerArmRight: GraphNode;
+  wristRight: GraphNode;
+}
+
+export function resolveCharacterNotepadPoseRig(model: PcEntity): CharacterNotepadPoseRig | null {
+  const upperArmLeft = model.findByName("UpperArm.L");
+  const lowerArmLeft = model.findByName("LowerArm.L");
+  const wristLeft = model.findByName("Wrist.L");
+  const upperArmRight = model.findByName("UpperArm.R");
+  const lowerArmRight = model.findByName("LowerArm.R");
+  const wristRight = model.findByName("Wrist.R");
+  if (!upperArmLeft || !lowerArmLeft || !wristLeft || !upperArmRight || !lowerArmRight || !wristRight) return null;
+  return { upperArmLeft, lowerArmLeft, wristLeft, upperArmRight, lowerArmRight, wristRight };
+}
+
 /** Resolves the six leg bones once so the seated pose does not search the hierarchy every frame. */
 export function resolveCharacterSeatedPoseRig(model: PcEntity): CharacterSeatedPoseRig | null {
   const upperLegLeft = model.findByName("UpperLeg.L");
@@ -160,6 +180,35 @@ export function applyCharacterSeatedPose(model: PcEntity, rig: CharacterSeatedPo
   pointBoneAlong(rig.lowerLegRight, Vec3.DOWN);
   pointBoneAlong(rig.footLeft, seatedForward);
   pointBoneAlong(rig.footRight, seatedForward);
+}
+
+const notepadForward = new Vec3();
+const notepadCenter = new Vec3();
+const notepadHeadTarget = new Vec3();
+
+/** Positions the physical notepad without overriding the avatar's hand animation. */
+export function applyCharacterNotepadPose(model: PcEntity, _rig: CharacterNotepadPoseRig, notepad: PcEntity): void {
+  notepadForward.copy(model.forward).mulScalar(-1);
+  notepadForward.y = 0;
+  if (notepadForward.lengthSq() < 0.0001) notepadForward.set(0, 0, 1);
+  notepadForward.normalize();
+  notepadCenter.copy(model.getPosition());
+  notepadCenter.y += 1.5;
+  notepadCenter.add(notepadForward.clone().mulScalar(0.38));
+
+  notepad.setPosition(notepadCenter);
+  const head = model.findByName(CHARACTER_HEAD_NODE_NAME);
+  if (head) notepadHeadTarget.copy(head.getPosition());
+  else {
+    notepadHeadTarget.copy(model.getPosition());
+    notepadHeadTarget.y += 1.72;
+  }
+  const toHeadX = notepadHeadTarget.x - notepadCenter.x;
+  const toHeadZ = notepadHeadTarget.z - notepadCenter.z;
+  // The prop's paper face is local -Z. Derive yaw directly rather than
+  // extracting it from lookAt Euler angles, which can flip near steep angles.
+  const facingYaw = Math.atan2(-toHeadX, -toHeadZ) * (180 / Math.PI);
+  notepad.setEulerAngles(0, facingYaw, 0);
 }
 
 /**

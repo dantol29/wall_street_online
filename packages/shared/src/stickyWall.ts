@@ -11,8 +11,9 @@
 export const STICKY_NOTE_MAX_TEXT_LENGTH = 80;
 export const STICKY_NOTE_UPDATE_COOLDOWN_MS = 5000;
 
-export const STICKY_WALL_POSITION = { x: -23.68, y: 2.2, z: 2.2 } as const;
-export const STICKY_WALL_INTERACTION_POSITION = { x: -22.1, z: 2.2 } as const;
+/** Centered at the far end of the east radial market path. */
+export const STICKY_WALL_POSITION = { x: 35.68, y: 2.2, z: 0 } as const;
+export const STICKY_WALL_INTERACTION_POSITION = { x: 33.55, z: 0 } as const;
 export const STICKY_WALL_INTERACTION_DISTANCE_METERS = 2.2;
 export const STICKY_WALL_WORLD_WIDTH = 3.2;
 export const STICKY_WALL_WORLD_HEIGHT = 2.4;

@@ -428,6 +428,13 @@ export const RoomEnvironment = memo(function RoomEnvironment({
     gloss: 0.08,
     metalness: 0,
   });
+  const hiddenCeilingMaterial = useMaterial({
+    diffuse: "#000000",
+    emissive: "#000000",
+    emissiveIntensity: 0,
+    gloss: 0,
+    metalness: 0,
+  });
   // Poly Haven "Wood Floor" — clean satin-finished office planks. The source
   // material is CC0 and uses the OpenGL normal-map orientation PlayCanvas
   // expects. Tiling follows its real-world 1.7m scan width closely.
@@ -442,11 +449,6 @@ export const RoomEnvironment = memo(function RoomEnvironment({
   });
 
   const crateMaterial = useMaterial({ diffuse: "#353b42" });
-  const chillZoneCarpetMaterial = useMaterial({
-    diffuse: "#34383d",
-    gloss: 0.04,
-    metalness: 0,
-  });
   // The perimeter deliberately dissolves into the fog instead of reading as
   // a finite beige room. It remains physical collision geometry.
   const boundaryMaterial = useMaterial({ diffuse: "#07090b", gloss: 0.01, metalness: 0 });
@@ -460,6 +462,15 @@ export const RoomEnvironment = memo(function RoomEnvironment({
       <StaticBox
         position={[0, ROOM_HEIGHT + 0.25, 0]}
         size={[ROOM_WIDTH, 0.5, ROOM_LENGTH]}
+        material={hiddenCeilingMaterial}
+      />
+      {/* Only the launch canopy remains legible overhead. The surrounding
+          collision ceiling is pure black and visually merges with the void. */}
+      <VisualCylinder
+        position={[0, ROOM_HEIGHT - 0.025, 0]}
+        rotation={[0, 0, 0]}
+        radius={3.2}
+        height={0.05}
         material={plasterCeilingMaterial}
       />
 
@@ -497,7 +508,7 @@ export const RoomEnvironment = memo(function RoomEnvironment({
         clipping through the perimeter if a future wall mesh has gaps or doorways.
       */}
       <StaticBox
-        position={[0, ROOM_HEIGHT / 2, -ROOM_LENGTH / 2 + 2.5]}
+        position={[0, ROOM_HEIGHT / 2, -ROOM_LENGTH / 2 + WALL_THICKNESS]}
         size={[ROOM_WIDTH, ROOM_HEIGHT, 0.1]}
         material={plasterWallMaterial}
         renderVisible={false}
@@ -537,13 +548,6 @@ export const RoomEnvironment = memo(function RoomEnvironment({
         launchedToken={launchedToken}
         launchAnnouncementActive={launchAnnouncementActive}
         soundPlayingStandAddresses={soundPlayingStandAddresses}
-      />
-
-      {/* Low-pile carpet defining the west-side drawing/sticky-board chill zone. */}
-      <VisualBox
-        position={[-13.2, 0.025, -0.8]}
-        size={[4.8, 0.05, 10.5]}
-        material={chillZoneCarpetMaterial}
       />
 
       {/* Crates near the back corners */}

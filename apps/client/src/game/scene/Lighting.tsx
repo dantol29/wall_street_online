@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Entity } from "@playcanvas/react";
 import { Environment as SceneEnvironment, Light, Render } from "@playcanvas/react/components";
-import { useApp, useMaterial } from "@playcanvas/react/hooks";
+import { useApp } from "@playcanvas/react/hooks";
 import {
   ADDRESS_CLAMP_TO_EDGE,
   Color,
@@ -28,15 +28,23 @@ const WALKWAY_LIGHT_POOLS = [
   { id: "north-inner", x: 0, z: -8, intensity: 2.2, outerCone: 15 },
   { id: "north-middle", x: 0, z: -14.5, intensity: 1.85, outerCone: 14.5 },
   { id: "north-outer", x: 0, z: -21, intensity: 1.55, outerCone: 14 },
+  { id: "north-far", x: 0, z: -27.5, intensity: 1.25, outerCone: 13.5 },
+  { id: "north-horizon", x: 0, z: -34, intensity: 1.05, outerCone: 13 },
   { id: "east-inner", x: 8, z: 0, intensity: 2.05, outerCone: 14.5 },
   { id: "east-middle", x: 14.5, z: 0, intensity: 1.75, outerCone: 14 },
   { id: "east-outer", x: 21, z: 0, intensity: 1.45, outerCone: 13.5 },
+  { id: "east-far", x: 27.5, z: 0, intensity: 1.2, outerCone: 13.5 },
+  { id: "east-horizon", x: 34, z: 0, intensity: 1, outerCone: 13 },
   { id: "south-inner", x: 0, z: 8, intensity: 2.15, outerCone: 15 },
   { id: "south-middle", x: 0, z: 14.5, intensity: 1.8, outerCone: 14.5 },
   { id: "south-outer", x: 0, z: 21, intensity: 1.5, outerCone: 14 },
+  { id: "south-far", x: 0, z: 27.5, intensity: 1.22, outerCone: 13.5 },
+  { id: "south-horizon", x: 0, z: 34, intensity: 1.02, outerCone: 13 },
   { id: "west-inner", x: -8, z: 0, intensity: 2, outerCone: 14.5 },
   { id: "west-middle", x: -14.5, z: 0, intensity: 1.7, outerCone: 14 },
   { id: "west-outer", x: -21, z: 0, intensity: 1.4, outerCone: 13.5 },
+  { id: "west-far", x: -27.5, z: 0, intensity: 1.15, outerCone: 13.5 },
+  { id: "west-horizon", x: -34, z: 0, intensity: 0.98, outerCone: 13 },
 ] as const;
 
 const SKY_VERTEX_SHADER = `
@@ -319,13 +327,6 @@ export function Lighting() {
   const profile = useDayNight();
   const sunRef = useRef<PcEntity | null>(null);
   const moonRef = useRef<PcEntity | null>(null);
-  const walkwayHousingMaterial = useMaterial({
-    diffuse: "#0b0d0f",
-    emissive: "#473d31",
-    emissiveIntensity: 0.08,
-    gloss: 0.08,
-    metalness: 0.2,
-  });
   const ambientLight = useMemo(
     () => new Color(profile.ambient[0], profile.ambient[1], profile.ambient[2]),
     [profile.ambient],
@@ -344,7 +345,7 @@ export function Lighting() {
     // Keep the complete first ring readable from spawn. The haze begins just
     // beyond it, then progressively consumes the outer market and perimeter.
     scene.fogStart = 11;
-    scene.fogEnd = 30;
+    scene.fogEnd = 38;
     return () => {
       scene.fog.type = previous.type;
       scene.fogColor.copy(previous.color);
@@ -426,9 +427,6 @@ export function Lighting() {
           radial aisles; terminal screens continue to provide their own glow. */}
       {WALKWAY_LIGHT_POOLS.map(({ id, x, z, intensity, outerCone }) => (
         <Entity key={id} position={[x, ROOM_HEIGHT - 0.18, z]}>
-          <Entity position={[0, 0.06, 0]} scale={[0.24, 0.09, 0.24]}>
-            <Render type="cylinder" material={walkwayHousingMaterial} />
-          </Entity>
           <Light
             type="spot"
             color="#f0d6bd"
