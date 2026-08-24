@@ -4,6 +4,9 @@ import {
   MAX_PLAYERS,
   RECONNECTION_TIMEOUT_SECONDS,
   STICKY_NOTE_UPDATE_COOLDOWN_MS,
+  TOKEN_SOUND_COOLDOWN_MS,
+  TOKEN_SOUND_SERVER_INTERACTION_DISTANCE_METERS,
+  TOKEN_STAND_LAYOUT,
   isStickyWallSpotFree,
   THESIS_PUBLISH_COOLDOWN_MS,
   VISITOR_BOOK_SIGN_PER_OFFICE_COOLDOWN_MS,
@@ -35,6 +38,8 @@ import {
   type StickyNoteUpsertResultMessage,
   type ThesisPublishRequestMessage,
   type ThesisPublishResultMessage,
+  type TokenSoundEventMessage,
+  type TokenSoundRequestMessage,
   type VisitorBookSignRequestMessage,
   type VisitorBookSignResultMessage,
   type VoiceTokenRequestMessage,
@@ -112,6 +117,7 @@ export class SocialRoom extends Room<SocialRoomState> {
   private readonly stickyNoteUpdateRateLimiter = new SlidingWindowRateLimiter(1, STICKY_NOTE_UPDATE_COOLDOWN_MS);
   /** Purely a defensive debounce against accidental double-submits — this isn't meant to be a frequent action. */
   private readonly setDisplayNameRateLimiter = new SlidingWindowRateLimiter(1, 5000);
+  private readonly tokenSoundRateLimiter = new SlidingWindowRateLimiter(1, TOKEN_SOUND_COOLDOWN_MS);
 
   override onCreate(): void {
     this.setState(new SocialRoomState());
@@ -131,6 +137,10 @@ export class SocialRoom extends Room<SocialRoomState> {
 
     this.onMessage("move", (client, message: PlayerInputMessage) => {
       this.handleMove(client, message);
+    });
+
+    this.onMessage("token_sound_request", (client, message: TokenSoundRequestMessage) => {
+      this.handleTokenSoundRequest(client, message);
     });
 
     this.onMessage("chat", (client, message: { text: unknown }) => {
@@ -298,6 +308,7 @@ export class SocialRoom extends Room<SocialRoomState> {
       this.watchlistUpdateRateLimiter.clear(client.sessionId);
       this.visitorBookGlobalRateLimiter.clear(client.sessionId);
       this.stickyNoteUpdateRateLimiter.clear(client.sessionId);
+      this.tokenSoundRateLimiter.clear(client.sessionId);
       if (this.stickyNotesBySessionId.delete(client.sessionId)) {
         this.broadcast("sticky_note_delete", { authorSessionId: client.sessionId } satisfies StickyNoteDeleteMessage);
       }
@@ -340,6 +351,31 @@ export class SocialRoom extends Room<SocialRoomState> {
     player.animation = message.animation;
 
     this.previousPositionBySessionId.set(client.sessionId, { x: message.x, y: message.y, z: message.z, updatedAtMs: now });
+  }
+
+  private handleTokenSoundRequest(client: Client, message: TokenSoundRequestMessage): void {
+    const player = this.state.players.get(client.sessionId);
+    if (!player || !message || typeof message.standAddress !== "string" || typeof message.ticker !== "string") return;
+    const stand = TOKEN_STAND_LAYOUT.find((candidate) => candidate.address === message.standAddress);
+    if (!stand || !/^[A-Z0-9]{1,10}$/.test(message.ticker)) return;
+    if (Math.hypot(player.x - stand.x, player.z - stand.z) > TOKEN_SOUND_SERVER_INTERACTION_DISTANCE_METERS) return;
+    if (!this.tokenSoundRateLimiter.isAllowed(client.sessionId, Date.now())) return;
+
+    let soundUrl: string | undefined;
+    if (message.soundUrl !== undefined) {
+      if (typeof message.soundUrl !== "string" || message.soundUrl.length > 500) return;
+      const isPublicAsset = /^\/assets\/token-sounds\/[a-zA-Z0-9._-]+$/.test(message.soundUrl);
+      const isSecureRemoteAsset = /^https:\/\//.test(message.soundUrl);
+      if (!isPublicAsset && !isSecureRemoteAsset) return;
+      soundUrl = message.soundUrl;
+    }
+
+    this.broadcast("token_sound", {
+      standAddress: stand.address,
+      ticker: message.ticker,
+      soundUrl,
+      triggeredBy: client.sessionId,
+    } satisfies TokenSoundEventMessage);
   }
 
   private handleSeat(client: Client, message: SeatRequestMessage): void {

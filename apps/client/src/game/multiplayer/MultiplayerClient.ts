@@ -15,6 +15,8 @@ import {
   type StickyNoteSnapshot,
   type StickyNoteUpsertResultMessage,
   type ThesisPublishResultMessage,
+  type TokenSoundEventMessage,
+  type TokenSoundRequestMessage,
   type VisitorBookSignResultMessage,
   type VoiceTokenResultMessage,
   type WalletLinkResultMessage,
@@ -46,6 +48,7 @@ export interface MultiplayerClientCallbacks {
   onStickyNoteDelete: (authorSessionId: string) => void;
   onWorldTimeSync: (message: WorldTimeSyncMessage) => void;
   onPnlUpdate: (message: PnlUpdateMessage) => void;
+  onTokenSound: (message: TokenSoundEventMessage) => void;
 }
 
 /**
@@ -120,6 +123,10 @@ export class MultiplayerClient {
 
   sendChat(text: string): void {
     this.room?.send("chat", { text });
+  }
+
+  sendTokenSound(message: TokenSoundRequestMessage): void {
+    this.room?.send("token_sound_request", message);
   }
 
   requestSeat(deskId: string | null): void {
@@ -427,6 +434,17 @@ export class MultiplayerClient {
     room.onMessage<PnlUpdateMessage>("pnl_update", (message) => {
       if (!message || !Array.isArray(message.entries)) return;
       this.callbacks.onPnlUpdate(message);
+    });
+
+    room.onMessage<TokenSoundEventMessage>("token_sound", (message) => {
+      if (
+        !message ||
+        typeof message.standAddress !== "string" ||
+        typeof message.ticker !== "string" ||
+        typeof message.triggeredBy !== "string" ||
+        (message.soundUrl !== undefined && typeof message.soundUrl !== "string")
+      ) return;
+      this.callbacks.onTokenSound(message);
     });
 
     room.onLeave((code: number) => {

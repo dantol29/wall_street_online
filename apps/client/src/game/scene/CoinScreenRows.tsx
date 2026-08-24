@@ -28,10 +28,12 @@ const COIN_SCREENS: CoinScreenDefinition[] = [
   { symbol: "TSLA", logo: "/assets/token-logos/tsla.svg" },
 ];
 
-const SCREEN_X = [-11.5, -4, 4, 11.5] as const;
-const SCREEN_Z = [-10, 0, 10] as const;
+// Starting layout: the inner terminals move 2m away from the launch podium,
+// while the front/back rows use the room's added depth.
+const SCREEN_X = [-11.5, -6, 6, 11.5] as const;
+const SCREEN_Z = [-14, 0, 14] as const;
 // Occupied by the full interactive HYPE trading stand rendered by TokenMonitor.
-const INTERACTIVE_TOKEN_STAND = { x: -11.5, z: -10 } as const;
+const INTERACTIVE_TOKEN_STAND = { x: -11.5, z: -14 } as const;
 const CHILL_ZONE_STAND = { x: -11.5, z: 0 } as const;
 
 /**

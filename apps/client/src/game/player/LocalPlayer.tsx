@@ -21,6 +21,7 @@ import {
   resolveCharacterSeatedPoseRig,
   type CharacterSeatedPoseRig,
 } from "./characterAnimation";
+import { TradingFloorCameraFrame } from "../scene/Atmosphere";
 
 const EYE_HEIGHT_OFFSET = 0.8;
 const FIRST_PERSON_FORWARD_OFFSET = 0.42;
@@ -128,6 +129,7 @@ const LocalPlayerComponent = forwardRef<PcEntity, LocalPlayerProps>(function Loc
     <Entity name="local-player" position={initialPositionRef.current} ref={ref}>
       <Entity name="local-camera" position={cameraPositionRef.current} ref={setCameraEntity}>
         <Camera enabled={!alternateCameraActive} fov={75} nearClip={0.05} farClip={220} />
+        {cameraEntity?.camera && <TradingFloorCameraFrame camera={cameraEntity.camera} />}
       </Entity>
 
       {asset && (

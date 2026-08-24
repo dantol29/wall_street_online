@@ -1,74 +1,17 @@
-import { Fragment, memo, useEffect, useState } from "react";
+import { Fragment, memo } from "react";
 import { Entity } from "@playcanvas/react";
 import { Render } from "@playcanvas/react/components";
 import { useMaterial, useTexture } from "@playcanvas/react/hooks";
-import {
-  BLEND_NORMAL,
-  CULLFACE_NONE,
-  StandardMaterial,
-  type Asset,
-  type Texture,
-} from "playcanvas";
+import { BLEND_NORMAL, type Asset, type Texture } from "playcanvas";
 import { TickerDisplay } from "./TickerDisplay";
 import { StaticBox, VisualBox, VisualCylinder } from "./primitives";
-import { CoinScreenRows } from "./CoinScreenRows";
+import { TokenRingMarket, type LaunchedMarketToken } from "./TokenRingMarket";
 import { ROOM_WIDTH, ROOM_LENGTH, ROOM_HEIGHT, WALL_THICKNESS } from "./roomConstants";
-import {
-  TICKER_PANEL_POSITION,
-  TICKER_ROD_X_OFFSET,
-  TICKER_SIZE,
-} from "./tradingFloorLayout";
 import { useDayNight } from "./DayNightContext";
-import { CityView } from "./CityView";
 
 /** `Asset.resource` is typed as a generic `object` since its shape depends on asset type; narrow it here. */
 function textureOf(asset: Asset | null): Texture | undefined {
   return (asset?.resource as Texture | undefined) ?? undefined;
-}
-
-// These StandardMaterial properties are installed by PlayCanvas's runtime
-// parameter definitions but are missing from its generated 2.17 declaration.
-interface DynamicRefractionMaterial extends StandardMaterial {
-  useDynamicRefraction: boolean;
-  thickness: number;
-}
-
-/**
- * Architectural glass using PlayCanvas's dynamic scene-color refraction.
- * This is deliberately a raw StandardMaterial: @playcanvas/react's current
- * useMaterial serializer does not expose useDynamicRefraction.
- */
-function useWindowGlassMaterial(): StandardMaterial {
-  const [material] = useState(() => {
-    const glass = new StandardMaterial() as DynamicRefractionMaterial;
-    glass.name = "trading-floor-window-glass";
-    glass.diffuse.set(0.72, 0.82, 0.88);
-    // Keep the scene-color refraction, but suppress direct-light glare. The
-    // previous strong specular response exposed the large interior key light
-    // as a bright reflection across the panes.
-    glass.specular.set(0.04, 0.05, 0.06);
-    glass.metalness = 0;
-    glass.gloss = 0.96;
-    glass.opacity = 0.16;
-    glass.opacityFadesSpecular = true;
-    glass.blendType = BLEND_NORMAL;
-    glass.depthWrite = false;
-    glass.cull = CULLFACE_NONE;
-    glass.twoSidedLighting = true;
-
-    // PlayCanvas defines IOR as outer / surface. Air (1.0) / glass (1.5).
-    glass.refraction = 0.92;
-    glass.refractionIndex = 1 / 1.5;
-    glass.useDynamicRefraction = true;
-    // A thin value keeps a flat architectural pane from heavily warping the
-    // skyline while still making the surface visible as real glass.
-    glass.thickness = 0.035;
-    glass.update();
-    return glass;
-  });
-
-  useEffect(() => () => material.destroy(), [material]);
-  return material;
 }
 
 
@@ -105,19 +48,6 @@ function useWindowGlassMaterial(): StandardMaterial {
  * crossbar/spandrel — showing a daytime skyline through the open panes rather
  * than an opaque backdrop card.
  */
-const WINDOW_GLASS_BOTTOM_Y = 0.15;
-const WINDOW_GLASS_TOP_Y = ROOM_HEIGHT - 0.25;
-/** Curtain-wall mullions spanning the enlarged north facade. */
-const WINDOW_MULLION_X_POSITIONS = [-15, -12, -9, -6, -3, 0, 3, 6, 9, 12, 15];
-const WINDOW_PANES = WINDOW_MULLION_X_POSITIONS.slice(0, -1).map((left, index) => ({
-  left,
-  right: WINDOW_MULLION_X_POSITIONS[index + 1],
-}));
-const WINDOW_MULLION_WIDTH = 0.22;
-const WINDOW_HEADER_THICKNESS = 0.16;
-const WINDOW_SILL_THICKNESS = 0.1;
-const WINDOW_FRAME_SPAN_X = 30.2;
-
 /** Exterior grade sits around 18 storeys below the trading floor. */
 const SKYLINE_GROUND_Y = -55;
 
@@ -173,71 +103,6 @@ const REFERENCE_SKYLINE_TOWERS: SkylineTowerSpec[] = [
  * opposite way (-X and -Z respectively, vs. the west wall's +X and the
  * north wall's +Z).
  */
-const POSTER_FRAME_THICKNESS = 0.08;
-const POSTER_FRAME_BORDER = 0.12;
-const EAST_WALL_INTERIOR_X = ROOM_WIDTH / 2 - WALL_THICKNESS / 2;
-const SOUTH_WALL_INTERIOR_Z = ROOM_LENGTH / 2 - WALL_THICKNESS / 2;
-
-interface WallPosterSpec {
-  wall: "east" | "south";
-  /** Position along the wall run: Z for the east wall, X for the south wall. */
-  along: number;
-  y: number;
-  width: number;
-  height: number;
-  imagePath: string;
-}
-
-const TRADING_FLOOR_POSTERS: WallPosterSpec[] = [
-  { wall: "east", along: -16, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/tombstone.png" },
-  { wall: "east", along: -10, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/eagle.png" },
-  { wall: "east", along: -4, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/bull-bear-crest.png" },
-  { wall: "east", along: 2, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/three-pillars.png" },
-  { wall: "east", along: 6, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/ticker-tape.png" },
-  { wall: "east", along: 10, y: 2.8, width: 1.5, height: 2.0, imagePath: "/assets/posters/greed-is-good.png" },
-];
-
-function WallPoster({ wall, along, y, width, height, imagePath }: WallPosterSpec) {
-  const { asset } = useTexture(imagePath);
-  const frameMaterial = useMaterial({ diffuse: "#2b1f16", metalness: 0.1, gloss: 0.3 });
-  // Both the plane's U and V axes come out inverted relative to the source
-  // image on this wall's rotation — flip both here on the texture's own UVs
-  // rather than fighting it with more rotation math.
-  const posterMaterial = useMaterial({
-    diffuseMap: textureOf(asset),
-    diffuseMapTiling: [-1, -1],
-    diffuseMapOffset: [1, 1],
-    gloss: 0.08,
-    metalness: 0,
-  });
-
-  const position: [number, number, number] =
-    wall === "east"
-      ? [EAST_WALL_INTERIOR_X - POSTER_FRAME_THICKNESS / 2, y, along]
-      : [along, y, SOUTH_WALL_INTERIOR_Z - POSTER_FRAME_THICKNESS / 2];
-  const frameScale: [number, number, number] =
-    wall === "east"
-      ? [POSTER_FRAME_THICKNESS, height + POSTER_FRAME_BORDER, width + POSTER_FRAME_BORDER]
-      : [width + POSTER_FRAME_BORDER, height + POSTER_FRAME_BORDER, POSTER_FRAME_THICKNESS];
-  const planeOffset: [number, number, number] =
-    wall === "east" ? [-POSTER_FRAME_THICKNESS / 2 - 0.005, 0, 0] : [0, 0, -POSTER_FRAME_THICKNESS / 2 - 0.005];
-  const planeRotation: [number, number, number] = wall === "east" ? [0, 90, 90] : [-90, 0, 0];
-  const planeScale: [number, number, number] = wall === "east" ? [width, 1, height] : [width, 1, height];
-
-  return (
-    <Entity position={position}>
-      <Entity scale={frameScale}>
-        <Render type="box" material={frameMaterial} />
-      </Entity>
-      {asset && (
-        <Entity position={planeOffset} rotation={planeRotation} scale={planeScale}>
-          <Render type="plane" material={posterMaterial} />
-        </Entity>
-      )}
-    </Entity>
-  );
-}
-
 export function LowPolySkylineTower({ tower: sourceTower }: { tower: SkylineTowerSpec }) {
   const tower: SkylineTowerSpec = {
     ...sourceTower,
@@ -475,11 +340,12 @@ export function LowPolySkylineTower({ tower: sourceTower }: { tower: SkylineTowe
  */
 export function SkylineNightWindows() {
   const { night } = useDayNight();
+  const cityNight = 0.55 + night * 0.45;
   const litWindowMaterial = useMaterial({
     diffuse: "#5b3b18",
     emissive: "#ffc46b",
-    emissiveIntensity: night * 4.5,
-    opacity: night * 0.92,
+    emissiveIntensity: cityNight * 1.8,
+    opacity: cityNight * 0.72,
     blendType: BLEND_NORMAL,
     depthWrite: false,
     gloss: 0.2,
@@ -520,7 +386,17 @@ export function SkylineNightWindows() {
   );
 }
 
-export const RoomEnvironment = memo(function RoomEnvironment() {
+export const RoomEnvironment = memo(function RoomEnvironment({
+  launchedToken = null,
+  tickerAnnouncement = null,
+  launchAnnouncementActive = false,
+  soundPlayingStandAddresses,
+}: {
+  launchedToken?: LaunchedMarketToken | null;
+  tickerAnnouncement?: string | null;
+  launchAnnouncementActive?: boolean;
+  soundPlayingStandAddresses?: ReadonlySet<string>;
+}) {
   const { asset: plasterWallDiffuse } = useTexture("/assets/textures/painted_plaster_wall_diff_2k.jpg");
   const { asset: plasterWallNormal } = useTexture("/assets/textures/painted_plaster_wall_nor_gl_2k.jpg");
   const { asset: floorTileDiffuse } = useTexture("/assets/textures/wood_floor_diff_2k.jpg");
@@ -571,11 +447,9 @@ export const RoomEnvironment = memo(function RoomEnvironment() {
     gloss: 0.04,
     metalness: 0,
   });
-
-  const steelFrameMaterial = useMaterial({ diffuse: "#14161a", metalness: 0.7, gloss: 0.55 });
-  const windowGlassMaterial = useWindowGlassMaterial();
-  const tickerBorderMaterial = useMaterial({ diffuse: "#383d42", metalness: 0.72, gloss: 0.58 });
-  const sillMaterial = useMaterial({ diffuse: "#2f3134", metalness: 0.5, gloss: 0.4 });
+  // The perimeter deliberately dissolves into the fog instead of reading as
+  // a finite beige room. It remains physical collision geometry.
+  const boundaryMaterial = useMaterial({ diffuse: "#07090b", gloss: 0.01, metalness: 0 });
 
   return (
     <>
@@ -598,23 +472,22 @@ export const RoomEnvironment = memo(function RoomEnvironment() {
       <StaticBox
         position={[0, ROOM_HEIGHT / 2, -ROOM_LENGTH / 2]}
         size={[ROOM_WIDTH, ROOM_HEIGHT, WALL_THICKNESS]}
-        material={plasterWallMaterial}
-        renderVisible={false}
+        material={boundaryMaterial}
       />
       <StaticBox
         position={[0, ROOM_HEIGHT / 2, ROOM_LENGTH / 2]}
         size={[ROOM_WIDTH, ROOM_HEIGHT, WALL_THICKNESS]}
-        material={plasterWallMaterial}
+        material={boundaryMaterial}
       />
       <StaticBox
         position={[ROOM_WIDTH / 2, ROOM_HEIGHT / 2, 0]}
         size={[WALL_THICKNESS, ROOM_HEIGHT, ROOM_LENGTH]}
-        material={plasterWallMaterial}
+        material={boundaryMaterial}
       />
       <StaticBox
         position={[-ROOM_WIDTH / 2, ROOM_HEIGHT / 2, 0]}
         size={[WALL_THICKNESS, ROOM_HEIGHT, ROOM_LENGTH]}
-        material={plasterWallMaterial}
+        material={boundaryMaterial}
       />
 
       {/*
@@ -648,110 +521,23 @@ export const RoomEnvironment = memo(function RoomEnvironment() {
         renderVisible={false}
       />
 
-      {/*
-        North wall: a steel-framed 1980s office-tower curtain wall, full
-        height (floor to near-ceiling) rather than split by a desk-height
-        crossbar — layered foreground buildings in front of the daytime HDR
-        skybox, divided visually into panes by the vertical mullions in front
-        of it. The panes intentionally have no rendered glass surface so the
-        exterior stays clearly visible.
-        All purely decorative (no collision of their own — the wall behind
-        already blocks that space).
-      */}
-      <CityView />
+      {/* No exterior curtain wall or towers: the north perimeter now vanishes
+          into the same near-black haze as the other room boundaries. */}
 
-      {WINDOW_PANES.map(({ left, right }) => {
-        const paneWidth = right - left - WINDOW_MULLION_WIDTH;
-        return (
-          <Entity
-            key={`glass-${left}-${right}`}
-            position={[(left + right) / 2, (WINDOW_GLASS_BOTTOM_Y + WINDOW_GLASS_TOP_Y) / 2, -ROOM_LENGTH / 2 + 0.62]}
-            rotation={[90, 0, 0]}
-            scale={[paneWidth, 1, WINDOW_GLASS_TOP_Y - WINDOW_GLASS_BOTTOM_Y]}
-          >
-            <Render type="plane" material={windowGlassMaterial} />
-          </Entity>
-        );
-      })}
-
-      {WINDOW_MULLION_X_POSITIONS.map((x) => (
-        <VisualBox
-          key={`mullion-${x}`}
-          position={[x, (WINDOW_GLASS_BOTTOM_Y + WINDOW_GLASS_TOP_Y) / 2, -ROOM_LENGTH / 2 + 0.6]}
-          size={[WINDOW_MULLION_WIDTH, WINDOW_GLASS_TOP_Y - WINDOW_GLASS_BOTTOM_Y, 0.22]}
-          material={steelFrameMaterial}
-        />
-      ))}
-      <VisualBox
-        position={[0, WINDOW_GLASS_TOP_Y, -ROOM_LENGTH / 2 + 0.6]}
-        size={[WINDOW_FRAME_SPAN_X, WINDOW_HEADER_THICKNESS, 0.24]}
-        material={steelFrameMaterial}
-      />
-      {/* Simple window sill, protruding slightly further into the room than the frame. */}
-      <VisualBox
-        position={[0, WINDOW_GLASS_BOTTOM_Y, -ROOM_LENGTH / 2 + 0.7]}
-        size={[WINDOW_FRAME_SPAN_X, WINDOW_SILL_THICKNESS, 0.2]}
-        material={sillMaterial}
+      {/* Wide, shallow south-wall price crawl. The inward-facing screen is the
+          casing's -Z face; no extra real-time light is required. */}
+      <TickerDisplay
+        position={[0, 7.7, ROOM_LENGTH / 2 - 0.31]}
+        size={[22, 0.62, 0.12]}
+        faces="back"
+        announcement={tickerAnnouncement}
       />
 
-      {/*
-        Market ticker, hanging directly above the center of the trading pit —
-        a simple matte-black steel box (see TickerDisplay) suspended on two
-        black steel rods, per the brief's 80s-exchange spec (not a hanging
-        HTML-overlay-backed panel). The ticker's own dot-matrix LED texture is
-        the only strongly glowing element in this assembly.
-      */}
-      <VisualCylinder
-        position={[TICKER_PANEL_POSITION[0] - TICKER_ROD_X_OFFSET, (TICKER_PANEL_POSITION[1] + ROOM_HEIGHT) / 2, TICKER_PANEL_POSITION[2]]}
-        radius={0.03}
-        height={ROOM_HEIGHT - TICKER_PANEL_POSITION[1]}
-        material={steelFrameMaterial}
+      <TokenRingMarket
+        launchedToken={launchedToken}
+        launchAnnouncementActive={launchAnnouncementActive}
+        soundPlayingStandAddresses={soundPlayingStandAddresses}
       />
-      <VisualCylinder
-        position={[TICKER_PANEL_POSITION[0] + TICKER_ROD_X_OFFSET, (TICKER_PANEL_POSITION[1] + ROOM_HEIGHT) / 2, TICKER_PANEL_POSITION[2]]}
-        radius={0.03}
-        height={ROOM_HEIGHT - TICKER_PANEL_POSITION[1]}
-        material={steelFrameMaterial}
-      />
-      <TickerDisplay />
-      {/* Raised steel bezel around both faces of the scrolling LED ticker. */}
-      {[-1, 1].map((faceDirection) => {
-        const faceZ = TICKER_PANEL_POSITION[2] + faceDirection * (TICKER_SIZE[2] / 2 + 0.035);
-        return (
-          <Fragment key={`ticker-border-${faceDirection}`}>
-            {[-1, 1].map((verticalDirection) => (
-              <VisualBox
-                key={`ticker-border-horizontal-${faceDirection}-${verticalDirection}`}
-                position={[
-                  TICKER_PANEL_POSITION[0],
-                  TICKER_PANEL_POSITION[1] + verticalDirection * TICKER_SIZE[1] / 2,
-                  faceZ,
-                ]}
-                size={[TICKER_SIZE[0] + 0.16, 0.11, 0.09]}
-                material={tickerBorderMaterial}
-              />
-            ))}
-            {[-1, 1].map((horizontalDirection) => (
-              <VisualBox
-                key={`ticker-border-vertical-${faceDirection}-${horizontalDirection}`}
-                position={[
-                  TICKER_PANEL_POSITION[0] + horizontalDirection * TICKER_SIZE[0] / 2,
-                  TICKER_PANEL_POSITION[1],
-                  faceZ,
-                ]}
-                size={[0.11, TICKER_SIZE[1] + 0.16, 0.09]}
-                material={tickerBorderMaterial}
-              />
-            ))}
-          </Fragment>
-        );
-      })}
-
-      <CoinScreenRows />
-
-      {TRADING_FLOOR_POSTERS.map((poster) => (
-        <WallPoster key={poster.imagePath + poster.along} {...poster} />
-      ))}
 
       {/* Low-pile carpet defining the west-side drawing/sticky-board chill zone. */}
       <VisualBox

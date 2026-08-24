@@ -1144,6 +1144,82 @@
   border-radius: 50%;
 }
 
+.token-launch-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 6, 6, 0.72);
+}
+
+.token-launch-modal__panel {
+  width: min(460px, 100%);
+  padding: 28px;
+  color: #f1eee5;
+  background: #0c0e0f;
+  border: 1px solid #34383a;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.62);
+  font: 700 13px/1.3 "Courier New", monospace;
+}
+
+.token-launch-modal__eyebrow {
+  margin: 0 0 8px;
+  color: #a9a69d;
+  letter-spacing: 0.14em;
+}
+
+.token-launch-modal h2 {
+  margin: 0 0 24px;
+  font: 700 28px/1.05 "Courier New", monospace;
+  text-transform: uppercase;
+}
+
+.token-launch-modal label {
+  display: grid;
+  gap: 7px;
+  margin-top: 16px;
+  color: #cfcbc0;
+}
+
+.token-launch-modal label span { color: #747772; }
+
+.token-launch-modal input {
+  min-width: 0;
+  padding: 12px 13px;
+  color: #f4f2eb;
+  background: #171a1b;
+  border: 1px solid #35393b;
+  border-radius: 0;
+  outline: none;
+  font: 700 14px "Courier New", monospace;
+}
+
+.token-launch-modal input:focus { border-color: #8b8e89; }
+
+.token-launch-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.token-launch-modal button {
+  padding: 11px 14px;
+  color: #e8e5dc;
+  background: #252829;
+  border: 0;
+  border-radius: 0;
+  font: 700 13px "Courier New", monospace;
+  cursor: pointer;
+}
+
+.token-launch-modal button.token-launch-modal__launch {
+  color: #fff;
+  background: #8e201d;
+}
+
 .seated-stand-button,
 .seated-terminal-button {
   display: none;
@@ -2569,6 +2645,31 @@
 
 .day-night-debug button:disabled {
   opacity: 0.4;
+}
+
+.ticker-test-button {
+  position: fixed;
+  z-index: 41;
+  top: max(92px, calc(env(safe-area-inset-top) + 92px));
+  left: 50%;
+  min-height: 34px;
+  padding: 7px 12px;
+  color: #dce2d8;
+  border: 1px solid rgb(190 204 188 / 25%);
+  border-radius: 5px;
+  background: rgb(8 12 11 / 88%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+  transform: translateX(-50%);
+  font: 12px/1.2 "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.ticker-test-button:hover {
+  background: rgb(24 29 27 / 94%);
 }
 
 /*

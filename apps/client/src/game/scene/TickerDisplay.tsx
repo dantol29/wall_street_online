@@ -44,13 +44,29 @@ function colorForCharacter(character: string): string {
  * *only* glowing element in this assembly (the clock panel below it is lit
  * normally, not emissive — see WorldClockDisplay).
  */
-export function TickerDisplay() {
+interface TickerDisplayProps {
+  position?: [number, number, number];
+  rotation?: [number, number, number];
+  size?: [number, number, number];
+  faces?: "both" | "front" | "back";
+  announcement?: string | null;
+}
+
+export function TickerDisplay({
+  position = TICKER_PANEL_POSITION,
+  rotation = [0, 0, 0],
+  size = TICKER_SIZE,
+  faces = "both",
+  announcement = null,
+}: TickerDisplayProps = {}) {
   const app = useApp();
   const casingMaterial = useMaterial({ diffuse: "#050505", gloss: 0.28, metalness: 0.45 });
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const textureRef = useRef<Texture | null>(null);
   const scrollXRef = useRef(0);
   const textWidthRef = useRef(0);
+  const activeTextRef = useRef(TICKER_TEXT);
+  const announcementActiveRef = useRef(false);
   const elapsedSecondsRef = useRef(0);
   const [material, setMaterial] = useState<StandardMaterial | null>(null);
 
@@ -94,6 +110,17 @@ export function TickerDisplay() {
     };
   }, [app]);
 
+  useEffect(() => {
+    const text = announcement ? `     ${announcement}     ` : TICKER_TEXT;
+    activeTextRef.current = text;
+    announcementActiveRef.current = Boolean(announcement);
+    scrollXRef.current = 0;
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    ctx.font = FONT;
+    textWidthRef.current = ctx.measureText(text).width;
+  }, [announcement]);
+
   useAppEvent("update", (dt) => {
     elapsedSecondsRef.current += dt;
     if (elapsedSecondsRef.current < REDRAW_INTERVAL_SECONDS) return;
@@ -114,13 +141,14 @@ export function TickerDisplay() {
     ctx.font = FONT;
     ctx.textBaseline = "middle";
     const y = canvas.height / 2;
+    const activeText = activeTextRef.current;
     for (let start = -scrollXRef.current; start < canvas.width; start += textWidth) {
       // Drawn character-by-character (Courier New is monospace, so measuring
       // per character is exact) so the ▲/▼ arrows can be colored green/red
       // against the otherwise orange-red LED text.
       let x = start;
-      for (const character of TICKER_TEXT) {
-        ctx.fillStyle = colorForCharacter(character);
+      for (const character of activeText) {
+        ctx.fillStyle = announcementActiveRef.current ? "#ece9df" : colorForCharacter(character);
         ctx.fillText(character, x, y);
         x += ctx.measureText(character).width;
       }
@@ -130,29 +158,33 @@ export function TickerDisplay() {
   });
 
   return (
-    <Entity position={TICKER_PANEL_POSITION}>
+    <Entity position={position} rotation={rotation}>
       {/* Plain steel casing prevents the LED texture repeating onto the top, bottom, and ends. */}
-      <Entity scale={TICKER_SIZE}>
+      <Entity scale={size}>
         <Render type="box" material={casingMaterial} />
       </Entity>
 
       {/* Dedicated screens on the two vertical faces only. */}
       {material && (
         <>
-          <Entity
-            position={[0, 0, TICKER_SIZE[2] / 2 + 0.006]}
-            rotation={[90, 0, 0]}
-            scale={[TICKER_SIZE[0], 1, TICKER_SIZE[1]]}
-          >
-            <Render type="plane" material={material} />
-          </Entity>
-          <Entity
-            position={[0, 0, -TICKER_SIZE[2] / 2 - 0.006]}
-            rotation={[-90, 180, 0]}
-            scale={[TICKER_SIZE[0], 1, TICKER_SIZE[1]]}
-          >
-            <Render type="plane" material={material} />
-          </Entity>
+          {faces !== "back" && (
+            <Entity
+              position={[0, 0, size[2] / 2 + 0.006]}
+              rotation={[90, 0, 0]}
+              scale={[size[0], 1, size[1]]}
+            >
+              <Render type="plane" material={material} />
+            </Entity>
+          )}
+          {faces !== "front" && (
+            <Entity
+              position={[0, 0, -size[2] / 2 - 0.006]}
+              rotation={[-90, 180, 0]}
+              scale={[size[0], 1, size[1]]}
+            >
+              <Render type="plane" material={material} />
+            </Entity>
+          )}
         </>
       )}
     </Entity>

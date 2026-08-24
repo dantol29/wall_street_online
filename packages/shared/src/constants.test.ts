@@ -31,8 +31,8 @@ describe("shared constants", () => {
 
   it("defines exactly the ten brief-specified spawn points", () => {
     expect(SPAWN_POINTS).toHaveLength(10);
-    expect(SPAWN_POINTS[0]).toEqual({ x: -10, y: 1, z: -15 });
-    expect(SPAWN_POINTS[9]).toEqual({ x: 10, y: 1, z: 15 });
+    expect(SPAWN_POINTS[0]).toEqual({ x: 0, y: 1, z: 3.6 });
+    expect(SPAWN_POINTS[9]).toEqual({ x: 0, y: 1, z: -3.6 });
   });
 
   it("matches the brief's movement config", () => {
@@ -46,7 +46,7 @@ describe("shared constants", () => {
   });
 
   it("matches the enlarged trading-floor world bounds", () => {
-    expect(WORLD_BOUNDS).toEqual({ minX: -16, maxX: 16, minY: 0, maxY: 12, minZ: -20, maxZ: 24.5 });
+    expect(WORLD_BOUNDS).toEqual({ minX: -24, maxX: 24, minY: 0, maxY: 12, minZ: -24, maxZ: 24 });
   });
 
   it("defines 8 uniquely-identified office slots, all within WORLD_BOUNDS", () => {

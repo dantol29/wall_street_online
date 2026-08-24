@@ -9,13 +9,13 @@ export const WHITEBOARD_MAX_TEXT_LENGTH = 160;
 export const WHITEBOARD_POSITION = {
   // Flush-mount the frame against the west wall. The 16 cm frame is centered
   // here so its rear face meets the wall's interior surface at x=-15.75.
-  x: -15.67,
+  x: -23.67,
   y: 3.25,
   z: -3.8,
 } as const;
 
 export const WHITEBOARD_INTERACTION_POSITION = {
-  x: -13.77,
+  x: -21.77,
   z: -3.8,
 } as const;
 

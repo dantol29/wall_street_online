@@ -4,12 +4,12 @@ export const MOVEMENT_SEND_RATE_HZ = 12;
 export const MAX_CHAT_LENGTH = 200;
 
 export const WORLD_BOUNDS = {
-  minX: -16,
-  maxX: 16,
+  minX: -24,
+  maxX: 24,
   minY: 0,
   maxY: 12,
-  minZ: -20,
-  maxZ: 24.5,
+  minZ: -24,
+  maxZ: 24,
 } as const;
 
 export const MOVEMENT_CONFIG = {
@@ -25,7 +25,7 @@ export const CAMERA_PITCH_MAX_DEGREES = 85;
 
 export const TELEPORT_DISTANCE_THRESHOLD_METERS = 5;
 
-export const NAME_LABEL_MAX_DISTANCE_METERS = 20;
+export const NAME_LABEL_MAX_DISTANCE_METERS = 12;
 
 export const CHAT_RATE_LIMIT_MAX_MESSAGES = 3;
 export const CHAT_RATE_LIMIT_WINDOW_MS = 5000;
@@ -44,16 +44,16 @@ export interface SpawnPoint {
 }
 
 export const SPAWN_POINTS: readonly SpawnPoint[] = [
-  { x: -10, y: 1, z: -15 },
-  { x: -5, y: 1, z: -15 },
-  { x: 0, y: 1, z: -15 },
-  { x: 5, y: 1, z: -15 },
-  { x: 10, y: 1, z: -15 },
-  { x: -10, y: 1, z: 15 },
-  { x: -5, y: 1, z: 15 },
-  { x: 0, y: 1, z: 15 },
-  { x: 5, y: 1, z: 15 },
-  { x: 10, y: 1, z: 15 },
+  { x: 0, y: 1, z: 3.6 },
+  { x: 1.4, y: 1, z: 3.6 },
+  { x: -1.4, y: 1, z: 3.6 },
+  { x: 3.6, y: 1, z: 0 },
+  { x: -3.6, y: 1, z: 0 },
+  { x: 3.1, y: 1, z: 2.1 },
+  { x: -3.1, y: 1, z: 2.1 },
+  { x: 3.1, y: 1, z: -2.1 },
+  { x: -3.1, y: 1, z: -2.1 },
+  { x: 0, y: 1, z: -3.6 },
 ] as const;
 
 export interface DeskStation {

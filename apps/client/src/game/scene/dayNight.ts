@@ -113,13 +113,18 @@ export function getDayNightProfile(phase: number): DayNightProfile {
   const night = 1 - smoothstep(-0.22, 0.04, sunDirection[1]);
   const twilight = clamp01(1 - Math.abs(sunDirection[1]) / 0.34);
   const sunriseWarmth = twilight * (1 - night * 0.65);
-  // Restrained cool exterior fill: enough to navigate the shadows, low enough
-  // for the warm ceiling pools to define the room.
-  const ambientNight: Rgb = [0.035, 0.045, 0.075];
-  const ambientDay: Rgb = [0.16, 0.18, 0.21];
+  // Liminal exchange grade: the synchronized clock still changes the sky
+  // subtly, but the market never becomes a uniformly daylit room.
+  const ambientNight: Rgb = [0.014, 0.018, 0.028];
+  const ambientDay: Rgb = [0.052, 0.056, 0.062];
   const ambient = mixRgb(ambientNight, ambientDay, daylight);
-  ambient[0] += sunriseWarmth * 0.08;
-  ambient[1] += sunriseWarmth * 0.025;
+  ambient[0] += sunriseWarmth * 0.012;
+  ambient[1] += sunriseWarmth * 0.006;
+  const authoredSky = skyColorsAtHour(hour);
+  const nightSkyTop: Rgb = [0.003, 0.006, 0.016];
+  const nightSkyHorizon: Rgb = [0.012, 0.019, 0.04];
+  const nightSkyBottom: Rgb = [0.006, 0.009, 0.018];
+  const exteriorDarkening = mix(0.92, 0.76, daylight);
 
   return {
     phase: normalizedPhase,
@@ -129,14 +134,16 @@ export function getDayNightProfile(phase: number): DayNightProfile {
     twilight,
     sunDirection,
     moonDirection,
-    ...skyColorsAtHour(hour),
+    skyTop: mixRgb(authoredSky.skyTop, nightSkyTop, exteriorDarkening),
+    skyHorizon: mixRgb(authoredSky.skyHorizon, nightSkyHorizon, exteriorDarkening),
+    skyBottom: mixRgb(authoredSky.skyBottom, nightSkyBottom, exteriorDarkening),
     ambient,
     sunColor: sunriseWarmth > 0.25 ? "#d5c4b3" : "#c7d9eb",
-    sunIntensity: daylight * mix(0.2, 0.55, smoothstep(0.05, 0.62, sunDirection[1])),
-    moonIntensity: night * 0.1,
-    fixtureIntensity: mix(2.8, 2.15, daylight),
-    fixtureEmissiveIntensity: mix(2.1, 1.45, daylight),
-    environmentIntensity: mix(0.08, 0.46, daylight),
+    sunIntensity: daylight * mix(0.015, 0.065, smoothstep(0.05, 0.62, sunDirection[1])),
+    moonIntensity: night * 0.035,
+    fixtureIntensity: mix(0.46, 0.34, daylight),
+    fixtureEmissiveIntensity: mix(0.55, 0.38, daylight),
+    environmentIntensity: mix(0.025, 0.075, daylight),
   };
 }
 

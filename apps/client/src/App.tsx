@@ -17,6 +17,7 @@ import {
   type PnlUpdateMessage,
   type SeatResultMessage,
   type StickyNote,
+  type TokenSoundEventMessage,
   type VoiceTokenResultMessage,
   type WhiteboardShape,
   type WhiteboardSnapshot,
@@ -50,6 +51,14 @@ import { DayNightDebugControls } from "./ui/DayNightDebugControls";
 import { HyperliquidTerminal } from "./ui/HyperliquidTerminal";
 import { TokenDock, type DockToken } from "./ui/TokenDock";
 import { MONITOR_INTERACTION_DISTANCE_METERS, MONITOR_POSITION, TIMEFRAMES } from "./game/scene/TokenMonitor";
+import {
+  TOKEN_LAUNCH_INTERACTION_DISTANCE_METERS,
+  TOKEN_LAUNCH_INTERACTION_POSITION,
+  type TokenLaunchDisplayState,
+} from "./game/scene/TokenLaunchArea";
+import { TokenLaunchModal, type TokenLaunchDraft } from "./ui/TokenLaunchModal";
+import type { LaunchedMarketToken } from "./game/scene/TokenRingMarket";
+import { FIRST_TOKEN_STAND, NEXT_TOKEN_STAND, TOKEN_STAND_LAYOUT } from "./game/scene/tokenRingLayout";
 
 /** Placeholder holdings until the launchpad terminal/holdings system exists — the dock itself doesn't care where the list comes from. */
 const MOCK_DOCK_TOKENS: DockToken[] = [
@@ -67,6 +76,13 @@ const MOCK_DOCK_TOKENS: DockToken[] = [
   { id: "spcx", symbol: "SPCX", logo: "/assets/token-logos/spcx.svg" },
   { id: "tsla", symbol: "TSLA", logo: "/assets/token-logos/tsla.svg" },
 ];
+const PIGN_TOKEN: LaunchedMarketToken = {
+  name: "Pigeon",
+  ticker: "PIGN",
+  imageUrl: "/assets/token-logos/pign.png",
+  soundUrl: "/assets/token-sounds/pign.mp3",
+  description: "The happiest pigeon on the trading floor.",
+};
 import {
   anchorWorldTime,
   createInitialWorldTimeAnchor,
@@ -98,6 +114,9 @@ const WAVE_EMOTE_DURATION_MS = 1_800;
 const EMOTE_MOVEMENT_CANCEL_SPEED = 0.15;
 const TERMINAL_CAMERA_ANIMATION_MS = 480;
 const TERMINAL_SCREEN_VERTICAL_FRACTION = 0.76;
+// Starting value: close enough to operate one stand without triggering a neighboring ring.
+// Pass when the intended stand is selected in 10/10 approaches; reduce if two stands feel ambiguous.
+const TOKEN_SOUND_INTERACTION_DISTANCE_METERS = 1.8;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -355,12 +374,22 @@ function App() {
   const waveEmoteRef = useRef<() => void>(() => {});
   const waveUntilRef = useRef(0);
   const waveTimeoutRef = useRef<number | null>(null);
+  const tokenLaunchTimersRef = useRef<number[]>([]);
+  const tickerTestTimerRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
   /** Mirrors whatever animation state was last sent to the server (see the movement tick below) — read by LocalPlayer's own body model, which has no server round trip for its own state the way RemotePlayer gets one. */
   const localAnimationRef = useRef<AnimationState>("idle");
   const seatedDeskIdRef = useRef<string | null>(null);
   const nearWhiteboardRef = useRef(false);
   const nearTokenMonitorRef = useRef(false);
+  const nearTokenLaunchRef = useRef(false);
+  const nearTokenSoundStandRef = useRef<string | null>(null);
+  const launchedMarketTokenRef = useRef<LaunchedMarketToken | null>(null);
+  const tickerTestTokenRef = useRef<LaunchedMarketToken | null>(null);
+  const lastTokenSoundAtRef = useRef(0);
+  const tokenSoundPlaybackSequenceRef = useRef(0);
+  const activeTokenSoundPlaybackByStandRef = useRef<Map<string, number>>(new Map());
+  const tokenLaunchOpenRef = useRef(false);
   const whiteboardOpenRef = useRef(false);
   const terminalOpenRef = useRef(false);
   const terminalSavedCameraViewRef = useRef<SavedCameraView | null>(null);
@@ -408,6 +437,14 @@ function App() {
   const [pointerLockLost, setPointerLockLost] = useState(false);
   const [nearWhiteboard, setNearWhiteboard] = useState(false);
   const [nearTokenMonitor, setNearTokenMonitor] = useState(false);
+  const [nearTokenLaunch, setNearTokenLaunch] = useState(false);
+  const [nearTokenSoundStand, setNearTokenSoundStand] = useState<string | null>(null);
+  const [tokenLaunchOpen, setTokenLaunchOpen] = useState(false);
+  const [tokenLaunchDisplay, setTokenLaunchDisplay] = useState<TokenLaunchDisplayState>({ phase: "idle" });
+  const [launchedMarketToken, setLaunchedMarketToken] = useState<LaunchedMarketToken | null>(PIGN_TOKEN);
+  const [tickerTestAnnouncement, setTickerTestAnnouncement] = useState<string | null>(null);
+  const [tickerTestToken, setTickerTestToken] = useState<LaunchedMarketToken | null>(null);
+  const [soundPlayingStandAddresses, setSoundPlayingStandAddresses] = useState<ReadonlySet<string>>(new Set());
   const [tokenMonitorTimeframeIndex, setTokenMonitorTimeframeIndex] = useState(1);
   const [tokenMonitorTradePress, setTokenMonitorTradePress] = useState<{
     side: "buy" | "sell";
@@ -524,6 +561,8 @@ function App() {
   }, []);
   waveEmoteRef.current = triggerWaveEmote;
   selectedSceneIdRef.current = selectedSceneId;
+  launchedMarketTokenRef.current = launchedMarketToken;
+  tickerTestTokenRef.current = tickerTestToken;
 
   useEffect(() => {
     let seatErrorTimer: number | null = null;
@@ -763,6 +802,56 @@ function App() {
       void voice.connect(result);
     };
 
+    const playBroadcastTokenSound = (message: TokenSoundEventMessage): void => {
+      const stand = TOKEN_STAND_LAYOUT.find((candidate) => candidate.address === message.standAddress);
+      const player = playerEntityRef.current;
+      if (!stand || !player) return;
+      const position = player.getPosition();
+      const distance = Math.hypot(position.x - stand.x, position.z - stand.z);
+      // Starting value: fade to silence at 25m. Pass when one nearby group shares the sound
+      // without several rings overlapping; shorten this range if a busy room becomes noisy.
+      const distanceGain = Math.max(0, 1 - distance / 25);
+      if (distanceGain <= 0) return;
+      const playbackId = ++tokenSoundPlaybackSequenceRef.current;
+      activeTokenSoundPlaybackByStandRef.current.set(message.standAddress, playbackId);
+      setSoundPlayingStandAddresses((current) => new Set(current).add(message.standAddress));
+      const clearPlayingBorder = () => {
+        if (activeTokenSoundPlaybackByStandRef.current.get(message.standAddress) !== playbackId) return;
+        activeTokenSoundPlaybackByStandRef.current.delete(message.standAddress);
+        setSoundPlayingStandAddresses((current) => {
+          const next = new Set(current);
+          next.delete(message.standAddress);
+          return next;
+        });
+      };
+      if (message.soundUrl) {
+        const audio = new Audio(message.soundUrl);
+        audio.volume = Math.min(0.5, 0.5 * distanceGain * distanceGain);
+        audio.addEventListener("ended", clearPlayingBorder, { once: true });
+        audio.addEventListener("error", clearPlayingBorder, { once: true });
+        void audio.play().catch(clearPlayingBorder);
+        return;
+      }
+      const context = new AudioContext();
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0.09 * distanceGain * distanceGain, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.38);
+      gain.connect(context.destination);
+      const baseFrequency = 330 + [...message.ticker].reduce((sum, character) => sum + character.charCodeAt(0), 0) % 220;
+      [1, 1.25].forEach((ratio, index) => {
+        const oscillator = context.createOscillator();
+        oscillator.type = "sine";
+        oscillator.frequency.value = baseFrequency * ratio;
+        oscillator.connect(gain);
+        oscillator.start(context.currentTime + index * 0.08);
+        oscillator.stop(context.currentTime + 0.38);
+      });
+      window.setTimeout(() => {
+        clearPlayingBorder();
+        void context.close();
+      }, 500);
+    };
+
     const client = new MultiplayerClient(SERVER_URL, {
       onConnectionStateChange: (state) => {
         setConnectionState(state);
@@ -844,8 +933,26 @@ function App() {
           sceneRef.current?.updateRemotePnl(entry.sessionId, entry.pnlUsd);
         }
       },
+      onTokenSound: playBroadcastTokenSound,
     });
     clientRef.current = client;
+
+    const playNearbyTokenSound = (): void => {
+      const address = nearTokenSoundStandRef.current;
+      if (!address || performance.now() - lastTokenSoundAtRef.current < 800) return;
+      const token = address === NEXT_TOKEN_STAND.address
+        ? tickerTestTokenRef.current ?? launchedMarketTokenRef.current
+        : address === FIRST_TOKEN_STAND.address
+          ? { name: "Hype", ticker: "HYPE" }
+          : null;
+      if (!token) return;
+      lastTokenSoundAtRef.current = performance.now();
+      clientRef.current?.sendTokenSound({
+        standAddress: address,
+        ticker: token.ticker,
+        soundUrl: token.soundUrl,
+      });
+    };
 
     const triggerPrimaryInteraction = (): void => {
       if (
@@ -853,10 +960,18 @@ function App() {
         whiteboardOpenRef.current ||
         officeEditorOpenRef.current ||
         stickyNoteEditorOpenRef.current ||
+        tokenLaunchOpenRef.current ||
         needsDisplayNameRef.current
       )
         return;
-      if (nearWhiteboardRef.current) {
+      if (nearTokenLaunchRef.current) {
+        tokenLaunchOpenRef.current = true;
+        setTokenLaunchOpen(true);
+        setTokenLaunchDisplay({ phase: "editing" });
+        setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
+        intentionalUnlockRef.current = true;
+        if (document.pointerLockElement) document.exitPointerLock();
+      } else if (nearWhiteboardRef.current) {
         whiteboardOpenRef.current = true;
         setWhiteboardOpen(true);
         setPlayerControllerPaused(playerEntityRef.current, true, gameplayInputDetachedRef);
@@ -917,14 +1032,18 @@ function App() {
         event.code === "KeyF" &&
         !event.repeat &&
         !typing &&
-        !needsDisplayNameRef.current &&
-        seatedDeskIdRef.current
+        !needsDisplayNameRef.current
       ) {
-        event.preventDefault();
-        if (terminalOpenRef.current) {
-          closeHyperliquidTerminal();
-        } else {
-          openHyperliquidTerminal();
+        if (seatedDeskIdRef.current) {
+          event.preventDefault();
+          if (terminalOpenRef.current) {
+            closeHyperliquidTerminal();
+          } else {
+            openHyperliquidTerminal();
+          }
+        } else if (nearTokenSoundStandRef.current) {
+          event.preventDefault();
+          playNearbyTokenSound();
         }
       }
       if (event.code === "KeyE" && !event.repeat && !typing && !needsDisplayNameRef.current) {
@@ -935,7 +1054,8 @@ function App() {
           nearWhiteboardRef.current ||
           nearOfficeSlotIdRef.current ||
           nearStickyWallRef.current ||
-          nearTokenMonitorRef.current
+          nearTokenMonitorRef.current ||
+          nearTokenLaunchRef.current
         ) {
           event.preventDefault();
           triggerPrimaryInteraction();
@@ -1111,6 +1231,30 @@ function App() {
           setNearTokenMonitor(isNearTokenMonitor);
         }
 
+        const launchDistance = Math.hypot(
+          position.x - TOKEN_LAUNCH_INTERACTION_POSITION.x,
+          position.z - TOKEN_LAUNCH_INTERACTION_POSITION.z,
+        );
+        const isNearTokenLaunch = launchDistance <= TOKEN_LAUNCH_INTERACTION_DISTANCE_METERS;
+        if (isNearTokenLaunch !== nearTokenLaunchRef.current) {
+          nearTokenLaunchRef.current = isNearTokenLaunch;
+          setNearTokenLaunch(isNearTokenLaunch);
+        }
+
+        let nearestSoundStand: string | null = null;
+        let nearestSoundStandDistance = TOKEN_SOUND_INTERACTION_DISTANCE_METERS;
+        for (const slot of TOKEN_STAND_LAYOUT) {
+          const distance = Math.hypot(position.x - slot.x, position.z - slot.z);
+          if (distance <= nearestSoundStandDistance) {
+            nearestSoundStandDistance = distance;
+            nearestSoundStand = slot.address;
+          }
+        }
+        if (nearestSoundStand !== nearTokenSoundStandRef.current) {
+          nearTokenSoundStandRef.current = nearestSoundStand;
+          setNearTokenSoundStand(nearestSoundStand);
+        }
+
         let nearestOfficeSlotId: string | null = null;
         let nearestOfficeDistance = OFFICE_INTERACTION_DISTANCE_METERS;
         for (const slot of OFFICE_SLOTS) {
@@ -1151,6 +1295,8 @@ function App() {
       if (waveTimeoutRef.current !== null) window.clearTimeout(waveTimeoutRef.current);
       if (stickyWallHintTimerRef.current !== null) window.clearTimeout(stickyWallHintTimerRef.current);
       if (justPlacedStickyNoteTimerRef.current !== null) window.clearTimeout(justPlacedStickyNoteTimerRef.current);
+      tokenLaunchTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      if (tickerTestTimerRef.current !== null) window.clearTimeout(tickerTestTimerRef.current);
       client.disconnect();
       clientRef.current = null;
       primaryInteractionRef.current = () => {};
@@ -1163,6 +1309,10 @@ function App() {
     if (selectedSceneId !== "trading-floor") {
       setNearWhiteboard(false);
       nearWhiteboardRef.current = false;
+      setNearTokenLaunch(false);
+      nearTokenLaunchRef.current = false;
+      setNearTokenSoundStand(null);
+      nearTokenSoundStandRef.current = null;
       setNearOfficeSlotId(null);
       nearOfficeSlotIdRef.current = null;
       setNearStickyWall(false);
@@ -1435,6 +1585,61 @@ function App() {
     return { success: result.success, message: result.message };
   }, []);
 
+  const closeTokenLaunch = useCallback(() => {
+    tokenLaunchOpenRef.current = false;
+    setTokenLaunchOpen(false);
+    setTokenLaunchDisplay({ phase: "idle" });
+    setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef);
+  }, []);
+
+  const handleTokenLaunch = useCallback((draft: TokenLaunchDraft) => {
+    tokenLaunchTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    tokenLaunchOpenRef.current = false;
+    setTokenLaunchOpen(false);
+    setPlayerControllerPaused(playerEntityRef.current, false, gameplayInputDetachedRef);
+    setTokenLaunchDisplay({ phase: "approved", name: draft.name, ticker: draft.ticker, imageUrl: draft.imageUrl });
+
+    const updateCountdown = (countdown: number, delay: number) => window.setTimeout(
+      () => setTokenLaunchDisplay({ phase: "countdown", name: draft.name, ticker: draft.ticker, imageUrl: draft.imageUrl, countdown }),
+      delay,
+    );
+    const goLive = window.setTimeout(() => {
+      setTokenLaunchDisplay({ phase: "live", name: draft.name, ticker: draft.ticker, imageUrl: draft.imageUrl, address: NEXT_TOKEN_STAND.address });
+      setLaunchedMarketToken({ name: draft.name, ticker: draft.ticker, imageUrl: draft.imageUrl, soundUrl: draft.soundUrl });
+    }, 3700);
+    // Starting value: keep the successful listing visible for 15 seconds.
+    // Pass when observers across the room can read it before the display resets.
+    const returnToIdle = window.setTimeout(() => setTokenLaunchDisplay({ phase: "idle" }), 18_000);
+    const beginCountdown = window.setTimeout(
+      () => setTokenLaunchDisplay({ phase: "countdown", name: draft.name, ticker: draft.ticker, imageUrl: draft.imageUrl, countdown: 3 }),
+      700,
+    );
+    tokenLaunchTimersRef.current = [beginCountdown, updateCountdown(2, 1700), updateCountdown(1, 2700), goLive, returnToIdle];
+  }, []);
+
+  const handleTestTickerAnnouncement = useCallback(() => {
+    if (tickerTestTimerRef.current !== null) window.clearTimeout(tickerTestTimerRef.current);
+    setTickerTestAnnouncement(`NEW LISTING — $PIGN — ${NEXT_TOKEN_STAND.address}`);
+    setTickerTestToken(PIGN_TOKEN);
+    setTokenLaunchDisplay({
+      phase: "live",
+      name: PIGN_TOKEN.name,
+      ticker: PIGN_TOKEN.ticker,
+      imageUrl: PIGN_TOKEN.imageUrl,
+      address: NEXT_TOKEN_STAND.address,
+    });
+    tickerTestTimerRef.current = window.setTimeout(() => {
+      tickerTestTimerRef.current = null;
+      setTickerTestAnnouncement(null);
+      setTickerTestToken(null);
+      setTokenLaunchDisplay({ phase: "idle" });
+    }, 8_000);
+  }, []);
+
+  const liveTickerAnnouncement = tokenLaunchDisplay.phase === "live"
+    ? `NEW LISTING — $${tokenLaunchDisplay.ticker ?? "TOKEN"} — ${tokenLaunchDisplay.address ?? NEXT_TOKEN_STAND.address}`
+    : null;
+
   const showErrorOverlay =
     connectErrorMessage ?? (connectionState === "disconnected" ? "Lost connection to the multiplayer server." : null);
   const speakingPlayerIds = new Set(
@@ -1445,8 +1650,12 @@ function App() {
     nearOfficeSlotId && !isNearOwnOffice ? (sceneRef.current?.getSessionIdForOfficeSlot(nearOfficeSlotId) ?? null) : null;
   const mySessionId = clientRef.current?.getSessionId() ?? null;
   const myStickyNote = mySessionId ? stickyNotes.find((note) => note.authorSessionId === mySessionId) ?? null : null;
+  const nearbyTokenHasSound = nearTokenSoundStand === FIRST_TOKEN_STAND.address ||
+    (nearTokenSoundStand === NEXT_TOKEN_STAND.address && Boolean(tickerTestToken ?? launchedMarketToken));
   const mobileActionLabel = nearWhiteboard
     ? "Use board"
+    : nearTokenLaunch
+      ? "Launch token"
     : isNearOwnOffice
         ? "Manage office"
         : nearOfficeOccupantSessionId
@@ -1478,6 +1687,11 @@ function App() {
             worldTimeOverridePhase={worldTimeOverridePhase}
             tokenMonitorTimeframeIndex={tokenMonitorTimeframeIndex}
             tokenMonitorTradePress={tokenMonitorTradePress}
+            tokenLaunchDisplay={tokenLaunchDisplay}
+            launchedMarketToken={tickerTestToken ?? launchedMarketToken}
+            tickerAnnouncement={liveTickerAnnouncement ?? tickerTestAnnouncement}
+            launchStandAnnouncementActive={tokenLaunchDisplay.phase === "live" || tickerTestToken !== null}
+            soundPlayingStandAddresses={soundPlayingStandAddresses}
           />
         </Application>
       </ApplicationErrorBoundary>
@@ -1485,6 +1699,7 @@ function App() {
         <div className="trading-floor-overlay__glow" />
       </div>
       {needsDisplayName && <SetDisplayNameModal onSubmit={handleSetDisplayName} />}
+      {tokenLaunchOpen && <TokenLaunchModal onCancel={closeTokenLaunch} onLaunch={handleTokenLaunch} />}
       <ConnectionStatus state={connectionState} />
       {entered && (
         <DayNightDebugControls
@@ -1492,6 +1707,18 @@ function App() {
           overridePhase={worldTimeOverridePhase}
           onOverridePhaseChange={setWorldTimeOverridePhase}
         />
+      )}
+      {entered && (
+        <button
+          type="button"
+          className="ticker-test-button"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            handleTestTickerAnnouncement();
+          }}
+        >
+          {tickerTestToken ? "Testing listing…" : "Test listing ticker"}
+        </button>
       )}
       {entered && PRIVY_ENABLED && (
         <WalletPanel connected={connectionState === "connected"} onLinkWallet={handleLinkWallet} />
@@ -1558,12 +1785,19 @@ function App() {
       {entered && nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
         <div className="desk-interaction game-instruction"><kbd>E</kbd> Open drawing board</div>
       )}
+      {entered && nearTokenLaunch && !seatedDeskId && !whiteboardOpen && !tokenLaunchOpen && (
+        <div className="desk-interaction game-instruction"><kbd>E</kbd> Launch a token</div>
+      )}
       {entered && nearTokenMonitor && !nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
         <div className="desk-interaction game-instruction token-monitor-controls">
           <span><kbd>1</kbd> Buy $10</span>
           <span><kbd>2</kbd> Sell $10</span>
           <span><kbd>E</kbd> Change timeframe</span>
+          <span><kbd>F</kbd> Play token sound</span>
         </div>
+      )}
+      {entered && nearbyTokenHasSound && !nearTokenMonitor && !seatedDeskId && !whiteboardOpen && !tokenLaunchOpen && (
+        <div className="desk-interaction game-instruction"><kbd>F</kbd> Play token sound</div>
       )}
       {entered && seatedDeskId && !whiteboardOpen && !terminalOpen && (
         <>

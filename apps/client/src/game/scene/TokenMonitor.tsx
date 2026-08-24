@@ -8,6 +8,7 @@ import {
   TERMINAL_SCREEN_SIZE,
   TradingTerminalShell,
 } from "./TradingTerminalShell";
+import { FIRST_TOKEN_STAND } from "./tokenRingLayout";
 
 /**
  * Single-monitor prototype of the token info screen: header (symbol + live
@@ -19,7 +20,7 @@ import {
  */
 
 /** HYPE's slot in the north row of freestanding token displays. */
-export const MONITOR_POSITION: [number, number, number] = [-11.5, TERMINAL_SCREEN_CENTER_Y, -10];
+export const MONITOR_POSITION: [number, number, number] = [FIRST_TOKEN_STAND.x, TERMINAL_SCREEN_CENTER_Y, FIRST_TOKEN_STAND.z];
 export const MONITOR_INTERACTION_DISTANCE_METERS = 2.2;
 const MONITOR_SIZE = TERMINAL_SCREEN_SIZE;
 
@@ -32,7 +33,7 @@ const DIM_TEXT_COLOR = "#888888";
 const POSITIVE_COLOR = "#33ff33";
 const NEGATIVE_COLOR = "#ff2020";
 
-interface Candle {
+export interface Candle {
   time: number;
   open: number;
   high: number;
@@ -40,7 +41,7 @@ interface Candle {
   close: number;
 }
 
-interface HeaderToken {
+export interface HeaderToken {
   symbol: string;
   price: string;
   changePercent: number;
@@ -85,7 +86,7 @@ async function fetchLiveCandles(
 
 export const TIMEFRAMES = ["5M", "1H", "6H", "1D"];
 /** Minutes represented by one candle at each timeframe, matching TIMEFRAMES by index. */
-const TIMEFRAME_INTERVAL_MINUTES = [5, 60, 360, 1440];
+export const TIMEFRAME_INTERVAL_MINUTES = [5, 60, 360, 1440];
 
 /** Small physical controls mounted into the terminal's lower bezel. */
 const BUTTON_RADIUS = 0.024;
@@ -99,7 +100,7 @@ function changeColor(value: number): string {
   return value >= 0 ? POSITIVE_COLOR : NEGATIVE_COLOR;
 }
 
-function drawHeader(ctx: CanvasRenderingContext2D, token: HeaderToken) {
+export function drawHeader(ctx: CanvasRenderingContext2D, token: HeaderToken) {
   ctx.fillStyle = TEXT_COLOR;
   ctx.font = `bold 26px "Courier New", monospace`;
   ctx.textBaseline = "top";
@@ -145,7 +146,7 @@ function formatAxisTime(epochMs: number, intervalMinutes: number): string {
 }
 
 /** Candlestick chart — wick (high/low) plus a filled body (open/close) per candle, like a launchpad's price chart, not a smooth line. */
-function drawChart(ctx: CanvasRenderingContext2D, candles: Candle[], timeframeLabel: string, intervalMinutes: number) {
+export function drawChart(ctx: CanvasRenderingContext2D, candles: Candle[], timeframeLabel: string, intervalMinutes: number) {
   const chartTop = 66;
   const chartHeight = 200;
   const chartLeft = 46;
@@ -295,6 +296,7 @@ function useCanvasScreenMaterial(
 interface TokenMonitorProps {
   activeTimeframeIndex: number;
   tradePress: { side: "buy" | "sell"; id: number } | null;
+  soundPlaying?: boolean;
 }
 
 const TRADE_BUTTON_Y = -(MONITOR_SIZE[1] / 2) + 0.055;
@@ -306,7 +308,7 @@ const TRADE_BUTTON_ROW_END_X = MONITOR_SIZE[0] / 2 - 0.08;
 const TRADE_BUTTON_COLOR = "#1c1c1c";
 const TRADE_BUTTON_TEXT_COLOR = "#ffffff";
 
-function PhysicalTradeButton({ label, x, pressId }: { label: string; x: number; pressId: number }) {
+export function PhysicalTradeButton({ label, x, pressId }: { label: string; x: number; pressId: number }) {
   const app = useApp();
   const [pressDepth, setPressDepth] = useState(0);
   const buttonMaterial = useMaterial({ diffuse: TRADE_BUTTON_COLOR, gloss: 0.4, metalness: 0.3 });
@@ -360,7 +362,7 @@ function PhysicalTradeButton({ label, x, pressId }: { label: string; x: number; 
   );
 }
 
-export function TokenMonitor({ activeTimeframeIndex, tradePress }: TokenMonitorProps) {
+export function TokenMonitor({ activeTimeframeIndex, tradePress, soundPlaying = false }: TokenMonitorProps) {
   const app = useApp();
   const buttonMaterial = useMaterial({ diffuse: "#1c1c1c", gloss: 0.4, metalness: 0.3 });
   const activeButtonMaterial = useMaterial({
@@ -456,8 +458,10 @@ export function TokenMonitor({ activeTimeframeIndex, tradePress }: TokenMonitorP
   return (
     <TradingTerminalShell
       position={MONITOR_POSITION}
+      rotation={[0, FIRST_TOKEN_STAND.rotationY, 0]}
       screenMaterial={screenMaterial}
       logoMaterial={tokenSignMaterial}
+      logoBorderActive={soundPlaying}
     >
       {TIMEFRAMES.map((label, index) => {
         const travel = index === pressedIndex ? pressDepth * BUTTON_PRESS_TRAVEL : 0;

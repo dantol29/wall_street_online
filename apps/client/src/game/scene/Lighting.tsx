@@ -7,6 +7,7 @@ import {
   Color,
   CULLFACE_FRONT,
   FILTER_LINEAR,
+  FOG_LINEAR,
   LIGHTFALLOFF_LINEAR,
   Quat,
   SEMANTIC_POSITION,
@@ -19,13 +20,24 @@ import type { DayNightProfile } from "./dayNight";
 import { useDayNight } from "./DayNightContext";
 import { ROOM_HEIGHT } from "./roomConstants";
 
-// Six downlights cover the terminal grid in pairs. This replaces the old 15
-// overlapping 25m omni lights, which illuminated almost every surface evenly.
-const TERMINAL_DOWNLIGHTS = [-10, 0, 10].flatMap((z) => [
-  { x: -7.75, z, shadows: z === 0 },
-  { x: 7.75, z, shadows: z === 0 },
-]);
 const REFLECTION_FACE_SIZE = 64;
+
+// Three separated pools per cardinal aisle. The final fixture sits just inside
+// the concealed perimeter, so fog turns it into a faint long-distance marker.
+const WALKWAY_LIGHT_POOLS = [
+  { id: "north-inner", x: 0, z: -8, intensity: 2.2, outerCone: 15 },
+  { id: "north-middle", x: 0, z: -14.5, intensity: 1.85, outerCone: 14.5 },
+  { id: "north-outer", x: 0, z: -21, intensity: 1.55, outerCone: 14 },
+  { id: "east-inner", x: 8, z: 0, intensity: 2.05, outerCone: 14.5 },
+  { id: "east-middle", x: 14.5, z: 0, intensity: 1.75, outerCone: 14 },
+  { id: "east-outer", x: 21, z: 0, intensity: 1.45, outerCone: 13.5 },
+  { id: "south-inner", x: 0, z: 8, intensity: 2.15, outerCone: 15 },
+  { id: "south-middle", x: 0, z: 14.5, intensity: 1.8, outerCone: 14.5 },
+  { id: "south-outer", x: 0, z: 21, intensity: 1.5, outerCone: 14 },
+  { id: "west-inner", x: -8, z: 0, intensity: 2, outerCone: 14.5 },
+  { id: "west-middle", x: -14.5, z: 0, intensity: 1.7, outerCone: 14 },
+  { id: "west-outer", x: -21, z: 0, intensity: 1.4, outerCone: 13.5 },
+] as const;
 
 const SKY_VERTEX_SHADER = `
 attribute vec3 aPosition;
@@ -266,19 +278,80 @@ function DynamicReflectionEnvironment({ profile }: { profile: DayNightProfile })
   return null;
 }
 
+function LaunchStageLight({
+  position,
+  target,
+}: {
+  position: [number, number, number];
+  target: [number, number, number];
+}) {
+  const fixtureRef = useRef<PcEntity | null>(null);
+
+  useLayoutEffect(() => {
+    const fixture = fixtureRef.current;
+    if (!fixture) return;
+    const direction = new Vec3(
+      target[0] - position[0],
+      target[1] - position[1],
+      target[2] - position[2],
+    ).normalize();
+    fixture.setRotation(new Quat().setFromDirections(new Vec3(0, -1, 0), direction));
+  }, [position, target]);
+
+  return (
+    <Entity ref={fixtureRef} position={position}>
+      <Light
+        type="spot"
+        color="#ffe0c2"
+        intensity={1.35}
+        range={14}
+        innerConeAngle={14}
+        outerConeAngle={29}
+        falloffMode={LIGHTFALLOFF_LINEAR}
+        castShadows={false}
+      />
+    </Entity>
+  );
+}
+
 export function Lighting() {
+  const app = useApp();
   const profile = useDayNight();
   const sunRef = useRef<PcEntity | null>(null);
   const moonRef = useRef<PcEntity | null>(null);
-  const fixtureMaterial = useMaterial({
-    diffuse: "#20252b",
-    emissive: "#fff0cf",
-    emissiveIntensity: profile.fixtureEmissiveIntensity,
+  const walkwayHousingMaterial = useMaterial({
+    diffuse: "#0b0d0f",
+    emissive: "#473d31",
+    emissiveIntensity: 0.08,
+    gloss: 0.08,
+    metalness: 0.2,
   });
   const ambientLight = useMemo(
     () => new Color(profile.ambient[0], profile.ambient[1], profile.ambient[2]),
     [profile.ambient],
   );
+
+  useEffect(() => {
+    const scene = app.scene;
+    const previous = {
+      type: scene.fog.type,
+      color: scene.fogColor.clone(),
+      start: scene.fogStart,
+      end: scene.fogEnd,
+    };
+    scene.fog.type = FOG_LINEAR;
+    scene.fogColor.set(0.006, 0.009, 0.014);
+    // Keep the complete first ring readable from spawn. The haze begins just
+    // beyond it, then progressively consumes the outer market and perimeter.
+    scene.fogStart = 11;
+    scene.fogEnd = 30;
+    return () => {
+      scene.fog.type = previous.type;
+      scene.fogColor.copy(previous.color);
+      scene.fogStart = previous.start;
+      scene.fogEnd = previous.end;
+    };
+  }, [app]);
 
   useEffect(() => {
     const setLightDirection = (entity: PcEntity | null, direction: [number, number, number]) => {
@@ -320,32 +393,57 @@ export function Lighting() {
         />
       </Entity>
 
-      {TERMINAL_DOWNLIGHTS.map(({ x, z, shadows }) => (
-        <Entity
-          key={`terminal-downlight-${x}-${z}`}
-          position={[x, ROOM_HEIGHT - 0.18, z]}
-        >
-          <Entity scale={[1.15, 0.08, 0.42]}>
-            <Render type="box" material={fixtureMaterial} />
+      {/* Starting-value stage-style lighting: four focused, invisible sources.
+          Pass when the platform reads as the focal
+          point without washing out the monitor or creating hard light rings. */}
+      {[
+        { position: [-1.8, ROOM_HEIGHT - 0.2, -0.9], target: [-0.5, 0.25, -0.35] },
+        { position: [1.8, ROOM_HEIGHT - 0.2, -0.9], target: [0.5, 0.25, -0.35] },
+        { position: [0, ROOM_HEIGHT - 0.2, 1.55], target: [0, 0.25, 0.15] },
+      ].map(({ position, target }) => (
+        <LaunchStageLight
+          key={`launch-stage-${position.join("-")}`}
+          position={position as [number, number, number]}
+          target={target as [number, number, number]}
+        />
+      ))}
+
+      {/* A single cheap fill source carries enough warm light from the launch
+          island to reveal Ring 1 without flattening the outer market. */}
+      <Entity position={[0, 3.6, 0]}>
+        <Light
+          type="omni"
+          color="#f4d5b7"
+          intensity={0.38}
+          range={12.5}
+          falloffMode={LIGHTFALLOFF_LINEAR}
+          castShadows={false}
+        />
+      </Entity>
+
+      {/* Navigation light and market activity remain separate systems. These
+          narrow, soft-edged spots touch only short stretches of the four main
+          radial aisles; terminal screens continue to provide their own glow. */}
+      {WALKWAY_LIGHT_POOLS.map(({ id, x, z, intensity, outerCone }) => (
+        <Entity key={id} position={[x, ROOM_HEIGHT - 0.18, z]}>
+          <Entity position={[0, 0.06, 0]} scale={[0.24, 0.09, 0.24]}>
+            <Render type="cylinder" material={walkwayHousingMaterial} />
           </Entity>
           <Light
             type="spot"
-            color="#ffe1c2"
-            intensity={profile.fixtureIntensity}
+            color="#f0d6bd"
+            intensity={intensity}
             range={15.5}
-            innerConeAngle={24}
-            outerConeAngle={48}
+            innerConeAngle={8}
+            outerConeAngle={outerCone}
             falloffMode={LIGHTFALLOFF_LINEAR}
-            castShadows={shadows}
-            shadowResolution={512}
-            shadowBias={0.18}
-            normalOffsetBias={0.08}
+            castShadows={false}
           />
         </Entity>
       ))}
 
       {/* Restrained warm wash for the collaborative west wall. */}
-      <Entity position={[-11.8, 5.8, -0.8]} rotation={[0, 0, -90]}>
+      <Entity position={[-20.2, 5.8, -0.8]} rotation={[0, 0, -90]}>
         <Light
           type="spot"
           color="#ffddbd"

@@ -9,9 +9,9 @@ interface BuildingSpec { variant: TowerVariant; x: number; z: number; width: num
 
 const EXTERIOR_GRADE_Y = -55;
 const BUILDINGS: BuildingSpec[] = [
-  { variant: "A", x: -13.5, z: -38, width: 10.5, depth: 10, height: 132, rotation: -8 },
-  { variant: "B", x: 13, z: -57, width: 12, depth: 11, height: 148, rotation: 11 },
-  { variant: "C", x: -4, z: -82, width: 18, depth: 12, height: 126, rotation: -5 },
+  { variant: "A", x: -13.5, z: -42, width: 10.5, depth: 10, height: 132, rotation: -8 },
+  { variant: "B", x: 13, z: -61, width: 12, depth: 11, height: 148, rotation: 11 },
+  { variant: "C", x: -4, z: -86, width: 18, depth: 12, height: 126, rotation: -5 },
 ];
 
 /** Recreates the crisp blue-purple facade graphics from the supplied screenshot. */

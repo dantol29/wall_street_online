@@ -4,6 +4,7 @@ export * from "./hyperliquidPnl";
 export * from "./messages";
 export * from "./office";
 export * from "./stickyWall";
+export * from "./tokenSound";
 export * from "./wallet";
 export * from "./whiteboard";
 export * from "./worldTime";

@@ -3,7 +3,7 @@ import { Entity } from "@playcanvas/react";
 import { Render } from "@playcanvas/react/components";
 import { useApp, useAppEvent } from "@playcanvas/react/hooks";
 import { BLEND_NORMAL, StandardMaterial, Texture, Vec3, type Entity as PcEntity } from "playcanvas";
-import { VOICE_MAX_DISTANCE_METERS } from "@multiplayer/shared";
+import { NAME_LABEL_MAX_DISTANCE_METERS, VOICE_MAX_DISTANCE_METERS } from "@multiplayer/shared";
 import { getVisualTransform } from "../multiplayer/interpolation";
 import type { RemotePlayerRecord } from "./remotePlayerRecord";
 
@@ -83,6 +83,7 @@ function drawLabel(ctx: CanvasRenderingContext2D, displayName: string, pnlUsd: n
 export function PlayerLabelBillboard({ sessionId, recordsRef, speaking }: PlayerLabelBillboardProps) {
   const app = useApp();
   const entityRef = useRef<PcEntity | null>(null);
+  const visualRef = useRef<PcEntity | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const textureRef = useRef<Texture | null>(null);
   const [material, setMaterial] = useState<StandardMaterial | null>(null);
@@ -158,6 +159,9 @@ export function PlayerLabelBillboard({ sessionId, recordsRef, speaking }: Player
     }
 
     if (cameraPosition) {
+      if (visualRef.current) {
+        visualRef.current.enabled = cameraPosition.distance(labelPosition) <= NAME_LABEL_MAX_DISTANCE_METERS;
+      }
       const dx = cameraPosition.x - labelPosition.x;
       const dz = cameraPosition.z - labelPosition.z;
       const yawDegrees = (Math.atan2(dx, dz) * 180) / Math.PI + LABEL_YAW_OFFSET_DEGREES;
@@ -166,8 +170,10 @@ export function PlayerLabelBillboard({ sessionId, recordsRef, speaking }: Player
   });
 
   return (
-    <Entity ref={entityRef} scale={[LABEL_WIDTH, LABEL_HEIGHT, 0.01]}>
-      {material && <Render type="box" material={material} />}
+    <Entity ref={entityRef}>
+      <Entity ref={visualRef} scale={[LABEL_WIDTH, LABEL_HEIGHT, 0.01]}>
+        {material && <Render type="box" material={material} />}
+      </Entity>
     </Entity>
   );
 }

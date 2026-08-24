@@ -25,6 +25,10 @@ import type { WorldTimeAnchor } from "./game/scene/dayNight";
 import { DayNightProvider } from "./game/scene/DayNightContext";
 import { WhiteboardCamera } from "./game/scene/WhiteboardCamera";
 import { StickyWallCamera } from "./game/scene/StickyWallCamera";
+import { TokenLaunchArea, type TokenLaunchDisplayState } from "./game/scene/TokenLaunchArea";
+import type { LaunchedMarketToken } from "./game/scene/TokenRingMarket";
+import { ExchangeAmbience } from "./game/audio/ExchangeAmbience";
+import { FIRST_TOKEN_STAND } from "./game/scene/tokenRingLayout";
 
 interface SceneProps {
   sceneId: string;
@@ -43,6 +47,11 @@ interface SceneProps {
   worldTimeOverridePhase: number | null;
   tokenMonitorTimeframeIndex: number;
   tokenMonitorTradePress: { side: "buy" | "sell"; id: number } | null;
+  tokenLaunchDisplay: TokenLaunchDisplayState;
+  launchedMarketToken: LaunchedMarketToken | null;
+  tickerAnnouncement: string | null;
+  launchStandAnnouncementActive: boolean;
+  soundPlayingStandAddresses: ReadonlySet<string>;
 }
 
 export interface SceneHandle {
@@ -79,6 +88,11 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     worldTimeOverridePhase,
     tokenMonitorTimeframeIndex,
     tokenMonitorTradePress,
+    tokenLaunchDisplay,
+    launchedMarketToken,
+    tickerAnnouncement,
+    launchStandAnnouncementActive,
+    soundPlayingStandAddresses,
   },
   ref,
 ) {
@@ -157,11 +171,22 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
       <EditorScene configUrl={sceneConfig.configUrl} sceneUrl={sceneConfig.sceneUrl} onReady={onEditorSceneReady} />
     ) : (
       <DayNightProvider worldTime={worldTime} overridePhase={worldTimeOverridePhase}>
-        <RoomEnvironment />
+        <RoomEnvironment
+          launchedToken={launchedMarketToken}
+          tickerAnnouncement={tickerAnnouncement}
+          launchAnnouncementActive={launchStandAnnouncementActive}
+          soundPlayingStandAddresses={soundPlayingStandAddresses}
+        />
         <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
         <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />
-        <TokenMonitor activeTimeframeIndex={tokenMonitorTimeframeIndex} tradePress={tokenMonitorTradePress} />
+        <TokenMonitor
+          activeTimeframeIndex={tokenMonitorTimeframeIndex}
+          tradePress={tokenMonitorTradePress}
+          soundPlaying={soundPlayingStandAddresses.has(FIRST_TOKEN_STAND.address)}
+        />
+        <TokenLaunchArea state={tokenLaunchDisplay} />
         <Lighting />
+        <ExchangeAmbience launchPhase={tokenLaunchDisplay.phase} />
       </DayNightProvider>
     );
 
