@@ -340,16 +340,16 @@ export function useCoinLogoMaterial(path: string, name: string): StandardMateria
   return material;
 }
 
-const TRADE_BUTTON_Y = -(MONITOR_SIZE[1] / 2) + 0.055;
-const TRADE_BUTTON_Z = MONITOR_SIZE[2] / 2 + 0.022;
-const TRADE_BUTTON_DIAMETER = 0.13;
-const TRADE_BUTTON_DEPTH = 0.035;
+const TRADE_BUTTON_Y = -(MONITOR_SIZE[1] / 2) + 0.015;
+const TRADE_BUTTON_Z = MONITOR_SIZE[2] / 2 + 0.035;
+const TRADE_CHUTE_WIDTH = 0.14;
+const TRADE_CHUTE_HEIGHT = 0.075;
+const TRADE_CHUTE_DEPTH = 0.025;
 const TRADE_BUTTON_SPACING = 0.16;
 const TRADE_BUTTON_ROW_END_X = MONITOR_SIZE[0] / 2 - 0.08;
-const TRADE_BUTTON_TEXT_COLOR = "#ffffff";
 const COIN_THROW_DURATION_MS = 520;
 
-export function PhysicalTradeButton({ label, x, pressId, sourceSessionId }: { label: string; x: number; pressId: number; sourceSessionId?: string }) {
+export function PhysicalTradeButton({ label, x, pressId, sourceSessionId, sellLogoUrl = "/assets/token-logos/hype.svg" }: { label: string; x: number; pressId: number; sourceSessionId?: string; sellLogoUrl?: string }) {
   const app = useApp();
   const holeRef = useRef<PcEntity | null>(null);
   const rimRef = useRef<PcEntity | null>(null);
@@ -365,20 +365,7 @@ export function PhysicalTradeButton({ label, x, pressId, sourceSessionId }: { la
     metalness: 0.45,
   });
   const usdcCoinFaceMaterial = useCoinLogoMaterial("/assets/ui/usdc.svg", "trade-coin-usdc-face");
-  const tokenCoinFaceMaterial = useCanvasScreenMaterial(
-    app,
-    `trade-coin-${label.toLowerCase()}-face`,
-    128,
-    128,
-    (ctx) => {
-      ctx.save();
-      ctx.scale(0.5, 0.5);
-      drawTokenSign(ctx);
-      ctx.restore();
-    },
-    [buying],
-    true,
-  );
+  const tokenCoinFaceMaterial = useCoinLogoMaterial(sellLogoUrl, `trade-coin-${sellLogoUrl}-face`);
   const coinFaceMaterial = buying ? usdcCoinFaceMaterial : tokenCoinFaceMaterial;
 
   useEffect(() => {
@@ -407,8 +394,8 @@ export function PhysicalTradeButton({ label, x, pressId, sourceSessionId }: { la
       const eased = t * t * (3 - 2 * t);
       coin.setLocalPosition(
         localStart.x * (1 - eased),
-        localStart.y * (1 - eased) + Math.sin(t * Math.PI) * 0.18,
-        localStart.z * (1 - eased) + 0.025 * eased,
+        localStart.y * (1 - eased) - 0.025 * eased + Math.sin(t * Math.PI) * 0.18,
+        localStart.z * (1 - eased) + 0.075 * eased,
       );
       // Starting value after the 540-degree version read as excessive: a
       // one-third turn keeps the logo moving but identifiable throughout.
@@ -421,12 +408,12 @@ export function PhysicalTradeButton({ label, x, pressId, sourceSessionId }: { la
         impacted = true;
         // Keep the physical scale response neutral: receiving a coin should
         // not change the Buy/Sell hole's material or color.
-        rim?.setLocalScale(TRADE_BUTTON_DIAMETER * 1.16, TRADE_BUTTON_DEPTH, TRADE_BUTTON_DIAMETER * 1.16);
+        rim?.setLocalScale(TRADE_CHUTE_WIDTH * 1.08, TRADE_CHUTE_HEIGHT * 1.08, TRADE_CHUTE_DEPTH);
         const impactAudio = new Audio("/assets/audio/terminal/transaction-click.wav");
         impactAudio.volume = 0.16;
         void impactAudio.play().catch(() => undefined);
         impactResetTimer = window.setTimeout(() => {
-          rim?.setLocalScale(TRADE_BUTTON_DIAMETER, TRADE_BUTTON_DEPTH, TRADE_BUTTON_DIAMETER);
+          rim?.setLocalScale(TRADE_CHUTE_WIDTH, TRADE_CHUTE_HEIGHT, TRADE_CHUTE_DEPTH);
         }, 160);
       }
       if (t < 1) frame = requestAnimationFrame(tick);
@@ -441,45 +428,40 @@ export function PhysicalTradeButton({ label, x, pressId, sourceSessionId }: { la
       window.clearTimeout(impactResetTimer);
       coin.enabled = false;
       coin.setLocalScale(1, 1, 1);
-      rim?.setLocalScale(TRADE_BUTTON_DIAMETER, TRADE_BUTTON_DEPTH, TRADE_BUTTON_DIAMETER);
+      rim?.setLocalScale(TRADE_CHUTE_WIDTH, TRADE_CHUTE_HEIGHT, TRADE_CHUTE_DEPTH);
     };
   }, [app, pressId, rimMaterial, sourceSessionId]);
-  const labelMaterial = useCanvasScreenMaterial(
-    app,
-    `token-monitor-${label.toLowerCase()}-label`,
-    160,
-    160,
-    (ctx) => {
-      ctx.fillStyle = TRADE_BUTTON_TEXT_COLOR;
-      ctx.font = `bold 30px "Courier New", monospace`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(label, 80, 82);
-    },
-    [label],
-    true,
-  );
-
   return (
     <Entity ref={holeRef} position={[x, TRADE_BUTTON_Y, TRADE_BUTTON_Z]}>
-      {/* Recessed physical trade hole. Starting value: 520ms throw duration.
+      {/* Angled counting-machine chute. Starting value: 520ms throw duration.
           Pass when an observer can identify source and destination in one view;
           shorten it if input feels delayed, lengthen it if the coin is unreadable. */}
-      <Entity ref={rimRef} rotation={[90, 0, 0]} scale={[TRADE_BUTTON_DIAMETER, TRADE_BUTTON_DEPTH, TRADE_BUTTON_DIAMETER]}>
-        <Render type="cylinder" material={rimMaterial} />
+      <Entity ref={rimRef} scale={[TRADE_CHUTE_WIDTH, TRADE_CHUTE_HEIGHT, TRADE_CHUTE_DEPTH]}>
+        <Render type="box" material={rimMaterial} />
       </Entity>
-      <Entity position={[0, 0, 0.019]} rotation={[90, 0, 0]} scale={[TRADE_BUTTON_DIAMETER * 0.68, 0.008, TRADE_BUTTON_DIAMETER * 0.68]}>
-        <Render type="cylinder" material={holeMaterial} />
+      {/* Compact receiver housing: the angled tray feeds into this box, which
+          reads as the mechanism that counts/processes the deposited coin. */}
+      <Entity position={[0, -0.085, -0.018]} scale={[0.155, 0.12, 0.1]}>
+        <Render type="box" material={rimMaterial} />
       </Entity>
-      {labelMaterial && (
-        <Entity
-          position={[0, 0.095, TRADE_BUTTON_DEPTH / 2 + 0.006]}
-          rotation={[90, 0, 0]}
-          scale={[TRADE_BUTTON_DIAMETER * 0.9, 1, TRADE_BUTTON_DIAMETER * 0.35]}
-        >
-          <Render type="plane" material={labelMaterial} />
-        </Entity>
-      )}
+      <Entity position={[0, -0.084, 0.034]} scale={[0.09, 0.025, 0.008]}>
+        <Render type="box" material={holeMaterial} />
+      </Entity>
+      <Entity position={[0, -0.003, 0.014]} scale={[0.105, 0.043, 0.012]}>
+        <Render type="box" material={holeMaterial} />
+      </Entity>
+      <Entity position={[0, -0.049, 0.055]} rotation={[-18, 0, 0]} scale={[0.14, 0.022, 0.095]}>
+        <Render type="box" material={rimMaterial} />
+      </Entity>
+      <Entity position={[0, -0.038, 0.059]} rotation={[-18, 0, 0]} scale={[0.105, 0.008, 0.068]}>
+        <Render type="box" material={holeMaterial} />
+      </Entity>
+      <Entity position={[-0.064, -0.033, 0.052]} rotation={[-18, 0, 0]} scale={[0.012, 0.055, 0.09]}>
+        <Render type="box" material={rimMaterial} />
+      </Entity>
+      <Entity position={[0.064, -0.033, 0.052]} rotation={[-18, 0, 0]} scale={[0.012, 0.055, 0.09]}>
+        <Render type="box" material={rimMaterial} />
+      </Entity>
       <Entity ref={coinRef} enabled={false}>
         <Entity rotation={[90, 0, 0]} scale={[0.085, 0.014, 0.085]}>
           <Render type="cylinder" material={coinMaterial} />

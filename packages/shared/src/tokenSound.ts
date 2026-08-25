@@ -59,7 +59,8 @@ export function createTokenRingLayout(): TokenStandAddress[] {
 
 export const TOKEN_STAND_LAYOUT = createTokenRingLayout().slice(0, 84);
 
-// Starting values: one shared sound per second and a modest server-side interaction allowance.
-// Pass when normal presses always work under latency but macro spam and remote triggering do not.
+// Starting values: one shared sound per second and a 10m social listening radius.
+// Pass when players across a nearby ring can trigger a token without enabling
+// room-wide remote playback; reduce the radius if sources become ambiguous.
 export const TOKEN_SOUND_COOLDOWN_MS = 1_000;
-export const TOKEN_SOUND_SERVER_INTERACTION_DISTANCE_METERS = 2.5;
+export const TOKEN_SOUND_SERVER_INTERACTION_DISTANCE_METERS = 10;

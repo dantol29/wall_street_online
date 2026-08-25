@@ -391,11 +391,15 @@ export const RoomEnvironment = memo(function RoomEnvironment({
   tickerAnnouncement = null,
   launchAnnouncementActive = false,
   soundPlayingStandAddresses,
+  activeTimeframeIndex = 1,
+  tradePress = null,
 }: {
   launchedToken?: LaunchedMarketToken | null;
   tickerAnnouncement?: string | null;
   launchAnnouncementActive?: boolean;
   soundPlayingStandAddresses?: ReadonlySet<string>;
+  activeTimeframeIndex?: number;
+  tradePress?: { standAddress: string; side: "buy" | "sell"; id: number; sourceSessionId: string } | null;
 }) {
   const { asset: plasterWallDiffuse } = useTexture("/assets/textures/painted_plaster_wall_diff_2k.jpg");
   const { asset: plasterWallNormal } = useTexture("/assets/textures/painted_plaster_wall_nor_gl_2k.jpg");
@@ -548,6 +552,8 @@ export const RoomEnvironment = memo(function RoomEnvironment({
         launchedToken={launchedToken}
         launchAnnouncementActive={launchAnnouncementActive}
         soundPlayingStandAddresses={soundPlayingStandAddresses}
+        activeTimeframeIndex={activeTimeframeIndex}
+        tradePress={tradePress}
       />
 
       {/* Crates near the back corners */}

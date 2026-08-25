@@ -53,7 +53,7 @@ import { MobileGameControls } from "./ui/MobileGameControls";
 import { DayNightDebugControls } from "./ui/DayNightDebugControls";
 import { HyperliquidTerminal } from "./ui/HyperliquidTerminal";
 import { TokenDock, type DockToken } from "./ui/TokenDock";
-import { MONITOR_INTERACTION_DISTANCE_METERS, MONITOR_POSITION, TIMEFRAMES } from "./game/scene/TokenMonitor";
+import { MONITOR_INTERACTION_DISTANCE_METERS, TIMEFRAMES } from "./game/scene/TokenMonitor";
 import {
   TOKEN_LAUNCH_INTERACTION_DISTANCE_METERS,
   TOKEN_LAUNCH_INTERACTION_POSITION,
@@ -121,7 +121,7 @@ const TERMINAL_CAMERA_ANIMATION_MS = 480;
 const TERMINAL_SCREEN_VERTICAL_FRACTION = 0.76;
 // Starting value: close enough to operate one stand without triggering a neighboring ring.
 // Pass when the intended stand is selected in 10/10 approaches; reduce if two stands feel ambiguous.
-const TOKEN_SOUND_INTERACTION_DISTANCE_METERS = 1.8;
+const TOKEN_SOUND_INTERACTION_DISTANCE_METERS = 10;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -380,17 +380,16 @@ function App() {
   const waveUntilRef = useRef(0);
   const waveTimeoutRef = useRef<number | null>(null);
   const tokenLaunchTimersRef = useRef<number[]>([]);
-  const tickerTestTimerRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
   /** Mirrors whatever animation state was last sent to the server (see the movement tick below) — read by LocalPlayer's own body model, which has no server round trip for its own state the way RemotePlayer gets one. */
   const localAnimationRef = useRef<AnimationState>("idle");
   const seatedDeskIdRef = useRef<string | null>(null);
   const nearWhiteboardRef = useRef(false);
   const nearTokenMonitorRef = useRef(false);
+  const nearTokenMonitorStandRef = useRef<string | null>(null);
   const nearTokenLaunchRef = useRef(false);
   const nearTokenSoundStandRef = useRef<string | null>(null);
   const launchedMarketTokenRef = useRef<LaunchedMarketToken | null>(null);
-  const tickerTestTokenRef = useRef<LaunchedMarketToken | null>(null);
   const lastTokenSoundAtRef = useRef(0);
   const tokenSoundPlaybackSequenceRef = useRef(0);
   const tokenArcActiveIndexRef = useRef(0);
@@ -448,11 +447,11 @@ function App() {
   const [tokenLaunchOpen, setTokenLaunchOpen] = useState(false);
   const [tokenLaunchDisplay, setTokenLaunchDisplay] = useState<TokenLaunchDisplayState>({ phase: "idle" });
   const [launchedMarketToken, setLaunchedMarketToken] = useState<LaunchedMarketToken | null>(PIGN_TOKEN);
-  const [tickerTestAnnouncement, setTickerTestAnnouncement] = useState<string | null>(null);
-  const [tickerTestToken, setTickerTestToken] = useState<LaunchedMarketToken | null>(null);
   const [soundPlayingStandAddresses, setSoundPlayingStandAddresses] = useState<ReadonlySet<string>>(new Set());
   const [tokenMonitorTimeframeIndex, setTokenMonitorTimeframeIndex] = useState(1);
+  const [pignTimeframeIndex, setPignTimeframeIndex] = useState(1);
   const [tokenMonitorTradePress, setTokenMonitorTradePress] = useState<{
+    standAddress: string;
     side: "buy" | "sell";
     id: number;
     sourceSessionId: string;
@@ -570,7 +569,6 @@ function App() {
   waveEmoteRef.current = triggerWaveEmote;
   selectedSceneIdRef.current = selectedSceneId;
   launchedMarketTokenRef.current = launchedMarketToken;
-  tickerTestTokenRef.current = tickerTestToken;
 
   useEffect(() => {
     let seatErrorTimer: number | null = null;
@@ -947,9 +945,8 @@ function App() {
       },
       onTokenSound: playBroadcastTokenSound,
       onTokenTradeThrow: (message: TokenTradeThrowEventMessage) => {
-        if (message.standAddress !== FIRST_TOKEN_STAND.address) return;
         if (message.triggeredBy === clientRef.current?.getSessionId()) return;
-        setTokenMonitorTradePress((current) => ({ side: message.side, id: (current?.id ?? 0) + 1, sourceSessionId: message.triggeredBy }));
+        setTokenMonitorTradePress((current) => ({ standAddress: message.standAddress, side: message.side, id: (current?.id ?? 0) + 1, sourceSessionId: message.triggeredBy }));
       },
       onPlayerTokenThrow: (message: PlayerTokenThrowEventMessage) => {
         setPlayerTokenThrow((current) => ({ ...message, id: (current?.id ?? 0) + 1 }));
@@ -961,7 +958,7 @@ function App() {
       const address = nearTokenSoundStandRef.current;
       if (!address || performance.now() - lastTokenSoundAtRef.current < 800) return;
       const token = address === NEXT_TOKEN_STAND.address
-        ? tickerTestTokenRef.current ?? launchedMarketTokenRef.current
+        ? launchedMarketTokenRef.current
         : address === FIRST_TOKEN_STAND.address
           ? { name: "Hype", ticker: "HYPE" }
           : null;
@@ -1001,7 +998,11 @@ function App() {
       } else if (nearStickyWallRef.current) {
         openStickyNoteEditor();
       } else if (nearTokenMonitorRef.current) {
-        setTokenMonitorTimeframeIndex((index) => (index + 1) % TIMEFRAMES.length);
+        if (nearTokenMonitorStandRef.current === NEXT_TOKEN_STAND.address) {
+          setPignTimeframeIndex((index) => (index + 1) % TIMEFRAMES.length);
+        } else {
+          setTokenMonitorTimeframeIndex((index) => (index + 1) % TIMEFRAMES.length);
+        }
       }
     };
     primaryInteractionRef.current = triggerPrimaryInteraction;
@@ -1126,9 +1127,11 @@ function App() {
       ) {
         event.preventDefault();
         const side = event.code === "Digit1" ? "buy" : "sell";
+        const standAddress = nearTokenMonitorStandRef.current;
+        if (!standAddress) return;
         const sourceSessionId = "local";
-        setTokenMonitorTradePress((current) => ({ side, id: (current?.id ?? 0) + 1, sourceSessionId }));
-        client.sendTokenTradeThrow({ standAddress: FIRST_TOKEN_STAND.address, side });
+        setTokenMonitorTradePress((current) => ({ standAddress, side, id: (current?.id ?? 0) + 1, sourceSessionId }));
+        client.sendTokenTradeThrow({ standAddress, side });
       }
       if (
         event.code === "KeyT" &&
@@ -1293,8 +1296,19 @@ function App() {
           setNearWhiteboard(isNearWhiteboard);
         }
 
-        const monitorDistance = Math.hypot(position.x - MONITOR_POSITION[0], position.z - MONITOR_POSITION[2]);
-        const isNearTokenMonitor = monitorDistance <= MONITOR_INTERACTION_DISTANCE_METERS;
+        let nearestMonitorStand: string | null = null;
+        let nearestMonitorDistance = MONITOR_INTERACTION_DISTANCE_METERS;
+        const interactiveMonitorSlots = [FIRST_TOKEN_STAND];
+        if (launchedMarketTokenRef.current) interactiveMonitorSlots.push(NEXT_TOKEN_STAND);
+        for (const slot of interactiveMonitorSlots) {
+          const distance = Math.hypot(position.x - slot.x, position.z - slot.z);
+          if (distance <= nearestMonitorDistance) {
+            nearestMonitorDistance = distance;
+            nearestMonitorStand = slot.address;
+          }
+        }
+        nearTokenMonitorStandRef.current = nearestMonitorStand;
+        const isNearTokenMonitor = nearestMonitorStand !== null;
         if (isNearTokenMonitor !== nearTokenMonitorRef.current) {
           nearTokenMonitorRef.current = isNearTokenMonitor;
           setNearTokenMonitor(isNearTokenMonitor);
@@ -1370,7 +1384,6 @@ function App() {
       if (stickyWallHintTimerRef.current !== null) window.clearTimeout(stickyWallHintTimerRef.current);
       if (justPlacedStickyNoteTimerRef.current !== null) window.clearTimeout(justPlacedStickyNoteTimerRef.current);
       tokenLaunchTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-      if (tickerTestTimerRef.current !== null) window.clearTimeout(tickerTestTimerRef.current);
       client.disconnect();
       clientRef.current = null;
       primaryInteractionRef.current = () => {};
@@ -1385,6 +1398,9 @@ function App() {
       nearWhiteboardRef.current = false;
       setNearTokenLaunch(false);
       nearTokenLaunchRef.current = false;
+      setNearTokenMonitor(false);
+      nearTokenMonitorRef.current = false;
+      nearTokenMonitorStandRef.current = null;
       setNearTokenSoundStand(null);
       nearTokenSoundStandRef.current = null;
       setNearOfficeSlotId(null);
@@ -1691,25 +1707,6 @@ function App() {
     tokenLaunchTimersRef.current = [beginCountdown, updateCountdown(2, 1700), updateCountdown(1, 2700), goLive, returnToIdle];
   }, []);
 
-  const handleTestTickerAnnouncement = useCallback(() => {
-    if (tickerTestTimerRef.current !== null) window.clearTimeout(tickerTestTimerRef.current);
-    setTickerTestAnnouncement(`NEW LISTING — $PIGN — ${NEXT_TOKEN_STAND.address}`);
-    setTickerTestToken(PIGN_TOKEN);
-    setTokenLaunchDisplay({
-      phase: "live",
-      name: PIGN_TOKEN.name,
-      ticker: PIGN_TOKEN.ticker,
-      imageUrl: PIGN_TOKEN.imageUrl,
-      address: NEXT_TOKEN_STAND.address,
-    });
-    tickerTestTimerRef.current = window.setTimeout(() => {
-      tickerTestTimerRef.current = null;
-      setTickerTestAnnouncement(null);
-      setTickerTestToken(null);
-      setTokenLaunchDisplay({ phase: "idle" });
-    }, 8_000);
-  }, []);
-
   const liveTickerAnnouncement = tokenLaunchDisplay.phase === "live"
     ? `NEW LISTING — $${tokenLaunchDisplay.ticker ?? "TOKEN"} — ${tokenLaunchDisplay.address ?? NEXT_TOKEN_STAND.address}`
     : null;
@@ -1725,7 +1722,7 @@ function App() {
   const mySessionId = clientRef.current?.getSessionId() ?? null;
   const myStickyNote = mySessionId ? stickyNotes.find((note) => note.authorSessionId === mySessionId) ?? null : null;
   const nearbyTokenHasSound = nearTokenSoundStand === FIRST_TOKEN_STAND.address ||
-    (nearTokenSoundStand === NEXT_TOKEN_STAND.address && Boolean(tickerTestToken ?? launchedMarketToken));
+    (nearTokenSoundStand === NEXT_TOKEN_STAND.address && Boolean(launchedMarketToken));
   const mobileActionLabel = nearWhiteboard
     ? "Use board"
     : nearTokenLaunch
@@ -1761,11 +1758,12 @@ function App() {
             worldTime={worldTime}
             worldTimeOverridePhase={worldTimeOverridePhase}
             tokenMonitorTimeframeIndex={tokenMonitorTimeframeIndex}
+            pignTimeframeIndex={pignTimeframeIndex}
             tokenMonitorTradePress={tokenMonitorTradePress}
             tokenLaunchDisplay={tokenLaunchDisplay}
-            launchedMarketToken={tickerTestToken ?? launchedMarketToken}
-            tickerAnnouncement={liveTickerAnnouncement ?? tickerTestAnnouncement}
-            launchStandAnnouncementActive={tokenLaunchDisplay.phase === "live" || tickerTestToken !== null}
+            launchedMarketToken={launchedMarketToken}
+            tickerAnnouncement={liveTickerAnnouncement}
+            launchStandAnnouncementActive={tokenLaunchDisplay.phase === "live"}
             soundPlayingStandAddresses={soundPlayingStandAddresses}
             playerTokenThrow={playerTokenThrow}
             localSessionId={mySessionId}
@@ -1784,18 +1782,6 @@ function App() {
           overridePhase={worldTimeOverridePhase}
           onOverridePhaseChange={setWorldTimeOverridePhase}
         />
-      )}
-      {entered && (
-        <button
-          type="button"
-          className="ticker-test-button"
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            handleTestTickerAnnouncement();
-          }}
-        >
-          {tickerTestToken ? "Testing listing…" : "Test listing ticker"}
-        </button>
       )}
       {entered && PRIVY_ENABLED && (
         <WalletPanel connected={connectionState === "connected"} onLinkWallet={handleLinkWallet} />
@@ -1862,10 +1848,6 @@ function App() {
           });
         }}
       />
-      {entered && !seatedDeskId && !whiteboardOpen && !tokenLaunchOpen &&
-        !nearTokenMonitor && !nearWhiteboard && !nearTokenLaunch && !nearOfficeSlotId && !nearStickyWall && (
-        <div className="desk-interaction game-instruction"><kbd>Q</kbd> Throw token at player</div>
-      )}
       {entered && nearWhiteboard && !seatedDeskId && !whiteboardOpen && (
         <div className="desk-interaction game-instruction"><kbd>E</kbd> Open drawing board</div>
       )}

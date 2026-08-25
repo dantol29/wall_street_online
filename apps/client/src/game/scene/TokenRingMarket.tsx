@@ -84,7 +84,7 @@ function drawImageCover(ctx: CanvasRenderingContext2D, image: HTMLImageElement, 
   ctx.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, x, y, size, size);
 }
 
-function useStandScreen(token: LaunchedMarketToken | null, address: string, enabled = true, announcing = false): StandardMaterial | null {
+function useStandScreen(token: LaunchedMarketToken | null, address: string, enabled = true, announcing = false, activeTimeframeIndex = 1): StandardMaterial | null {
   const app = useApp();
   const [material, setMaterial] = useState<StandardMaterial | null>(null);
   useEffect(() => {
@@ -141,7 +141,7 @@ function useStandScreen(token: LaunchedMarketToken | null, address: string, enab
         };
       });
       drawHeader(ctx, { symbol: token.ticker, price: "$0.4200", changePercent: 18.4 });
-      drawChart(ctx, candles, TIMEFRAMES[1], TIMEFRAME_INTERVAL_MINUTES[1]);
+      drawChart(ctx, candles, TIMEFRAMES[activeTimeframeIndex], TIMEFRAME_INTERVAL_MINUTES[activeTimeframeIndex]);
     } else {
       ctx.fillStyle = "#5a5d5a";
       ctx.font = '700 30px "Courier New", monospace';
@@ -196,7 +196,7 @@ function useStandScreen(token: LaunchedMarketToken | null, address: string, enab
     screen.update();
     setMaterial(screen);
     return () => { disposed = true; setMaterial(null); screen.destroy(); texture.destroy(); };
-  }, [address, announcing, app, enabled, token]);
+  }, [activeTimeframeIndex, address, announcing, app, enabled, token]);
   return material;
 }
 
@@ -407,14 +407,15 @@ function useMalfunctioningLogo(enabled: boolean): StandardMaterial | null {
   return material;
 }
 
-function FullTokenStand({ slot, launched, announcing = false, soundPlaying = false, terminalLightActive = false }: { slot: TokenStandAddress; launched?: LaunchedMarketToken; announcing?: boolean; soundPlaying?: boolean; terminalLightActive?: boolean }) {
+function FullTokenStand({ slot, launched, announcing = false, soundPlaying = false, terminalLightActive = false, activeTimeframeIndex = 1, tradePress = null }: { slot: TokenStandAddress; launched?: LaunchedMarketToken; announcing?: boolean; soundPlaying?: boolean; terminalLightActive?: boolean; activeTimeframeIndex?: number; tradePress?: { standAddress: string; side: "buy" | "sell"; id: number; sourceSessionId: string } | null }) {
   const canMalfunction = !launched && slot.address === MALFUNCTIONING_STAND_ADDRESS;
-  const normalScreen = useStandScreen(launched ?? null, slot.address, !canMalfunction, announcing);
+  const normalScreen = useStandScreen(launched ?? null, slot.address, !canMalfunction, announcing, activeTimeframeIndex);
   const malfunctioningScreen = useMalfunctioningScreen(slot.address, canMalfunction);
   const malfunctioningLogo = useMalfunctioningLogo(canMalfunction);
   const launchedLogo = useLaunchedTokenLogo(launched);
   const placeholderLogo = usePlaceholderLogoMaterial();
   const controlMaterial = useMaterial({ diffuse: "#1c1c1c", metalness: 0.3, gloss: 0.4 });
+  const activeControlMaterial = useMaterial({ diffuse: "#1c1c1c", emissive: "#4fdc6a", emissiveIntensity: 0.55 });
   return (
     <TradingTerminalShell
       position={[slot.x, TERMINAL_SCREEN_CENTER_Y, slot.z]}
@@ -426,11 +427,11 @@ function FullTokenStand({ slot, launched, announcing = false, soundPlaying = fal
     >
       {launched && !announcing && (
         <>
-          {[-0.745, -0.68, -0.615, -0.55].map((x) => (
-            <VisualCylinder key={x} position={[x, -0.46, 0.058]} rotation={[90, 0, 0]} radius={0.024} height={0.016} material={controlMaterial} />
+          {[-0.745, -0.68, -0.615, -0.55].map((x, index) => (
+            <VisualCylinder key={x} position={[x, -0.46, 0.058]} rotation={[90, 0, 0]} radius={0.024} height={0.016} material={index === activeTimeframeIndex ? activeControlMaterial : controlMaterial} />
           ))}
-          <PhysicalTradeButton label="BUY" x={0.585} pressId={0} />
-          <PhysicalTradeButton label="SELL" x={0.745} pressId={0} />
+          <PhysicalTradeButton label="BUY" x={0.585} pressId={tradePress?.standAddress === slot.address && tradePress.side === "buy" ? tradePress.id : 0} sourceSessionId={tradePress?.standAddress === slot.address && tradePress.side === "buy" ? tradePress.sourceSessionId : undefined} />
+          <PhysicalTradeButton label="SELL" x={0.745} pressId={tradePress?.standAddress === slot.address && tradePress.side === "sell" ? tradePress.id : 0} sourceSessionId={tradePress?.standAddress === slot.address && tradePress.side === "sell" ? tradePress.sourceSessionId : undefined} sellLogoUrl={launched.imageUrl} />
         </>
       )}
     </TradingTerminalShell>
@@ -459,7 +460,7 @@ function SimplifiedTokenStand({ slot, far }: { slot: TokenStandAddress; far: boo
   );
 }
 
-export function TokenRingMarket({ launchedToken, launchAnnouncementActive = false, soundPlayingStandAddresses }: { launchedToken?: LaunchedMarketToken | null; launchAnnouncementActive?: boolean; soundPlayingStandAddresses?: ReadonlySet<string> }) {
+export function TokenRingMarket({ launchedToken, launchAnnouncementActive = false, soundPlayingStandAddresses, activeTimeframeIndex = 1, tradePress = null }: { launchedToken?: LaunchedMarketToken | null; launchAnnouncementActive?: boolean; soundPlayingStandAddresses?: ReadonlySet<string>; activeTimeframeIndex?: number; tradePress?: { standAddress: string; side: "buy" | "sell"; id: number; sourceSessionId: string } | null }) {
   const app = useApp();
   const [playerPosition, setPlayerPosition] = useState({ x: 0, z: 2.8 });
   const elapsedRef = useRef(0);
@@ -514,6 +515,8 @@ export function TokenRingMarket({ launchedToken, launchAnnouncementActive = fals
           announcing={launchAnnouncementActive}
           soundPlaying={soundPlayingStandAddresses?.has(NEXT_TOKEN_STAND.address)}
           terminalLightActive={nearestLitStandAddresses.has(NEXT_TOKEN_STAND.address)}
+          activeTimeframeIndex={activeTimeframeIndex}
+          tradePress={tradePress}
         />
       )}
     </>

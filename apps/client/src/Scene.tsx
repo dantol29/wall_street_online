@@ -15,6 +15,7 @@ import { Lighting } from "./game/scene/Lighting";
 import { LocalPlayer } from "./game/player/LocalPlayer";
 import { RemotePlayer } from "./game/player/RemotePlayer";
 import { PlayerTokenProjectile, type PlayerTokenThrowVisual } from "./game/player/PlayerTokenProjectile";
+import { LaunchBots } from "./game/player/LaunchBots";
 import {
   createRemoteTransform,
   getVisualTransform,
@@ -30,6 +31,7 @@ import { TokenLaunchArea, type TokenLaunchDisplayState } from "./game/scene/Toke
 import type { LaunchedMarketToken } from "./game/scene/TokenRingMarket";
 import { ExchangeAmbience } from "./game/audio/ExchangeAmbience";
 import { FIRST_TOKEN_STAND } from "./game/scene/tokenRingLayout";
+import { SceneBrightness } from "./game/scene/SceneBrightness";
 
 interface SceneProps {
   sceneId: string;
@@ -48,7 +50,8 @@ interface SceneProps {
   worldTime: WorldTimeAnchor;
   worldTimeOverridePhase: number | null;
   tokenMonitorTimeframeIndex: number;
-  tokenMonitorTradePress: { side: "buy" | "sell"; id: number; sourceSessionId: string } | null;
+  pignTimeframeIndex: number;
+  tokenMonitorTradePress: { standAddress: string; side: "buy" | "sell"; id: number; sourceSessionId: string } | null;
   tokenLaunchDisplay: TokenLaunchDisplayState;
   launchedMarketToken: LaunchedMarketToken | null;
   tickerAnnouncement: string | null;
@@ -92,6 +95,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
     worldTime,
     worldTimeOverridePhase,
     tokenMonitorTimeframeIndex,
+    pignTimeframeIndex,
     tokenMonitorTradePress,
     tokenLaunchDisplay,
     launchedMarketToken,
@@ -185,12 +189,14 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
           tickerAnnouncement={tickerAnnouncement}
           launchAnnouncementActive={launchStandAnnouncementActive}
           soundPlayingStandAddresses={soundPlayingStandAddresses}
+          activeTimeframeIndex={pignTimeframeIndex}
+          tradePress={tokenMonitorTradePress}
         />
         <CollaborativeWhiteboardDisplay snapshot={whiteboardSnapshot} />
         <StickyWallDisplay notes={stickyNotes} justPlacedAuthorSessionId={justPlacedStickyNoteAuthorSessionId} />
         <TokenMonitor
           activeTimeframeIndex={tokenMonitorTimeframeIndex}
-          tradePress={tokenMonitorTradePress}
+          tradePress={tokenMonitorTradePress?.standAddress === FIRST_TOKEN_STAND.address ? tokenMonitorTradePress : null}
           soundPlaying={soundPlayingStandAddresses.has(FIRST_TOKEN_STAND.address)}
         />
         <TokenLaunchArea state={tokenLaunchDisplay} />
@@ -203,6 +209,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
 
   return (
     <>
+      <SceneBrightness exposure={1.6} />
       {sceneEnvironment}
       {playerReady && (
         <LocalPlayer
@@ -218,6 +225,7 @@ const Scene = forwardRef<SceneHandle, SceneProps>(function Scene(
       {playerReady && whiteboardOpen && <WhiteboardCamera />}
       {playerReady && stickyWallOpen && <StickyWallCamera />}
       {playerReady && <PlayerTokenProjectile event={playerTokenThrow} localSessionId={localSessionId} />}
+      {playerReady && sceneConfig.type !== "editor" && <LaunchBots />}
 
       {remoteIds.map((sessionId) => (
         <RemotePlayer
